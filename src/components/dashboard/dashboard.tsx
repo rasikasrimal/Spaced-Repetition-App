@@ -305,7 +305,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
         </div>
       </header>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,2.2fr)_minmax(0,1.1fr)] xl:auto-rows-min">
         <div className="flex flex-col gap-6">
           <ProgressCard completionPercent={completionPercent} completed={completedCount} total={totalToday} />
 
@@ -345,8 +345,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
         <aside className="flex flex-col gap-6">
           <SubjectManagementCard subjects={subjectInsights} />
           <UpcomingScheduleCard upcoming={upcomingHighlights} />
-          <TimelinePanel variant="compact" />
         </aside>
+        <div className="xl:col-span-2">
+          <TimelinePanel />
+        </div>
       </div>
     </section>
   );
