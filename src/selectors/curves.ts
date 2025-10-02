@@ -38,9 +38,14 @@ const calcTau = (topic: Topic, events: TopicEvent[], startIndex: number): number
 
 const topicCache = new Map<string, { hash: string; segments: CurveSegment[] }>();
 
+// Helper function to serialize TopicEvent for hash construction
+function serializeEventForHash(event: TopicEvent): string {
+  return `${event.id}:${event.at}:${event.intervalDays ?? ""}`;
+}
+
 const hashTopic = (topic: Topic): string => {
   const events = topic.events ?? [];
-  const eventKey = events.map((event) => `${event.id}:${event.at}:${event.intervalDays ?? ""}`).join("|");
+  const eventKey = events.map(serializeEventForHash).join("|");
   const forgettingKey = `${topic.forgetting?.beta ?? DEFAULT_CFG.beta}-${topic.forgetting?.strategy ?? DEFAULT_CFG.strategy}-${topic.forgetting?.baseHalfLifeHours ?? DEFAULT_CFG.baseHalfLifeHours}-${topic.forgetting?.growthPerSuccessfulReview ?? DEFAULT_CFG.growthPerSuccessfulReview}`;
   const intervalKey = `${topic.intervalIndex}|${(topic.intervals ?? []).join(",")}`;
   return `${topic.id}-${eventKey}-${forgettingKey}-${intervalKey}`;
