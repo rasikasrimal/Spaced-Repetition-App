@@ -1,194 +1,147 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { Button } from "@/components/ui/button";
 import { useTopicStore } from "@/stores/topics";
-import { get, set } from "idb-keyval";
+import { toast } from "sonner";
 
-const AUTO_BACKUP_HANDLE_KEY = "auto-backup-handle";
-const AUTO_BACKUP_LAST_KEY = "auto-backup-last";
+const isDesktop = typeof window !== "undefined" && Boolean((window as any).__TAURI__);
 
-const formatSize = (state: unknown) => {
-  try {
-    const bytes = new TextEncoder().encode(JSON.stringify(state)).length;
-    return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
-  } catch {
-    return "-";
-  }
+type SystemPaths = {
+  dataDir: string;
+  backupsDir: string;
+  databasePath: string;
+  portable: boolean;
 };
 
-export function BackupControls() {
-  const storeState = useTopicStore();
-  const [busy, setBusy] = React.useState(false);
-  const [autoBackupEnabled, setAutoBackupEnabled] = React.useState(false);
-  const [lastBackup, setLastBackup] = React.useState<string | null>(null);
+export function BackupControls(): JSX.Element {
+  if (!isDesktop) {
+    return <BrowserBackupNotice />;
+  }
+  return <DesktopBackupControls />;
+}
 
-  const performAutoBackup = React.useCallback(async (handle: FileSystemDirectoryHandle) => {
-    const snapshot = useTopicStore.getState();
-    const fileHandle = await handle.getFileHandle(
-      `spacedrep-auto-${new Date().toISOString().slice(0, 10)}.json`,
-      { create: true }
-    );
-    const writable = await fileHandle.createWritable();
-    await writable.write(new Blob([JSON.stringify(snapshot, null, 2)], { type: "application/json" }));
-    await writable.close();
-    const timestamp = new Date().toISOString();
-    await set(AUTO_BACKUP_LAST_KEY, timestamp);
-    setLastBackup(new Date(timestamp).toLocaleString());
-  }, []);
+function DesktopBackupControls(): JSX.Element {
+  const topicCount = useTopicStore((state) => state.topics.length);
+  const categoryCount = useTopicStore((state) => state.categories.length);
+  const refreshSnapshot = useTopicStore((state) => state.refreshSnapshot);
+  const [paths, setPaths] = React.useState<SystemPaths | null>(null);
+  const [busy, setBusy] = React.useState(false);
 
   React.useEffect(() => {
-    let mounted = true;
-    const hydrate = async () => {
-      const handle = await get<FileSystemDirectoryHandle | undefined>(AUTO_BACKUP_HANDLE_KEY);
-      const last = await get<string | undefined>(AUTO_BACKUP_LAST_KEY);
-      if (!mounted) return;
-      setAutoBackupEnabled(Boolean(handle));
-      if (last) setLastBackup(new Date(last).toLocaleString());
-      if (handle) {
-        try {
-          const lastDate = last ? new Date(last) : null;
-          const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-          if (!lastDate || lastDate.getTime() < weekAgo) {
-            await performAutoBackup(handle);
-          }
-        } catch (error) {
-          console.warn("Auto backup failed", error);
-        }
-      }
-    };
-    hydrate();
-    return () => {
-      mounted = false;
-    };
-  }, [performAutoBackup]);
+    invoke<SystemPaths>("system_get_paths")
+      .then((result) => setPaths(result))
+      .catch((error) => {
+        console.error("Failed to resolve storage paths", error);
+      });
+  }, []);
 
-  const exportJson = async () => {
+  const handleExport = async () => {
     setBusy(true);
     try {
-      const payload = JSON.stringify(storeState, null, 2);
-      if ("showSaveFilePicker" in window) {
-        const handle = await (window as any).showSaveFilePicker({
-          suggestedName: `spacedrep-backup-${new Date().toISOString().slice(0, 10)}.json`,
-          types: [{ description: "JSON", accept: { "application/json": [".json"] } }]
-        });
-        const writable = await handle.createWritable();
-        await writable.write(new Blob([payload], { type: "application/json" }));
-        await writable.close();
-      } else {
-        const blob = new Blob([payload], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `spacedrep-backup-${Date.now()}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-      }
-      alert("Backup saved.");
+      const exported = await invoke<string>("db_export_json");
+      toast.success(`Exported backup to ${exported}`);
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not export backup");
     } finally {
       setBusy(false);
     }
   };
 
-  const importJson = async () => {
-    const parsePayload = async (file: File) => {
-      const text = await file.text();
-      const next = JSON.parse(text);
-      if (!("topics" in next)) throw new Error("Invalid backup file");
-      useTopicStore.setState(next);
-      alert("Backup restored. Reloading…");
-      location.reload();
-    };
-
-    if ("showOpenFilePicker" in window) {
-      const [handle] = await (window as any).showOpenFilePicker({
-        types: [{ description: "JSON", accept: { "application/json": [".json"] } }],
-        multiple: false
-      });
-      const file = await handle.getFile();
-      await parsePayload(file);
-    } else {
-      const input = document.createElement("input");
-      input.type = "file";
-      input.accept = "application/json";
-      input.onchange = async () => {
-        const file = input.files?.[0];
-        if (!file) return;
-        await parsePayload(file);
-      };
-      input.click();
-    }
-  };
-
-  const requestPersistentStorage = async () => {
-    if (navigator.storage && "persist" in navigator.storage) {
-      const granted = await navigator.storage.persist?.();
-      alert(granted ? "Persistent storage granted" : "Could not obtain persistent storage");
-    }
-  };
-
-  const toggleAutoBackup = async () => {
-    if (autoBackupEnabled) {
-      await set(AUTO_BACKUP_HANDLE_KEY, undefined);
-      await set(AUTO_BACKUP_LAST_KEY, undefined);
-      setAutoBackupEnabled(false);
-      setLastBackup(null);
-      return;
-    }
-    if (!("showDirectoryPicker" in window)) {
-      alert("Your browser does not support the directory picker.");
-      return;
-    }
+  const handleBackupNow = async () => {
+    setBusy(true);
     try {
-      const dirHandle = await (window as any).showDirectoryPicker();
-      await set(AUTO_BACKUP_HANDLE_KEY, dirHandle);
-      setAutoBackupEnabled(true);
-      await performAutoBackup(dirHandle);
-      alert("Auto backup enabled. A backup was created immediately.");
+      const backupPath = await invoke<string>("db_backup_now");
+      toast.success(`Backup created at ${backupPath}`);
     } catch (error) {
-      console.warn("Auto backup enable failed", error);
+      console.error(error);
+      toast.error("Failed to create backup");
+    } finally {
+      setBusy(false);
     }
   };
 
-  const topicCount = storeState.topics.length;
-  const categoryCount = storeState.categories.length;
-  const sizeEstimate = formatSize(storeState);
+  const handleImport = async () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "application/json,.json";
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      setBusy(true);
+      try {
+        const text = await file.text();
+        await invoke("db_import_from_string", { contents: text });
+        await refreshSnapshot();
+        toast.success("Import completed");
+      } catch (error) {
+        console.error(error);
+        toast.error("Import failed");
+      } finally {
+        setBusy(false);
+      }
+    };
+    input.click();
+  };
+
+  const handleOpenStorage = async () => {
+    if (!paths) return;
+    try {
+      await invoke("system_open_folder", { path: paths.dataDir });
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not open storage folder");
+    }
+  };
 
   return (
     <div className="space-y-3 rounded-2xl border border-white/5 bg-white/5 p-4">
       <div className="flex flex-wrap items-center gap-4">
         <div>
-          <p className="text-sm font-semibold text-white">Local storage</p>
+          <p className="text-sm font-semibold text-white">Offline storage</p>
           <p className="text-xs text-zinc-300">
-            {topicCount} topics · {categoryCount} categories · approx {sizeEstimate}
+            {topicCount} topics · {categoryCount} categories · data stored at {paths?.databasePath ?? "…"}
           </p>
+          {paths ? (
+            <p className="text-xs text-zinc-400">
+              Backups in {paths.backupsDir} · {paths.portable ? "Portable mode" : "Installed mode"}
+            </p>
+          ) : null}
         </div>
-        <div className="ml-auto flex gap-2">
-          <Button type="button" disabled={busy} onClick={exportJson}>
+        <div className="ml-auto flex flex-wrap gap-2">
+          <Button type="button" onClick={handleExport} disabled={busy}>
             Export JSON
           </Button>
-          <Button type="button" disabled={busy} onClick={importJson}>
+          <Button type="button" onClick={handleImport} disabled={busy}>
             Import JSON
+          </Button>
+          <Button type="button" onClick={handleBackupNow} disabled={busy}>
+            Create backup now
+          </Button>
+          <Button type="button" variant="outline" onClick={handleOpenStorage} disabled={!paths}>
+            Open storage folder
           </Button>
         </div>
       </div>
-      <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-300">
-        <Button variant="outline" type="button" onClick={requestPersistentStorage}>
-          Force persist request
-        </Button>
-        <Button variant="outline" type="button" onClick={toggleAutoBackup}>
-          {autoBackupEnabled ? "Disable auto backup" : "Enable auto backup"}
-        </Button>
-        {lastBackup ? <span>Last auto backup: {lastBackup}</span> : null}
-      </div>
-      <div className="rounded-md border border-white/10 bg-white/5 p-3 text-xs text-zinc-200">
-        <p className="font-semibold">How to install / backup</p>
-        <ol className="mt-2 list-decimal space-y-1 pl-4">
-          <li>Open in Chrome, click the install icon, choose “Install”.</li>
-          <li>Launch from Start Menu/desktop – works offline.</li>
-          <li>Backup via Export JSON; restore with Import JSON.</li>
-        </ol>
-      </div>
+      <p className="text-xs text-zinc-400">
+        All data is stored locally. Exports include topics, categories, intervals, and reminder preferences. Imports replace the
+        existing database after confirmation.
+      </p>
     </div>
   );
 }
+
+function BrowserBackupNotice(): JSX.Element {
+  return (
+    <div className="rounded-2xl border border-white/5 bg-white/5 p-4 text-sm text-zinc-300">
+      <p className="font-semibold text-white">Browser mode backup</p>
+      <p className="mt-1 text-xs">
+        When running in a browser you can export data from the overflow menu of your PWA. Install the desktop application for
+        automated backups and offline storage guarantees.
+      </p>
+    </div>
+  );
+}
+

@@ -27,7 +27,7 @@ export type Topic = {
   title: string;
   notes: string;
   categoryId: string | null;
-  categoryLabel: string;
+  categoryLabel: string | null;
   icon: string;
   color: string;
   reminderTime: string | null;
@@ -36,14 +36,22 @@ export type Topic = {
   nextReviewDate: string;
   lastReviewedAt: string | null;
   createdAt: string;
+  updatedAt: string;
   startedAt?: string;
   events?: TopicEvent[];
   forgetting?: TopicForgettingConfig;
+  snoozedUntil?: string | null;
 };
 
 export type Category = {
   id: string;
   label: string;
-  color: string;
-  icon: string;
+  color?: string;
+  icon?: string;
+};
+
+export type DesktopSnapshot = {
+  topics: Topic[];
+  categories: Category[];
+  schemaVersion: number;
 };

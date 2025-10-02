@@ -16,6 +16,15 @@ interface DashboardProps {
 
 export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic }) => {
   const topics = useTopicStore((state) => state.topics);
+  const hydrated = useTopicStore((state) => state.hydrated);
+  const initializing = useTopicStore((state) => state.initializing);
+  const initialize = useTopicStore((state) => state.initialize);
+
+  React.useEffect(() => {
+    if (!hydrated) {
+      void initialize();
+    }
+  }, [hydrated, initialize]);
 
   const { sortedTopics, dueCount } = React.useMemo(() => {
     const sorted = [...topics].sort(
@@ -50,7 +59,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
         </div>
       </header>
 
-      {sortedTopics.length === 0 ? (
+      {!hydrated || initializing ? (
+        <div className="flex flex-1 items-center justify-center rounded-3xl border border-dashed border-white/10 bg-white/5 p-10 text-center text-sm text-zinc-400">
+          Loading topics…
+        </div>
+      ) : sortedTopics.length === 0 ? (
         <div className="flex flex-1 items-center justify-center rounded-3xl border border-dashed border-white/10 bg-white/5 p-10 text-center">
           <div className="max-w-sm space-y-4">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/20 text-accent">

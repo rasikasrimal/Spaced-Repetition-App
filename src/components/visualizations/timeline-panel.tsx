@@ -105,6 +105,14 @@ const deriveSeries = (topics: Topic[], visibility: TopicVisibility): TimelineSer
 export function TimelinePanel(): JSX.Element {
   const topics = useTopicStore((state) => state.topics);
   const categories = useTopicStore((state) => state.categories);
+  const initialize = useTopicStore((state) => state.initialize);
+  const hydrated = useTopicStore((state) => state.hydrated);
+
+  React.useEffect(() => {
+    if (!hydrated) {
+      void initialize();
+    }
+  }, [hydrated, initialize]);
 
   const [visibility, setVisibility] = React.useState<TopicVisibility>({});
   const [categoryFilter, setCategoryFilter] = React.useState<Set<string>>(new Set());

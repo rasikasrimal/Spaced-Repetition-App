@@ -13,7 +13,7 @@ interface TopicCardProps {
   id: string;
   title: string;
   notes: string;
-  categoryLabel: string;
+  categoryLabel: string | null;
   color: string;
   icon: string;
   nextReviewDate: string;
@@ -38,6 +38,8 @@ export const TopicCard: React.FC<TopicCardProps> = ({
 }) => {
   const markReviewed = useTopicStore((state) => state.markReviewed);
   const deleteTopic = useTopicStore((state) => state.deleteTopic);
+  const [marking, setMarking] = React.useState(false);
+  const [removing, setRemoving] = React.useState(false);
   const due = isDueToday(nextReviewDate);
   const totalIntervals = Math.max(intervals.length, 1);
   const currentInterval =
@@ -103,17 +105,36 @@ export const TopicCard: React.FC<TopicCardProps> = ({
           <Button
             type="button"
             className="flex-1"
-            onClick={() => markReviewed(id)}
-            disabled={!due}
+            onClick={async () => {
+              try {
+                setMarking(true);
+                await markReviewed(id);
+              } finally {
+                setMarking(false);
+              }
+            }}
+            disabled={!due || marking}
           >
-            {due ? "Mark Reviewed" : "Scheduled"}
+            {due ? (marking ? "Updating…" : "Mark Reviewed") : "Scheduled"}
           </Button>
           <div className="flex items-center gap-2">
             <Button type="button" variant="ghost" size="icon" onClick={onEdit}>
               <PenLine className="h-4 w-4" />
             </Button>
-            <Button type="button" variant="ghost" onClick={() => deleteTopic(id)}>
-              Delete
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={async () => {
+                try {
+                  setRemoving(true);
+                  await deleteTopic(id);
+                } finally {
+                  setRemoving(false);
+                }
+              }}
+              disabled={removing}
+            >
+              {removing ? "Deleting…" : "Delete"}
             </Button>
           </div>
         </div>

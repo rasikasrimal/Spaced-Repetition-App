@@ -13,14 +13,14 @@
     "windows": [
       {
         "title": "SpacedRep",
-        "width": 800,
-        "height": 600,
+        "width": 1024,
+        "height": 720,
         "resizable": true,
         "fullscreen": false
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; connect-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'"
     }
   },
   "bundle": {

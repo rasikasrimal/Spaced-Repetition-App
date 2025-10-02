@@ -31,13 +31,22 @@ interface TopicFormProps {
 const isValidTimeValue = (value: string) => /^([0-1]\d|2[0-3]):([0-5]\d)$/.test(value);
 
 export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitComplete }) => {
-  const { addTopic, updateTopic, addCategory, categories, topics } = useTopicStore((state) => ({
-    addTopic: state.addTopic,
-    updateTopic: state.updateTopic,
-    addCategory: state.addCategory,
-    categories: state.categories,
-    topics: state.topics
-  }));
+  const { addTopic, updateTopic, addCategory, categories, topics, initialize, hydrated } =
+    useTopicStore((state) => ({
+      addTopic: state.addTopic,
+      updateTopic: state.updateTopic,
+      addCategory: state.addCategory,
+      categories: state.categories,
+      topics: state.topics,
+      initialize: state.initialize,
+      hydrated: state.hydrated
+    }));
+
+  React.useEffect(() => {
+    if (!hydrated) {
+      void initialize();
+    }
+  }, [hydrated, initialize]);
 
   const topic = React.useMemo(
     () => (topicId ? topics.find((item) => item.id === topicId) ?? null : null),
@@ -58,6 +67,7 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
   const [timeOption, setTimeOption] = React.useState<string>("09:00");
   const [customTime, setCustomTime] = React.useState("09:00");
   const [intervals, setIntervals] = React.useState<number[]>(() => [...defaultIntervals]);
+  const [saving, setSaving] = React.useState(false);
 
   const resetToDefaults = React.useCallback(() => {
     setTitle("");
@@ -91,7 +101,11 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
 
     const matchedCategory = topic.categoryId
       ? categories.find((item) => item.id === topic.categoryId)
-      : categories.find((item) => item.label.toLowerCase() === topic.categoryLabel.toLowerCase());
+      : topic.categoryLabel
+        ? categories.find(
+            (item) => item.label.toLowerCase() === topic.categoryLabel?.toLowerCase()
+          )
+        : undefined;
 
     const resolvedCategoryId = matchedCategory?.id ?? topic.categoryId ?? "general";
     const resolvedCategoryLabel = matchedCategory?.label ?? topic.categoryLabel ?? "General";
@@ -123,7 +137,7 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
     }
   }, [isEditing, topic, categories]);
 
-  const handleCreateCategory = () => {
+  const handleCreateCategory = async () => {
     const label = newCategory.trim();
     if (!label) return;
 
@@ -138,7 +152,7 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
       return;
     }
 
-    const category = addCategory({ label, color, icon });
+    const category = await addCategory({ label, color, icon });
     setCategoryId(category.id);
     setCategoryLabel(category.label);
     setNewCategory("");
@@ -147,7 +161,7 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
   const handleNewCategoryKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter") {
       event.preventDefault();
-      handleCreateCategory();
+      void handleCreateCategory();
     }
   };
 
@@ -179,15 +193,15 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
     }
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (saving) return;
     if (!title.trim()) {
       toast.error("Topic title is required");
       return;
     }
 
     let resolvedCategoryId = categoryId;
-    let resolvedCategoryLabel = categoryLabel;
 
     if (categoryId === "create") {
       const label = newCategory.trim();
@@ -202,14 +216,12 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
 
       if (existing) {
         resolvedCategoryId = existing.id;
-        resolvedCategoryLabel = existing.label;
         setCategoryId(existing.id);
         setCategoryLabel(existing.label);
         setNewCategory("");
       } else {
-        const created = addCategory({ label, color, icon });
+        const created = await addCategory({ label, color, icon });
         resolvedCategoryId = created.id;
-        resolvedCategoryLabel = created.label;
         setCategoryId(created.id);
         setCategoryLabel(created.label);
         setNewCategory("");
@@ -233,24 +245,31 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
       title,
       notes,
       categoryId: resolvedCategoryId,
-      categoryLabel: resolvedCategoryLabel,
       icon,
       color,
       reminderTime: nextReminderTime,
       intervals: [...intervals].sort((a, b) => a - b)
     };
 
-    if (isEditing && topic) {
-      updateTopic(topic.id, payload);
-      toast.success("Topic updated");
-      onSubmitComplete?.("edit");
-      return;
-    }
+    try {
+      setSaving(true);
+      if (isEditing && topic) {
+        await updateTopic(topic.id, payload);
+        toast.success("Topic updated");
+        onSubmitComplete?.("edit");
+        return;
+      }
 
-    addTopic(payload);
-    toast.success("Topic saved");
-    resetToDefaults();
-    onSubmitComplete?.("create");
+      await addTopic(payload);
+      toast.success("Topic saved");
+      resetToDefaults();
+      onSubmitComplete?.("create");
+    } catch (error) {
+      console.error(error);
+      toast.error("Something went wrong while saving the topic");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCategoryChange = (value: string) => {
@@ -292,7 +311,7 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
                   <span className="flex items-center gap-2">
                     <span
                       className="h-2 w-2 rounded-full"
-                      style={{ backgroundColor: category.color }}
+                      style={{ backgroundColor: category.color ?? color }}
                     />
                     {category.label}
                   </span>
@@ -309,7 +328,11 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
                 onKeyDown={handleNewCategoryKeyDown}
                 placeholder="New category name"
               />
-              <Button type="button" onClick={handleCreateCategory} disabled={!newCategory.trim()}>
+              <Button
+                type="button"
+                onClick={() => void handleCreateCategory()}
+                disabled={!newCategory.trim()}
+              >
                 Save
               </Button>
             </div>
@@ -367,8 +390,8 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
         </div>
 
         <div className="flex justify-end">
-          <Button type="submit" className="px-6">
-            {isEditing ? "Update Topic" : "Save Topic"}
+          <Button type="submit" className="px-6" disabled={saving}>
+            {saving ? "Saving…" : isEditing ? "Update Topic" : "Save Topic"}
           </Button>
         </div>
       </div>

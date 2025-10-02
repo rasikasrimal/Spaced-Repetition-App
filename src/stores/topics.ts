@@ -1,9 +1,12 @@
+"use client";
+
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { nanoid } from "nanoid";
-import { Category, Topic, TopicEvent } from "@/types/topic";
+import { invoke } from "@tauri-apps/api/core";
+
 import { idbStorage } from "@/lib/idb-storage";
-import { nativeFileStorage } from "@/lib/native-file-storage";
+import { Category, DesktopSnapshot, Topic } from "@/types/topic";
 
 export type ReviewStatus = "due" | "scheduled" | "completed";
 
@@ -11,33 +14,29 @@ export type TopicPayload = {
   title: string;
   notes: string;
   categoryId: string | null;
-  categoryLabel: string;
   icon: string;
   color: string;
   reminderTime: string | null;
   intervals: number[];
 };
 
-type TopicStoreState = {
+export type TopicStore = {
   topics: Topic[];
   categories: Category[];
-  _migratedToIDB?: boolean;
+  hydrated: boolean;
+  initializing: boolean;
+  initialize: () => Promise<void>;
+  refreshSnapshot: () => Promise<void>;
+  addCategory: (payload: Omit<Category, "id">) => Promise<Category>;
+  deleteCategory: (id: string) => Promise<void>;
+  addTopic: (payload: TopicPayload, options?: { id?: string }) => Promise<Topic>;
+  updateTopic: (id: string, payload: TopicPayload) => Promise<Topic>;
+  deleteTopic: (id: string) => Promise<void>;
+  markReviewed: (id: string) => Promise<Topic>;
 };
 
-type TopicStore = TopicStoreState & {
-  addCategory: (category: Omit<Category, "id">) => Category;
-  addTopic: (payload: TopicPayload) => void;
-  updateTopic: (id: string, payload: TopicPayload) => void;
-  deleteTopic: (id: string) => void;
-  markReviewed: (id: string) => void;
-};
-
-const DEFAULT_FORGETTING = Object.freeze({
-  beta: 1.0,
-  strategy: "reviews" as const,
-  baseHalfLifeHours: 12,
-  growthPerSuccessfulReview: 2.0
-});
+const isDesktop =
+  typeof window !== "undefined" && Boolean((window as any).__TAURI__);
 
 const computeNextReviewDate = (
   lastReviewedAt: string | null,
@@ -53,205 +52,209 @@ const computeNextReviewDate = (
   return nextDate.toISOString();
 };
 
-const STORAGE_KEY = "spacedrep-store-v3";
-const LEGACY_STORAGE_KEY = "spaced-repetition-store";
-const VERSION = 3;
+const createDesktopStore = () => {
+  const store = create<TopicStore>((set, get) => ({
+    topics: [],
+    categories: [],
+    hydrated: false,
+    initializing: false,
+    initialize: async () => {
+      if (get().hydrated || get().initializing) return;
+      set({ initializing: true });
+      try {
+        const snapshot = await invoke<DesktopSnapshot>("db_get_snapshot");
+        set({
+          topics: snapshot.topics,
+          categories: snapshot.categories,
+          hydrated: true,
+        });
+      } finally {
+        set({ initializing: false });
+      }
+    },
+    refreshSnapshot: async () => {
+      const snapshot = await invoke<DesktopSnapshot>("db_get_snapshot");
+      set({
+        topics: snapshot.topics,
+        categories: snapshot.categories,
+        hydrated: true,
+      });
+    },
+    addCategory: async (payload) => {
+      const category = await invoke<Category>("db_create_category", { payload });
+      set((state) => ({ categories: [...state.categories, category] }));
+      return category;
+    },
+    deleteCategory: async (id) => {
+      await invoke("db_delete_category", { id });
+      set((state) => ({
+        categories: state.categories.filter((category) => category.id !== id),
+        topics: state.topics.map((topic) =>
+          topic.categoryId === id
+            ? { ...topic, categoryId: null, categoryLabel: null }
+            : topic
+        ),
+      }));
+    },
+    addTopic: async (payload, options) => {
+      const topic = await invoke<Topic>("db_create_topic", {
+        id: options?.id ?? null,
+        payload,
+      });
+      set((state) => ({ topics: [topic, ...state.topics] }));
+      return topic;
+    },
+    updateTopic: async (id, payload) => {
+      const topic = await invoke<Topic>("db_update_topic", { id, payload });
+      set((state) => ({
+        topics: state.topics.map((item) => (item.id === id ? topic : item)),
+      }));
+      return topic;
+    },
+    deleteTopic: async (id) => {
+      await invoke("db_delete_topic", { id });
+      set((state) => ({ topics: state.topics.filter((topic) => topic.id !== id) }));
+    },
+    markReviewed: async (id) => {
+      const topic = await invoke<Topic>("db_mark_reviewed", { id });
+      set((state) => ({
+        topics: state.topics.map((item) => (item.id === id ? topic : item)),
+      }));
+      return topic;
+    },
+  }));
 
-type PersistedState = TopicStoreState & { version?: number };
-
-const migrateEventsAndConfig = (rawTopic: Topic & { currentIntervalIndex?: number }): Topic => {
-  const intervalIndex = rawTopic.intervalIndex ?? rawTopic.currentIntervalIndex ?? 0;
-  const { currentIntervalIndex: _legacy, ...rest } = rawTopic as Topic & {
-    currentIntervalIndex?: number;
-  };
-  const startedAt = rest.startedAt ?? rest.createdAt;
-  const seededEvents: TopicEvent[] = Array.isArray(rest.events) ? [...rest.events] : [];
-
-  if (!seededEvents.some((event) => event.type === "started")) {
-    seededEvents.unshift({
-      id: nanoid(),
-      topicId: rest.id,
-      type: "started",
-      at: startedAt
-    });
+  if (typeof window !== "undefined") {
+    void store.getState().initialize();
   }
 
-  if (
-    rest.lastReviewedAt &&
-    !seededEvents.some((event) => event.type === "reviewed" && event.at === rest.lastReviewedAt)
-  ) {
-    const interval = rest.intervals?.[intervalIndex] ?? rest.intervals?.[0] ?? 1;
-    seededEvents.push({
-      id: nanoid(),
-      topicId: rest.id,
-      type: "reviewed",
-      at: rest.lastReviewedAt,
-      intervalDays: interval
-    });
-  }
+  return store;
+};
 
-  const orderedEvents = seededEvents.sort(
-    (a, b) => new Date(a.at).getTime() - new Date(b.at).getTime()
+const createBrowserStore = () =>
+  create<TopicStore>()(
+    persist(
+      (set, get) => ({
+        topics: [],
+        categories: [
+          { id: "general", label: "General", color: "#38bdf8", icon: "Sparkles" },
+        ],
+        hydrated: true,
+        initializing: false,
+        initialize: async () => {},
+        refreshSnapshot: async () => {},
+        addCategory: async (payload) => {
+          const category: Category = {
+            id: nanoid(),
+            label: payload.label,
+            color: payload.color,
+            icon: payload.icon,
+          };
+          set((state) => ({ categories: [...state.categories, category] }));
+          return category;
+        },
+        deleteCategory: async (id) => {
+          set((state) => ({
+            categories: state.categories.filter((category) => category.id !== id),
+            topics: state.topics.map((topic) =>
+              topic.categoryId === id
+                ? { ...topic, categoryId: null, categoryLabel: null }
+                : topic
+            ),
+          }));
+        },
+        addTopic: async (payload, options) => {
+          const id = options?.id ?? nanoid();
+          const createdAt = new Date().toISOString();
+          const intervalIndex = 0;
+          const nextReviewDate = computeNextReviewDate(null, payload.intervals, intervalIndex);
+          const topic: Topic = {
+            id,
+            title: payload.title,
+            notes: payload.notes,
+            categoryId: payload.categoryId,
+            categoryLabel: get()
+              .categories.find((category) => category.id === payload.categoryId)?.label ?? null,
+            icon: payload.icon,
+            color: payload.color,
+            reminderTime: payload.reminderTime,
+            intervals: [...payload.intervals],
+            intervalIndex,
+            nextReviewDate,
+            lastReviewedAt: null,
+            createdAt,
+            updatedAt: createdAt,
+            snoozedUntil: null,
+          };
+          set((state) => ({ topics: [topic, ...state.topics] }));
+          return topic;
+        },
+        updateTopic: async (id, payload) => {
+          set((state) => ({
+            topics: state.topics.map((topic) => {
+              if (topic.id !== id) return topic;
+              const nextReviewDate = computeNextReviewDate(
+                topic.lastReviewedAt,
+                payload.intervals,
+                topic.intervalIndex
+              );
+              return {
+                ...topic,
+                title: payload.title,
+                notes: payload.notes,
+                categoryId: payload.categoryId,
+                categoryLabel:
+                  state.categories.find((category) => category.id === payload.categoryId)?.label ??
+                  null,
+                icon: payload.icon,
+                color: payload.color,
+                reminderTime: payload.reminderTime,
+                intervals: [...payload.intervals],
+                nextReviewDate,
+                updatedAt: new Date().toISOString(),
+              };
+            }),
+          }));
+          const topic = get().topics.find((item) => item.id === id);
+          if (!topic) throw new Error("Topic not found");
+          return topic;
+        },
+        deleteTopic: async (id) => {
+          set((state) => ({ topics: state.topics.filter((topic) => topic.id !== id) }));
+        },
+        markReviewed: async (id) => {
+          let updatedTopic: Topic | null = null;
+          set((state) => ({
+            topics: state.topics.map((topic) => {
+              if (topic.id !== id) return topic;
+              const now = new Date().toISOString();
+              const intervals = topic.intervals.length > 0 ? topic.intervals : [1];
+              const nextIndex = Math.min(topic.intervalIndex + 1, intervals.length - 1);
+              const nextReviewDate = computeNextReviewDate(now, intervals, nextIndex);
+              const nextTopic = {
+                ...topic,
+                intervalIndex: nextIndex,
+                lastReviewedAt: now,
+                nextReviewDate,
+                updatedAt: now,
+                snoozedUntil: null,
+              };
+              updatedTopic = nextTopic;
+              return nextTopic;
+            }),
+          }));
+          if (!updatedTopic) {
+            throw new Error("Topic not found");
+          }
+          return updatedTopic;
+        },
+      }),
+      {
+        name: "spacedrep-browser-store",
+        storage: createJSONStorage(() => idbStorage),
+      }
+    )
   );
 
-  return {
-    ...rest,
-    intervalIndex,
-    startedAt,
-    events: orderedEvents,
-    forgetting: rest.forgetting ?? { ...DEFAULT_FORGETTING }
-  };
-};
-
-const migratePersistedState = async (persisted: PersistedState | undefined, from: number): Promise<PersistedState> => {
-  if (!persisted) {
-    return { topics: [], categories: [], _migratedToIDB: false };
-  }
-
-  let state = persisted;
-
-  if (from < 2) {
-    state = {
-      ...state,
-      topics: state.topics.map((topic) => migrateEventsAndConfig(topic as Topic))
-    };
-  }
-
-  if (from < VERSION) {
-    state = {
-      ...state,
-      topics: state.topics.map((topic) => migrateEventsAndConfig(topic as Topic)),
-      _migratedToIDB: state._migratedToIDB ?? false
-    };
-  }
-
-  return state;
-};
-
-export const useTopicStore = create<TopicStore>()(
-  persist(
-    (set, get) => ({
-      topics: [],
-      categories: [
-        { id: "general", label: "General", color: "#38bdf8", icon: "Sparkles" }
-      ],
-      _migratedToIDB: false,
-      addCategory: (category) => {
-        const newCategory: Category = {
-          id: nanoid(),
-          ...category
-        };
-        set((state) => ({ categories: [...state.categories, newCategory] }));
-        return newCategory;
-      },
-      addTopic: (payload) => {
-        const id = nanoid();
-        const createdAt = new Date().toISOString();
-        const startedAt = createdAt;
-        const intervalIndex = 0;
-        const nextReviewDate = computeNextReviewDate(null, payload.intervals, intervalIndex);
-        const startedEvent: TopicEvent = {
-          id: nanoid(),
-          topicId: id,
-          type: "started",
-          at: startedAt
-        };
-
-        const topic: Topic = {
-          id,
-          createdAt,
-          startedAt,
-          lastReviewedAt: null,
-          intervalIndex,
-          nextReviewDate,
-          events: [startedEvent],
-          forgetting: { ...DEFAULT_FORGETTING },
-          ...payload
-        };
-        set((state) => ({ topics: [topic, ...state.topics] }));
-      },
-      updateTopic: (id, payload) => {
-        set((state) => ({
-          topics: state.topics.map((topic) => {
-            if (topic.id !== id) return topic;
-            const updatedIntervals = payload.intervals;
-            const nextReviewDate = computeNextReviewDate(
-              topic.lastReviewedAt,
-              updatedIntervals,
-              topic.intervalIndex
-            );
-            return {
-              ...topic,
-              ...payload,
-              intervals: updatedIntervals,
-              nextReviewDate
-            };
-          })
-        }));
-      },
-      deleteTopic: (id) => {
-        set((state) => ({ topics: state.topics.filter((topic) => topic.id !== id) }));
-      },
-      markReviewed: (id) => {
-        set((state) => ({
-          topics: state.topics.map((topic) => {
-            if (topic.id !== id) return topic;
-
-            const nowIso = new Date().toISOString();
-            const currentIntervals = topic.intervals.length > 0 ? topic.intervals : [1];
-            const nextIndex = Math.min(topic.intervalIndex + 1, currentIntervals.length - 1);
-            const intervalDays = currentIntervals[nextIndex] ?? 1;
-            const updatedEvents: TopicEvent[] = [
-              ...(topic.events ?? []),
-              {
-                id: nanoid(),
-                topicId: topic.id,
-                type: "reviewed",
-                at: nowIso,
-                intervalDays
-              }
-            ];
-
-            return {
-              ...topic,
-              intervalIndex: nextIndex,
-              lastReviewedAt: nowIso,
-              nextReviewDate: computeNextReviewDate(nowIso, currentIntervals, nextIndex),
-              events: updatedEvents
-            };
-          })
-        }));
-      }
-    }),
-    {
-      name: STORAGE_KEY,
-      storage: createJSONStorage(() => {
-        if (typeof window !== "undefined" && (window as any).__TAURI__) {
-          return nativeFileStorage;
-        }
-        return idbStorage;
-      }),
-      version: VERSION,
-      migrate: async (persistedState, from) => migratePersistedState(persistedState as PersistedState | undefined, from),
-      onRehydrateStorage: () => {
-        return (state) => {
-          if (!state || state._migratedToIDB) return;
-          try {
-            const legacy = localStorage.getItem(LEGACY_STORAGE_KEY) ?? localStorage.getItem(STORAGE_KEY);
-            if (legacy) {
-              const parsed = JSON.parse(legacy);
-              idbStorage.setItem(STORAGE_KEY, parsed);
-              localStorage.removeItem(LEGACY_STORAGE_KEY);
-              localStorage.removeItem(STORAGE_KEY);
-            }
-          } catch (error) {
-            console.warn("IDB migration failed", error);
-          }
-          useTopicStore.setState({ _migratedToIDB: true });
-        };
-      }
-    }
-  )
-);
-
+export const useTopicStore = isDesktop ? createDesktopStore() : createBrowserStore();
 
