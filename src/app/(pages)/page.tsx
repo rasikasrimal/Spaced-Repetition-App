@@ -9,8 +9,42 @@ import { CalendarClock } from "lucide-react";
 import { useReminderScheduler } from "@/hooks/use-reminder-scheduler";
 
 export default function HomePage() {
-  const [showForm, setShowForm] = React.useState(true);
+  const [showForm, setShowForm] = React.useState(false);
+  const [editingTopicId, setEditingTopicId] = React.useState<string | null>(null);
   useReminderScheduler();
+
+  const handleToggleForm = () => {
+    setShowForm((previous) => {
+      const next = !previous;
+      if (!next) {
+        setEditingTopicId(null);
+      }
+      return next;
+    });
+  };
+
+  const handleCreateTopic = () => {
+    setEditingTopicId(null);
+    setShowForm(true);
+  };
+
+  const handleEditTopic = (id: string) => {
+    setEditingTopicId(id);
+    setShowForm(true);
+  };
+
+  const handleFormComplete = (mode: "create" | "edit") => {
+    if (mode === "edit") {
+      setShowForm(false);
+    }
+    setEditingTopicId(null);
+  };
+
+  const toggleLabel = showForm
+    ? editingTopicId
+      ? "Close editor"
+      : "Close form"
+    : "Add new topic";
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-8 px-4 py-10 md:px-6 lg:px-8">
@@ -24,21 +58,22 @@ export default function HomePage() {
               <CalendarClock className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="text-3xl font-semibold text-white">Spaced Repetition, simplified</h1>
+              <h1 className="text-3xl font-semibold text-white">Stay ahead of your reviews</h1>
               <p className="max-w-2xl text-sm text-zinc-300">
-                Capture topics, craft your review cadence, and keep knowledge fresh with local-first
-                storage. Everything stays on your device while reminders and intervals keep you on
-                track.
+                Your topics are listed by next review date so you always know what is coming up next.
+                Open the composer whenever you want to add something new.
               </p>
             </div>
           </div>
-          <Button variant="outline" onClick={() => setShowForm((previous) => !previous)}>
-            {showForm ? "Hide form" : "Add new topic"}
+          <Button variant="outline" onClick={handleToggleForm}>
+            {toggleLabel}
           </Button>
         </div>
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,360px)_1fr]">
-          {showForm ? <TopicForm /> : null}
-          <Dashboard onCreateTopic={() => setShowForm(true)} />
+        <div className={showForm ? "grid gap-6 lg:grid-cols-[minmax(0,360px)_1fr]" : "grid gap-6"}>
+          {showForm ? (
+            <TopicForm topicId={editingTopicId} onSubmitComplete={handleFormComplete} />
+          ) : null}
+          <Dashboard onCreateTopic={handleCreateTopic} onEditTopic={handleEditTopic} />
         </div>
       </motion.section>
     </main>

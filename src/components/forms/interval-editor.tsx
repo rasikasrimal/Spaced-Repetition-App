@@ -19,13 +19,19 @@ export const IntervalEditor: React.FC<IntervalEditorProps> = ({ value, onChange 
     }
   };
 
-  const handleAddCustom = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const parsed = Number(customValue);
-    if (!Number.isFinite(parsed) || parsed <= 0) return;
+  const handleAddCustom = () => {
+    const parsed = Number.parseInt(customValue.trim(), 10);
+    if (Number.isNaN(parsed) || parsed <= 0) return;
     if (value.includes(parsed)) return;
     onChange([...value, parsed].sort((a, b) => a - b));
     setCustomValue("");
+  };
+
+  const handleCustomKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      handleAddCustom();
+    }
   };
 
   return (
@@ -46,18 +52,22 @@ export const IntervalEditor: React.FC<IntervalEditorProps> = ({ value, onChange 
           );
         })}
       </div>
-      <form onSubmit={handleAddCustom} className="flex items-center gap-2">
+      <div className="flex items-center gap-2">
         <Input
           value={customValue}
           onChange={(event) => setCustomValue(event.target.value)}
+          onKeyDown={handleCustomKeyDown}
           placeholder="Custom (days)"
           className="w-32"
+          type="number"
+          min={1}
+          step={1}
           inputMode="numeric"
         />
-        <Button type="submit" variant="outline">
+        <Button type="button" variant="outline" onClick={handleAddCustom}>
           Add
         </Button>
-      </form>
+      </div>
       <p className="text-xs text-zinc-400">
         Intervals determine when the topic will be reviewed again. The first interval schedules the
         next session.

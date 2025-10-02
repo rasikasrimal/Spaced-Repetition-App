@@ -16,13 +16,37 @@ import {
 import { ColorPicker } from "@/components/forms/color-picker";
 import { IconPicker } from "@/components/forms/icon-picker";
 import { IntervalEditor } from "@/components/forms/interval-editor";
-import { DEFAULT_INTERVALS } from "@/lib/constants";
+import { DEFAULT_INTERVALS, REMINDER_TIME_OPTIONS } from "@/lib/constants";
 import { toast } from "sonner";
 
 const defaultIntervals = DEFAULT_INTERVALS.map((preset) => preset.days);
 
-export const TopicForm: React.FC = () => {
-  const { addTopic, categories, addCategory } = useTopicStore();
+type TopicFormMode = "create" | "edit";
+
+interface TopicFormProps {
+  topicId?: string | null;
+  onSubmitComplete?: (mode: TopicFormMode) => void;
+}
+
+const isValidTimeValue = (value: string) => /^([0-1]\d|2[0-3]):([0-5]\d)$/.test(value);
+
+export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitComplete }) => {
+  const { addTopic, updateTopic, addCategory, categories, topics } = useTopicStore((state) => ({
+    addTopic: state.addTopic,
+    updateTopic: state.updateTopic,
+    addCategory: state.addCategory,
+    categories: state.categories,
+    topics: state.topics
+  }));
+
+  const topic = React.useMemo(
+    () => (topicId ? topics.find((item) => item.id === topicId) ?? null : null),
+    [topics, topicId]
+  );
+
+  const isEditing = Boolean(topicId && topic);
+  const lastLoadedTopicRef = React.useRef<string | null>(null);
+
   const [title, setTitle] = React.useState("");
   const [notes, setNotes] = React.useState("");
   const [categoryId, setCategoryId] = React.useState<string | null>("general");
@@ -30,18 +54,129 @@ export const TopicForm: React.FC = () => {
   const [newCategory, setNewCategory] = React.useState("");
   const [icon, setIcon] = React.useState("Sparkles");
   const [color, setColor] = React.useState("#38bdf8");
-  const [reminderTime, setReminderTime] = React.useState<string | null>(null);
-  const [intervals, setIntervals] = React.useState<number[]>(defaultIntervals);
+  const [reminderTime, setReminderTime] = React.useState<string | null>("09:00");
+  const [timeOption, setTimeOption] = React.useState<string>("09:00");
+  const [customTime, setCustomTime] = React.useState("09:00");
+  const [intervals, setIntervals] = React.useState<number[]>(() => [...defaultIntervals]);
 
-  const resetForm = () => {
+  const resetToDefaults = React.useCallback(() => {
     setTitle("");
     setNotes("");
     setCategoryId("general");
     setCategoryLabel("General");
     setIcon("Sparkles");
     setColor("#38bdf8");
-    setReminderTime(null);
-    setIntervals(defaultIntervals);
+    setReminderTime("09:00");
+    setTimeOption("09:00");
+    setCustomTime("09:00");
+    setIntervals([...defaultIntervals]);
+    setNewCategory("");
+  }, []);
+
+  React.useEffect(() => {
+    if (!topicId) {
+      resetToDefaults();
+      lastLoadedTopicRef.current = null;
+    }
+  }, [topicId, resetToDefaults]);
+
+  React.useEffect(() => {
+    if (!isEditing || !topic) return;
+    if (lastLoadedTopicRef.current === topic.id) return;
+
+    lastLoadedTopicRef.current = topic.id;
+
+    setTitle(topic.title);
+    setNotes(topic.notes);
+
+    const matchedCategory = topic.categoryId
+      ? categories.find((item) => item.id === topic.categoryId)
+      : categories.find((item) => item.label.toLowerCase() === topic.categoryLabel.toLowerCase());
+
+    const resolvedCategoryId = matchedCategory?.id ?? topic.categoryId ?? "general";
+    const resolvedCategoryLabel = matchedCategory?.label ?? topic.categoryLabel ?? "General";
+
+    setCategoryId(resolvedCategoryId);
+    setCategoryLabel(resolvedCategoryLabel);
+    setIcon(topic.icon);
+    setColor(topic.color);
+    setIntervals([...topic.intervals]);
+    setNewCategory("");
+
+    if (topic.reminderTime) {
+      const presetMatch = REMINDER_TIME_OPTIONS.find(
+        (option) => option.value === topic.reminderTime
+      );
+      if (presetMatch && presetMatch.value !== "custom" && presetMatch.value !== "none") {
+        setTimeOption(presetMatch.value);
+        setReminderTime(presetMatch.value);
+        setCustomTime(presetMatch.value);
+      } else {
+        setTimeOption("custom");
+        setCustomTime(topic.reminderTime);
+        setReminderTime(topic.reminderTime);
+      }
+    } else {
+      setTimeOption("none");
+      setReminderTime(null);
+      setCustomTime("09:00");
+    }
+  }, [isEditing, topic, categories]);
+
+  const handleCreateCategory = () => {
+    const label = newCategory.trim();
+    if (!label) return;
+
+    const existing = categories.find(
+      (item) => item.label.toLowerCase() === label.toLowerCase()
+    );
+
+    if (existing) {
+      setCategoryId(existing.id);
+      setCategoryLabel(existing.label);
+      setNewCategory("");
+      return;
+    }
+
+    const category = addCategory({ label, color, icon });
+    setCategoryId(category.id);
+    setCategoryLabel(category.label);
+    setNewCategory("");
+  };
+
+  const handleNewCategoryKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      handleCreateCategory();
+    }
+  };
+
+  const handleTimeOptionChange = (value: string) => {
+    if (value === "none") {
+      setTimeOption(value);
+      setReminderTime(null);
+      return;
+    }
+
+    if (value === "custom") {
+      setTimeOption(value);
+      const nextCustom = isValidTimeValue(customTime) ? customTime : "09:00";
+      setCustomTime(nextCustom);
+      setReminderTime(nextCustom);
+      return;
+    }
+
+    setTimeOption(value);
+    setReminderTime(value);
+    setCustomTime(value);
+  };
+
+  const handleCustomTimeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const next = event.target.value;
+    setCustomTime(next);
+    if (isValidTimeValue(next)) {
+      setReminderTime(next);
+    }
   };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -55,43 +190,73 @@ export const TopicForm: React.FC = () => {
     let resolvedCategoryLabel = categoryLabel;
 
     if (categoryId === "create") {
-      if (!newCategory.trim()) {
+      const label = newCategory.trim();
+      if (!label) {
         toast.error("Name your new category first");
         return;
       }
-      const created = addCategory({ label: newCategory.trim(), color, icon });
-      resolvedCategoryId = created.id;
-      resolvedCategoryLabel = created.label;
-      setCategoryId(created.id);
-      setCategoryLabel(created.label);
-      setNewCategory("");
+
+      const existing = categories.find(
+        (item) => item.label.toLowerCase() === label.toLowerCase()
+      );
+
+      if (existing) {
+        resolvedCategoryId = existing.id;
+        resolvedCategoryLabel = existing.label;
+        setCategoryId(existing.id);
+        setCategoryLabel(existing.label);
+        setNewCategory("");
+      } else {
+        const created = addCategory({ label, color, icon });
+        resolvedCategoryId = created.id;
+        resolvedCategoryLabel = created.label;
+        setCategoryId(created.id);
+        setCategoryLabel(created.label);
+        setNewCategory("");
+      }
     }
 
-    addTopic({
+    let nextReminderTime: string | null;
+    if (timeOption === "none") {
+      nextReminderTime = null;
+    } else if (timeOption === "custom") {
+      if (!isValidTimeValue(customTime)) {
+        toast.error("Enter a valid custom reminder time");
+        return;
+      }
+      nextReminderTime = customTime;
+    } else {
+      nextReminderTime = timeOption;
+    }
+
+    const payload = {
       title,
       notes,
       categoryId: resolvedCategoryId,
       categoryLabel: resolvedCategoryLabel,
       icon,
       color,
-      reminderTime,
+      reminderTime: nextReminderTime,
       intervals: [...intervals].sort((a, b) => a - b)
-    });
-    toast.success("Topic saved");
-    resetForm();
-  };
+    };
 
-  const handleCreateCategory = () => {
-    if (!newCategory.trim()) return;
-    const category = addCategory({ label: newCategory.trim(), color, icon });
-    setCategoryId(category.id);
-    setCategoryLabel(category.label);
-    setNewCategory("");
+    if (isEditing && topic) {
+      updateTopic(topic.id, payload);
+      toast.success("Topic updated");
+      onSubmitComplete?.("edit");
+      return;
+    }
+
+    addTopic(payload);
+    toast.success("Topic saved");
+    resetToDefaults();
+    onSubmitComplete?.("create");
   };
 
   const handleCategoryChange = (value: string) => {
     if (value === "create") {
       setCategoryId("create");
+      setCategoryLabel("");
       return;
     }
     setCategoryId(value);
@@ -125,7 +290,10 @@ export const TopicForm: React.FC = () => {
               {categories.map((category) => (
                 <SelectItem key={category.id} value={category.id}>
                   <span className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: category.color }} />
+                    <span
+                      className="h-2 w-2 rounded-full"
+                      style={{ backgroundColor: category.color }}
+                    />
                     {category.label}
                   </span>
                 </SelectItem>
@@ -138,9 +306,10 @@ export const TopicForm: React.FC = () => {
               <Input
                 value={newCategory}
                 onChange={(event) => setNewCategory(event.target.value)}
+                onKeyDown={handleNewCategoryKeyDown}
                 placeholder="New category name"
               />
-              <Button type="button" onClick={handleCreateCategory}>
+              <Button type="button" onClick={handleCreateCategory} disabled={!newCategory.trim()}>
                 Save
               </Button>
             </div>
@@ -159,13 +328,27 @@ export const TopicForm: React.FC = () => {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="reminder">Reminder</Label>
-          <Input
-            id="reminder"
-            type="time"
-            value={reminderTime ?? ""}
-            onChange={(event) => setReminderTime(event.target.value || null)}
-          />
+          <Label>Reminder</Label>
+          <Select value={timeOption} onValueChange={handleTimeOptionChange}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select reminder time" />
+            </SelectTrigger>
+            <SelectContent>
+              {REMINDER_TIME_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {timeOption === "custom" ? (
+            <Input
+              type="time"
+              value={customTime}
+              onChange={handleCustomTimeChange}
+              className="w-full"
+            />
+          ) : null}
         </div>
 
         <div className="space-y-2">
@@ -185,7 +368,7 @@ export const TopicForm: React.FC = () => {
 
         <div className="flex justify-end">
           <Button type="submit" className="px-6">
-            Save Topic
+            {isEditing ? "Update Topic" : "Save Topic"}
           </Button>
         </div>
       </div>
