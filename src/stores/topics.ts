@@ -120,7 +120,7 @@ const findSubjectByName = (subjects: Subject[], name: string) => {
 
 const computeSubjectSummaries = (subjects: Subject[], topics: Topic[]): SubjectSummary[] => {
   const now = Date.now();
-  const sevenDaysFromNow = addDays(new Date(), 7).getTime();
+  const sevenDaysFromNow = new Date(addDays(new Date(), 7)).getTime();
 
   return subjects.map((subject) => {
     const subjectTopics = topics.filter((topic) => topic.subjectId === subject.id);
