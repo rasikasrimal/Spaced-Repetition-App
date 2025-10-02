@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { v4 as uuid } from "uuid";
-import { Category, Topic } from "@/types/topic";
+import { nanoid } from "nanoid";
+import { Category, Topic, TopicEvent } from "@/types/topic";
 
 export type ReviewStatus = "due" | "scheduled" | "completed";
 
@@ -16,9 +16,12 @@ export type TopicPayload = {
   intervals: number[];
 };
 
-type TopicStore = {
+type TopicStoreState = {
   topics: Topic[];
   categories: Category[];
+};
+
+type TopicStore = TopicStoreState & {
   addCategory: (category: Omit<Category, "id">) => Category;
   addTopic: (payload: TopicPayload) => void;
   updateTopic: (id: string, payload: TopicPayload) => void;
@@ -26,17 +29,78 @@ type TopicStore = {
   markReviewed: (id: string) => void;
 };
 
-const calculateNextReview = (
+const DEFAULT_FORGETTING = Object.freeze({
+  beta: 1.0,
+  strategy: "reviews" as const,
+  baseHalfLifeHours: 12,
+  growthPerSuccessfulReview: 2.0
+});
+
+const computeNextReviewDate = (
   lastReviewedAt: string | null,
   intervals: number[],
-  currentIndex: number
+  intervalIndex: number
 ): string => {
   const baseDate = lastReviewedAt ? new Date(lastReviewedAt) : new Date();
-  const safeIndex = intervals.length === 0 ? 0 : Math.min(currentIndex, intervals.length - 1);
-  const nextInterval = intervals[safeIndex] ?? 1;
+  const safeIntervals = intervals.length > 0 ? intervals : [1];
+  const clampedIndex = Math.max(0, Math.min(intervalIndex, safeIntervals.length - 1));
+  const nextInterval = safeIntervals[clampedIndex];
   const nextDate = new Date(baseDate);
   nextDate.setDate(baseDate.getDate() + nextInterval);
   return nextDate.toISOString();
+};
+
+const VERSION = 2;
+
+type PersistedState = TopicStoreState & { version?: number };
+
+const migrate = (persisted: PersistedState, from: number): PersistedState => {
+  if (from < VERSION) {
+    persisted.topics = persisted.topics.map((rawTopic) => {
+      const anyTopic = rawTopic as Topic & { currentIntervalIndex?: number };
+      const intervalIndex = anyTopic.intervalIndex ?? anyTopic.currentIntervalIndex ?? 0;
+      const { currentIntervalIndex: _legacy, ...rest } = anyTopic;
+      const startedAt = rest.startedAt ?? rest.createdAt;
+      const seededEvents: TopicEvent[] = Array.isArray(rest.events) ? [...rest.events] : [];
+
+      if (!seededEvents.some((event) => event.type === "started")) {
+        seededEvents.unshift({
+          id: nanoid(),
+          topicId: rest.id,
+          type: "started",
+          at: startedAt
+        });
+      }
+
+      if (
+        rest.lastReviewedAt &&
+        !seededEvents.some((event) => event.type === "reviewed" && event.at === rest.lastReviewedAt)
+      ) {
+        const interval = rest.intervals?.[intervalIndex] ?? rest.intervals?.[0] ?? 1;
+        seededEvents.push({
+          id: nanoid(),
+          topicId: rest.id,
+          type: "reviewed",
+          at: rest.lastReviewedAt,
+          intervalDays: interval
+        });
+      }
+
+      const orderedEvents = seededEvents.sort(
+        (a, b) => new Date(a.at).getTime() - new Date(b.at).getTime()
+      );
+
+      return {
+        ...rest,
+        intervalIndex,
+        startedAt,
+        events: orderedEvents,
+        forgetting: rest.forgetting ?? { ...DEFAULT_FORGETTING }
+      };
+    });
+  }
+
+  return persisted;
 };
 
 export const useTopicStore = create<TopicStore>()(
@@ -48,42 +112,55 @@ export const useTopicStore = create<TopicStore>()(
       ],
       addCategory: (category) => {
         const newCategory: Category = {
-          id: uuid(),
+          id: nanoid(),
           ...category
         };
         set((state) => ({ categories: [...state.categories, newCategory] }));
         return newCategory;
       },
       addTopic: (payload) => {
-        const id = uuid();
+        const id = nanoid();
         const createdAt = new Date().toISOString();
-        const nextReviewDate = calculateNextReview(null, payload.intervals, 0);
+        const startedAt = createdAt;
+        const intervalIndex = 0;
+        const nextReviewDate = computeNextReviewDate(null, payload.intervals, intervalIndex);
+        const startedEvent: TopicEvent = {
+          id: nanoid(),
+          topicId: id,
+          type: "started",
+          at: startedAt
+        };
+
         const topic: Topic = {
           id,
           createdAt,
+          startedAt,
           lastReviewedAt: null,
-          currentIntervalIndex: 0,
+          intervalIndex,
           nextReviewDate,
+          events: [startedEvent],
+          forgetting: { ...DEFAULT_FORGETTING },
           ...payload
         };
         set((state) => ({ topics: [topic, ...state.topics] }));
       },
       updateTopic: (id, payload) => {
         set((state) => ({
-          topics: state.topics.map((topic) =>
-            topic.id === id
-              ? {
-                  ...topic,
-                  ...payload,
-                  intervals: payload.intervals,
-                  nextReviewDate: calculateNextReview(
-                    topic.lastReviewedAt,
-                    payload.intervals,
-                    topic.currentIntervalIndex
-                  )
-                }
-              : topic
-          )
+          topics: state.topics.map((topic) => {
+            if (topic.id !== id) return topic;
+            const updatedIntervals = payload.intervals;
+            const nextReviewDate = computeNextReviewDate(
+              topic.lastReviewedAt,
+              updatedIntervals,
+              topic.intervalIndex
+            );
+            return {
+              ...topic,
+              ...payload,
+              intervals: updatedIntervals,
+              nextReviewDate
+            };
+          })
         }));
       },
       deleteTopic: (id) => {
@@ -93,20 +170,37 @@ export const useTopicStore = create<TopicStore>()(
         set((state) => ({
           topics: state.topics.map((topic) => {
             if (topic.id !== id) return topic;
-            const nextIndex = Math.min(topic.currentIntervalIndex + 1, topic.intervals.length - 1);
-            const lastReviewedAt = new Date().toISOString();
+
+            const nowIso = new Date().toISOString();
+            const currentIntervals = topic.intervals.length > 0 ? topic.intervals : [1];
+            const nextIndex = Math.min(topic.intervalIndex + 1, currentIntervals.length - 1);
+            const intervalDays = currentIntervals[nextIndex] ?? 1;
+            const updatedEvents: TopicEvent[] = [
+              ...(topic.events ?? []),
+              {
+                id: nanoid(),
+                topicId: topic.id,
+                type: "reviewed",
+                at: nowIso,
+                intervalDays
+              }
+            ];
+
             return {
               ...topic,
-              currentIntervalIndex: nextIndex,
-              lastReviewedAt,
-              nextReviewDate: calculateNextReview(lastReviewedAt, topic.intervals, nextIndex)
+              intervalIndex: nextIndex,
+              lastReviewedAt: nowIso,
+              nextReviewDate: computeNextReviewDate(nowIso, currentIntervals, nextIndex),
+              events: updatedEvents
             };
           })
         }));
       }
     }),
     {
-      name: "spaced-repetition-store"
+      name: "spaced-repetition-store",
+      version: VERSION,
+      migrate
     }
   )
 );
