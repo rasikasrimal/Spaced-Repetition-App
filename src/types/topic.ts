@@ -4,6 +4,24 @@ export type IntervalPreset = {
   days: number;
 };
 
+export type TopicEventType = "started" | "reviewed";
+
+export interface TopicEvent {
+  id: string;
+  topicId: string;
+  type: TopicEventType;
+  at: string;
+  intervalDays?: number;
+  notes?: string;
+}
+
+export interface TopicForgettingConfig {
+  beta?: number;
+  strategy?: "reviews" | "interval";
+  baseHalfLifeHours?: number;
+  growthPerSuccessfulReview?: number;
+}
+
 export type Topic = {
   id: string;
   title: string;
@@ -14,10 +32,13 @@ export type Topic = {
   color: string;
   reminderTime: string | null;
   intervals: number[];
-  currentIntervalIndex: number;
+  intervalIndex: number;
   nextReviewDate: string;
   lastReviewedAt: string | null;
   createdAt: string;
+  startedAt?: string;
+  events?: TopicEvent[];
+  forgetting?: TopicForgettingConfig;
 };
 
 export type Category = {

@@ -3,6 +3,7 @@
 import * as React from "react";
 import { TopicForm } from "@/components/forms/topic-form";
 import { Dashboard } from "@/components/dashboard/dashboard";
+import { TimelinePanel } from "@/components/visualizations/timeline-panel";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { CalendarClock } from "lucide-react";
@@ -76,6 +77,8 @@ export default function HomePage() {
           <Dashboard onCreateTopic={handleCreateTopic} onEditTopic={handleEditTopic} />
         </div>
       </motion.section>
+
+      <TimelinePanel />
     </main>
   );
 }

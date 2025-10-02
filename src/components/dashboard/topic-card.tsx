@@ -19,7 +19,7 @@ interface TopicCardProps {
   nextReviewDate: string;
   reminderTime: string | null;
   intervals: number[];
-  currentIntervalIndex: number;
+  intervalIndex: number;
   onEdit: () => void;
 }
 
@@ -33,7 +33,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({
   nextReviewDate,
   reminderTime,
   intervals,
-  currentIntervalIndex,
+  intervalIndex,
   onEdit
 }) => {
   const markReviewed = useTopicStore((state) => state.markReviewed);
@@ -41,12 +41,8 @@ export const TopicCard: React.FC<TopicCardProps> = ({
   const due = isDueToday(nextReviewDate);
   const totalIntervals = Math.max(intervals.length, 1);
   const currentInterval =
-    intervals[Math.min(currentIntervalIndex, totalIntervals - 1)] ??
-    intervals[intervals.length - 1] ??
-    1;
-  const progress = Math.round(
-    ((Math.min(currentIntervalIndex, totalIntervals - 1) + 1) / totalIntervals) * 100
-  );
+    intervals[Math.min(intervalIndex, totalIntervals - 1)] ?? intervals[intervals.length - 1] ?? 1;
+  const progress = Math.round(((Math.min(intervalIndex, totalIntervals - 1) + 1) / totalIntervals) * 100);
 
   return (
     <motion.article
