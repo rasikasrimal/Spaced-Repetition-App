@@ -3,6 +3,7 @@
 import * as React from "react";
 import { TopicForm } from "@/components/forms/topic-form";
 import { Dashboard } from "@/components/dashboard/dashboard";
+import { BackupControls } from "@/components/settings/backup-controls";
 import { TimelinePanel } from "@/components/visualizations/timeline-panel";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
@@ -13,6 +14,12 @@ export default function HomePage() {
   const [showForm, setShowForm] = React.useState(false);
   const [editingTopicId, setEditingTopicId] = React.useState<string | null>(null);
   useReminderScheduler();
+
+  React.useEffect(() => {
+    if (typeof navigator !== "undefined" && 'storage' in navigator && 'persist' in navigator.storage) {
+      navigator.storage.persist?.();
+    }
+  }, []);
 
   const handleToggleForm = () => {
     setShowForm((previous) => {
@@ -78,7 +85,9 @@ export default function HomePage() {
         </div>
       </motion.section>
 
-      <TimelinePanel />
+      <TimelinePanel />\n\n      <BackupControls />
     </main>
   );
 }
+
+

@@ -23,15 +23,15 @@ const PADDING_X = 48;
 const PADDING_Y = 32;
 const MIN_SPAN_MS = 6 * 60 * 60 * 1000; // 6 hours
 
-const clampDomain = (domain: [number, number], full?: [number, number]) => {
+const clampDomain = (domain: [number, number], full?: [number, number]): [number, number] => {
   if (!full) return domain;
   const span = domain[1] - domain[0];
   const min = full[0];
   const max = full[1];
-  if (span >= max - min) return [min, max];
+  if (span >= max - min) return [min, max] as [number, number];
   const start = Math.max(min, Math.min(domain[0], max - span));
   const end = Math.min(max, start + span);
-  return [start, end];
+  return [start, end] as [number, number];
 };
 
 const formatTimestamp = (value: number) => new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(value);
@@ -215,10 +215,12 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       let nextStart = anchorTime - newSpan * ratio;
       let nextEnd = nextStart + newSpan;
       if (fullDomain) {
-        const clamped = clampDomain([nextStart, nextEnd], fullDomain);
+        const rawDomain: [number, number] = [nextStart, nextEnd];
+        const clamped = clampDomain(rawDomain, fullDomain);
         onDomainChange(clamped);
       } else {
-        onDomainChange([nextStart, nextEnd]);
+        const domainTuple: [number, number] = [nextStart, nextEnd];
+        onDomainChange(domainTuple);
       }
     };
 
@@ -360,6 +362,9 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
 );
 
 TimelineChart.displayName = "TimelineChart";
+
+
+
 
 
 

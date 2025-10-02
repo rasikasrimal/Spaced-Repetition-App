@@ -1,7 +1,8 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, createJSONStorage } from "zustand/middleware";
 import { nanoid } from "nanoid";
 import { Category, Topic, TopicEvent } from "@/types/topic";
+import { idbStorage } from "@/lib/idb-storage";
 
 export type ReviewStatus = "due" | "scheduled" | "completed";
 
@@ -19,6 +20,7 @@ export type TopicPayload = {
 type TopicStoreState = {
   topics: Topic[];
   categories: Category[];
+  _migratedToIDB?: boolean;
 };
 
 type TopicStore = TopicStoreState & {
@@ -50,57 +52,79 @@ const computeNextReviewDate = (
   return nextDate.toISOString();
 };
 
-const VERSION = 2;
+const STORAGE_KEY = "spacedrep-store-v3";
+const LEGACY_STORAGE_KEY = "spaced-repetition-store";
+const VERSION = 3;
 
 type PersistedState = TopicStoreState & { version?: number };
 
-const migrate = (persisted: PersistedState, from: number): PersistedState => {
-  if (from < VERSION) {
-    persisted.topics = persisted.topics.map((rawTopic) => {
-      const anyTopic = rawTopic as Topic & { currentIntervalIndex?: number };
-      const intervalIndex = anyTopic.intervalIndex ?? anyTopic.currentIntervalIndex ?? 0;
-      const { currentIntervalIndex: _legacy, ...rest } = anyTopic;
-      const startedAt = rest.startedAt ?? rest.createdAt;
-      const seededEvents: TopicEvent[] = Array.isArray(rest.events) ? [...rest.events] : [];
+const migrateEventsAndConfig = (rawTopic: Topic & { currentIntervalIndex?: number }): Topic => {
+  const intervalIndex = rawTopic.intervalIndex ?? rawTopic.currentIntervalIndex ?? 0;
+  const { currentIntervalIndex: _legacy, ...rest } = rawTopic as Topic & {
+    currentIntervalIndex?: number;
+  };
+  const startedAt = rest.startedAt ?? rest.createdAt;
+  const seededEvents: TopicEvent[] = Array.isArray(rest.events) ? [...rest.events] : [];
 
-      if (!seededEvents.some((event) => event.type === "started")) {
-        seededEvents.unshift({
-          id: nanoid(),
-          topicId: rest.id,
-          type: "started",
-          at: startedAt
-        });
-      }
-
-      if (
-        rest.lastReviewedAt &&
-        !seededEvents.some((event) => event.type === "reviewed" && event.at === rest.lastReviewedAt)
-      ) {
-        const interval = rest.intervals?.[intervalIndex] ?? rest.intervals?.[0] ?? 1;
-        seededEvents.push({
-          id: nanoid(),
-          topicId: rest.id,
-          type: "reviewed",
-          at: rest.lastReviewedAt,
-          intervalDays: interval
-        });
-      }
-
-      const orderedEvents = seededEvents.sort(
-        (a, b) => new Date(a.at).getTime() - new Date(b.at).getTime()
-      );
-
-      return {
-        ...rest,
-        intervalIndex,
-        startedAt,
-        events: orderedEvents,
-        forgetting: rest.forgetting ?? { ...DEFAULT_FORGETTING }
-      };
+  if (!seededEvents.some((event) => event.type === "started")) {
+    seededEvents.unshift({
+      id: nanoid(),
+      topicId: rest.id,
+      type: "started",
+      at: startedAt
     });
   }
 
-  return persisted;
+  if (
+    rest.lastReviewedAt &&
+    !seededEvents.some((event) => event.type === "reviewed" && event.at === rest.lastReviewedAt)
+  ) {
+    const interval = rest.intervals?.[intervalIndex] ?? rest.intervals?.[0] ?? 1;
+    seededEvents.push({
+      id: nanoid(),
+      topicId: rest.id,
+      type: "reviewed",
+      at: rest.lastReviewedAt,
+      intervalDays: interval
+    });
+  }
+
+  const orderedEvents = seededEvents.sort(
+    (a, b) => new Date(a.at).getTime() - new Date(b.at).getTime()
+  );
+
+  return {
+    ...rest,
+    intervalIndex,
+    startedAt,
+    events: orderedEvents,
+    forgetting: rest.forgetting ?? { ...DEFAULT_FORGETTING }
+  };
+};
+
+const migratePersistedState = async (persisted: PersistedState | undefined, from: number): Promise<PersistedState> => {
+  if (!persisted) {
+    return { topics: [], categories: [], _migratedToIDB: false };
+  }
+
+  let state = persisted;
+
+  if (from < 2) {
+    state = {
+      ...state,
+      topics: state.topics.map((topic) => migrateEventsAndConfig(topic as Topic))
+    };
+  }
+
+  if (from < VERSION) {
+    state = {
+      ...state,
+      topics: state.topics.map((topic) => migrateEventsAndConfig(topic as Topic)),
+      _migratedToIDB: state._migratedToIDB ?? false
+    };
+  }
+
+  return state;
 };
 
 export const useTopicStore = create<TopicStore>()(
@@ -110,6 +134,7 @@ export const useTopicStore = create<TopicStore>()(
       categories: [
         { id: "general", label: "General", color: "#38bdf8", icon: "Sparkles" }
       ],
+      _migratedToIDB: false,
       addCategory: (category) => {
         const newCategory: Category = {
           id: nanoid(),
@@ -198,9 +223,29 @@ export const useTopicStore = create<TopicStore>()(
       }
     }),
     {
-      name: "spaced-repetition-store",
+      name: STORAGE_KEY,
+      storage: createJSONStorage(() => idbStorage),
       version: VERSION,
-      migrate
+      migrate: async (persistedState, from) => migratePersistedState(persistedState as PersistedState | undefined, from),
+      onRehydrateStorage: () => {
+        return (state) => {
+          if (!state || state._migratedToIDB) return;
+          try {
+            const legacy = localStorage.getItem(LEGACY_STORAGE_KEY) ?? localStorage.getItem(STORAGE_KEY);
+            if (legacy) {
+              const parsed = JSON.parse(legacy);
+              idbStorage.setItem(STORAGE_KEY, parsed);
+              localStorage.removeItem(LEGACY_STORAGE_KEY);
+              localStorage.removeItem(STORAGE_KEY);
+            }
+          } catch (error) {
+            console.warn("IDB migration failed", error);
+          }
+          useTopicStore.setState({ _migratedToIDB: true });
+        };
+      }
     }
   )
 );
+
+
