@@ -97,10 +97,16 @@ const buildExamSuggestion = (examDate: string | null): {
   const lastBlueprint = blueprint[blueprint.length - 1] ?? 1;
   const scale = lastBlueprint > 0 ? Math.max(0.2, Math.min(2, days / lastBlueprint)) : 1;
 
-  const cumulative: number[] = blueprint.map((value, index) => {
+  const cumulative: number[] = [];
+  blueprint.forEach((value, index) => {
     const scaled = Math.max(1, Math.round(value * scale));
-    if (index === 0) return scaled;
-    return Math.max(cumulative[index - 1] + 1, scaled);
+    if (index === 0) {
+      cumulative.push(scaled);
+      return;
+    }
+
+    const previous = cumulative[index - 1];
+    cumulative.push(Math.max(previous + 1, scaled));
   });
 
   if (cumulative[cumulative.length - 1] > days) {
