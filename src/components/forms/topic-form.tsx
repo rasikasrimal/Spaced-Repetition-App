@@ -19,7 +19,7 @@ import { IntervalEditor } from "@/components/forms/interval-editor";
 import { DEFAULT_INTERVALS, REMINDER_TIME_OPTIONS } from "@/lib/constants";
 import { toast } from "sonner";
 import { CalendarClock, CheckCircle2, ChevronLeft, ChevronRight, Info } from "lucide-react";
-import { AutoAdjustPreference } from "@/types/topic";
+import { AutoAdjustPreference, Subject } from "@/types/topic";
 import { daysBetween, formatFullDate } from "@/lib/date";
 import { IconPreview } from "@/components/icon-preview";
 
@@ -46,7 +46,7 @@ interface TopicFormProps {
 }
 
 const wizardSteps: { id: StepId; title: string; description: string }[] = [
-  { id: "basics", title: "Basics", description: "Give your topic a clear name and category." },
+  { id: "basics", title: "Basics", description: "Give your topic a clear name and subject." },
   { id: "identity", title: "Identity", description: "Choose an icon and colour for quick recognition." },
   { id: "details", title: "Details", description: "Decide how reviews behave and add helpful context." },
   { id: "review", title: "Review & create", description: "Double-check everything before launching." }
@@ -68,13 +68,14 @@ const toIsoDateFromInput = (value: string) => {
   return date.toISOString();
 };
 
-const buildExamSuggestion = (examDate: string): {
+const buildExamSuggestion = (examDate: string | null): {
   intervals: number[];
   recommendedCount: number;
   daysUntilExam: number;
 } | null => {
   if (!examDate) return null;
-  const exam = new Date(`${examDate}T00:00:00`);
+  const normalized = examDate.includes("T") ? examDate : `${examDate}T00:00:00`;
+  const exam = new Date(normalized);
   if (Number.isNaN(exam.getTime())) return null;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -123,11 +124,12 @@ const buildExamSuggestion = (examDate: string): {
 };
 
 export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitComplete }) => {
-  const { addTopic, updateTopic, addCategory, categories, topics } = useTopicStore((state) => ({
+  const { addTopic, updateTopic, addCategory, categories, subjects, topics } = useTopicStore((state) => ({
     addTopic: state.addTopic,
     updateTopic: state.updateTopic,
     addCategory: state.addCategory,
     categories: state.categories,
+    subjects: state.subjects,
     topics: state.topics
   }));
 
@@ -153,7 +155,6 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
   const [timeOption, setTimeOption] = React.useState<string>("09:00");
   const [customTime, setCustomTime] = React.useState("09:00");
   const [intervals, setIntervals] = React.useState<number[]>(() => [...defaultIntervals]);
-  const [examDate, setExamDate] = React.useState<string>("");
   const [autoAdjustPreference, setAutoAdjustPreference] = React.useState<AutoAdjustPreference>(
     DEFAULT_AUTO_ADJUST
   );
@@ -170,7 +171,6 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
     setCustomTime("09:00");
     setIntervals([...defaultIntervals]);
     setNewCategory("");
-    setExamDate("");
     setAutoAdjustPreference(DEFAULT_AUTO_ADJUST);
     setStepIndex(0);
     setStepError(null);
@@ -204,7 +204,6 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
     setColor(topic.color);
     setIntervals([...topic.intervals]);
     setNewCategory("");
-    setExamDate(toDateInputValue(topic.examDate ?? null));
     setAutoAdjustPreference(topic.autoAdjustPreference ?? DEFAULT_AUTO_ADJUST);
 
     if (topic.reminderTime) {
@@ -310,6 +309,10 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
     setStepIndex((index) => Math.max(0, index - 1));
   };
 
+  const selectedSubject = React.useMemo(() => subjects.find((item) => item.id === categoryId) ?? null, [subjects, categoryId]);
+  const selectedSubjectExamDate = selectedSubject?.examDate ?? null;
+  const activeExamDateIso = selectedSubjectExamDate;
+
   const goToNextStep = () => {
     const currentStep = wizardSteps[stepIndex].id;
     if (!validateStep(currentStep)) return;
@@ -324,8 +327,6 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
       return;
     }
 
-    const normalizedExamDate = toIsoDateFromInput(examDate);
-
     const payload = {
       title: title.trim(),
       notes,
@@ -335,7 +336,6 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
       color,
       reminderTime,
       intervals: intervals.length > 0 ? intervals : [...defaultIntervals],
-      examDate: normalizedExamDate,
       autoAdjustPreference
     };
 
@@ -363,7 +363,7 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
 
   const currentStep = wizardSteps[stepIndex];
 
-  const examSuggestion = React.useMemo(() => buildExamSuggestion(examDate), [examDate]);
+  const examSuggestion = React.useMemo(() => buildExamSuggestion(activeExamDateIso), [activeExamDateIso]);
 
   const handleApplySuggestion = () => {
     if (!examSuggestion) return;
@@ -396,6 +396,7 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
           onNewCategoryChange={setNewCategory}
           onNewCategoryKeyDown={handleNewCategoryKeyDown}
           onCreateCategory={handleCreateCategory}
+          selectedSubject={selectedSubject}
           icon={icon}
           onIconChange={setIcon}
           color={color}
@@ -409,8 +410,7 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
           onCustomTimeChange={handleCustomTimeChange}
           intervals={intervals}
           onIntervalsChange={setIntervals}
-          examDate={examDate}
-          onExamDateChange={setExamDate}
+          selectedSubjectExamDate={selectedSubjectExamDate}
           examSuggestion={examSuggestion}
           onApplySuggestion={handleApplySuggestion}
           autoAdjustPreference={autoAdjustPreference}
@@ -466,6 +466,7 @@ interface WizardStepContentProps {
   onNewCategoryChange: (value: string) => void;
   onNewCategoryKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
   onCreateCategory: () => void;
+  selectedSubject: Subject | null;
   icon: string;
   onIconChange: (value: string) => void;
   color: string;
@@ -479,8 +480,7 @@ interface WizardStepContentProps {
   onCustomTimeChange: (value: string) => void;
   intervals: number[];
   onIntervalsChange: (value: number[]) => void;
-  examDate: string;
-  onExamDateChange: (value: string) => void;
+  selectedSubjectExamDate: string | null;
   examSuggestion: ReturnType<typeof buildExamSuggestion>;
   onApplySuggestion: () => void;
   autoAdjustPreference: AutoAdjustPreference;
@@ -499,6 +499,7 @@ const WizardStepContent: React.FC<WizardStepContentProps> = ({
   onNewCategoryChange,
   onNewCategoryKeyDown,
   onCreateCategory,
+  selectedSubject,
   icon,
   onIconChange,
   color,
@@ -512,8 +513,7 @@ const WizardStepContent: React.FC<WizardStepContentProps> = ({
   onCustomTimeChange,
   intervals,
   onIntervalsChange,
-  examDate,
-  onExamDateChange,
+  selectedSubjectExamDate,
   examSuggestion,
   onApplySuggestion,
   autoAdjustPreference,
@@ -534,10 +534,10 @@ const WizardStepContent: React.FC<WizardStepContentProps> = ({
         </div>
 
         <div className="space-y-2">
-          <Label>Category</Label>
+          <Label>Subject</Label>
           <Select value={categoryId ?? undefined} onValueChange={onCategoryChange}>
             <SelectTrigger className="h-11 rounded-2xl border-white/10 bg-white/10">
-              <SelectValue placeholder="Select category" />
+              <SelectValue placeholder="Select subject" />
             </SelectTrigger>
             <SelectContent>
               {categories.map((category) => (
@@ -557,7 +557,7 @@ const WizardStepContent: React.FC<WizardStepContentProps> = ({
                 value={newCategory}
                 onChange={(event) => onNewCategoryChange(event.target.value)}
                 onKeyDown={onNewCategoryKeyDown}
-                placeholder="New category name"
+                placeholder="New subject name"
                 className="h-11 rounded-2xl border-white/10 bg-white/10"
               />
               <Button
@@ -573,7 +573,7 @@ const WizardStepContent: React.FC<WizardStepContentProps> = ({
             </div>
           ) : null}
           <p className="text-xs text-zinc-400">
-            Categories help you group related topics and power the dashboard filters.
+            Subjects help you group related topics and power the dashboard filters.
           </p>
         </div>
       </div>
@@ -639,46 +639,38 @@ const WizardStepContent: React.FC<WizardStepContentProps> = ({
         </div>
 
         <div className="space-y-3">
-          <div className="space-y-2">
-            <Label className="flex items-center gap-2">
-              Exam date (optional)
-              <span title="Have an exam coming up? Set the date and we’ll optimise your review intervals — no sessions will be scheduled past this date." className="text-accent">
-                <Info className="h-3.5 w-3.5" />
-              </span>
-            </Label>
-            <Input
-              type="date"
-              value={examDate}
-              onChange={(event) => onExamDateChange(event.target.value)}
-              className="h-11 w-56 rounded-2xl border-white/10 bg-white/10"
-              min={new Date().toISOString().slice(0, 10)}
-            />
-            {examSuggestion ? (
-              <div className="rounded-2xl border border-accent/30 bg-accent/10 px-4 py-3 text-xs text-accent">
-                <p className="font-semibold">
-                  {examSuggestion.daysUntilExam > 0
-                    ? `Exam in ${examSuggestion.daysUntilExam} day${examSuggestion.daysUntilExam === 1 ? "" : "s"}.`
-                    : "Exam date is today."}
-                </p>
-                <p className="mt-1 text-accent/80">
-                  We recommend {examSuggestion.recommendedCount} intervals to stay on track. Apply the suggestion to distribute reviews evenly without crossing your exam date.
-                </p>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="mt-2 rounded-xl border-accent/40 text-accent hover:bg-accent/10"
-                  onClick={onApplySuggestion}
-                >
-                  Use suggested intervals
-                </Button>
-              </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-zinc-300">
+            <p className="font-semibold text-white">Subject exam timeline</p>
+            {selectedSubjectExamDate ? (
+              <p>Reviews will never be scheduled after {formatFullDate(selectedSubjectExamDate)}.</p>
             ) : (
-              <p className="text-xs text-zinc-500">
-                Have an exam coming up? Set the date and we’ll optimise your review intervals — no sessions will be scheduled past this date.
-              </p>
+              <p>No exam date set. Update it from the Subjects page whenever you&rsquo;re ready.</p>
             )}
           </div>
+
+          {examSuggestion ? (
+            <div className="space-y-2 rounded-2xl border border-accent/30 bg-accent/10 px-4 py-3 text-xs text-accent">
+              <p className="font-semibold">
+                {examSuggestion.daysUntilExam > 0
+                  ? `Exam in ${examSuggestion.daysUntilExam} day${examSuggestion.daysUntilExam === 1 ? "" : "s"}.`
+                  : "Exam date is today."}
+              </p>
+              <p className="text-accent/80">
+                We recommend {examSuggestion.recommendedCount} intervals to stay on track. Apply the suggestion to distribute reviews evenly without crossing your exam date.
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="rounded-xl border-accent/40 text-accent hover:bg-accent/10"
+                onClick={onApplySuggestion}
+              >
+                Use suggested intervals
+              </Button>
+            </div>
+          ) : null}
+
+
 
           <div className="space-y-2">
             <Label className="flex items-center gap-2">
@@ -752,7 +744,7 @@ const WizardStepContent: React.FC<WizardStepContentProps> = ({
         <h3 className="text-base font-semibold text-white">Basics</h3>
         <p className="text-xs text-zinc-400">{title || "Untitled topic"}</p>
         <div className="mt-2 text-xs text-zinc-400">
-          Category: <span className="text-white">{categoryLabel || "General"}</span>
+          Subject: <span className="text-white">{categoryLabel || "General"}</span>
         </div>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -780,7 +772,7 @@ const WizardStepContent: React.FC<WizardStepContentProps> = ({
             Auto-adjust: <span className="text-white">{AUTO_ADJUST_LABELS[autoAdjustPreference]}</span>
           </p>
           <p className="text-xs text-zinc-400">
-            Exam date: <span className="text-white">{examDate ? formatFullDate(`${examDate}T00:00:00`) : "Not set"}</span>
+            Exam date: <span className="text-white">{selectedSubjectExamDate ? formatFullDate(selectedSubjectExamDate) : "Not set"}</span>
           </p>
         </div>
       </div>
