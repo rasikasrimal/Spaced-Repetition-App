@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { useTopicStore } from "@/stores/topics";
-import { featureFlags } from "@/lib/feature-flags";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +11,7 @@ import { IconPreview } from "@/components/icon-preview";
 import { Subject, SubjectSummary } from "@/types/topic";
 import { daysBetween, formatFullDate } from "@/lib/date";
 import { toast } from "sonner";
-import { Calendar, Clock, PencilLine, Plus, Sparkles, Trash2 } from "lucide-react";
+import { Calendar, Clock, PencilLine, Plus, Trash2 } from "lucide-react";
 
 const toDateInputValue = (value: string | null | undefined) => {
   if (!value) return "";
@@ -41,20 +40,6 @@ const SubjectAdminPage: React.FC = () => {
     summaries.forEach((summary) => map.set(summary.subjectId, summary));
     return map;
   }, [summaries]);
-
-  if (!featureFlags.subjectsAdminUi) {
-    return (
-      <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col items-center justify-center gap-4 px-4 py-16 text-center text-zinc-300">
-        <Sparkles className="h-8 w-8 text-accent" />
-        <div className="space-y-2">
-          <h1 className="text-2xl font-semibold text-white">Subjects admin is currently disabled</h1>
-          <p className="text-sm text-zinc-400">
-            Enable the <code className="rounded bg-white/10 px-1.5 py-0.5 text-xs text-white/90">NEXT_PUBLIC_FF_SUBJECTS_ADMIN_UI</code> flag to manage subjects.
-          </p>
-        </div>
-      </main>
-    );
-  }
 
   const resetForm = () => {
     setName("");

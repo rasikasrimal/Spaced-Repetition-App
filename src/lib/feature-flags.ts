@@ -8,7 +8,6 @@
 
 export const featureFlags = {
   subjectsRead: parseBooleanFlag(process.env.NEXT_PUBLIC_FF_SUBJECTS_READ, false),
-  subjectsWrite: parseBooleanFlag(process.env.NEXT_PUBLIC_FF_SUBJECTS_WRITE, true),
-  subjectsAdminUi: parseBooleanFlag(process.env.NEXT_PUBLIC_FF_SUBJECTS_ADMIN_UI, false)
+  subjectsWrite: parseBooleanFlag(process.env.NEXT_PUBLIC_FF_SUBJECTS_WRITE, true)
 };
 
