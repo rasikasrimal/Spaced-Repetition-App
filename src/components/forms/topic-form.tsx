@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { useTopicStore } from "@/stores/topics";
@@ -18,17 +18,109 @@ import { IconPicker } from "@/components/forms/icon-picker";
 import { IntervalEditor } from "@/components/forms/interval-editor";
 import { DEFAULT_INTERVALS, REMINDER_TIME_OPTIONS } from "@/lib/constants";
 import { toast } from "sonner";
+import { CalendarClock, CheckCircle2, ChevronLeft, ChevronRight, Info } from "lucide-react";
+import { AutoAdjustPreference } from "@/types/topic";
+import { daysBetween, formatFullDate } from "@/lib/date";
+import { IconPreview } from "@/components/icon-preview";
 
 const defaultIntervals = DEFAULT_INTERVALS.map((preset) => preset.days);
 
+const DEFAULT_AUTO_ADJUST: AutoAdjustPreference = "ask";
+const INTERVAL_BLUEPRINT = [1, 3, 7, 14, 21, 30, 45, 60, 75, 90, 110, 130];
+const MIN_INTERVALS = 5;
+const MAX_INTERVALS = 12;
+
+const AUTO_ADJUST_LABELS: Record<AutoAdjustPreference, string> = {
+  always: "Always adjust automatically",
+  never: "Never adjust automatically",
+  ask: "Ask me each time"
+};
+
 type TopicFormMode = "create" | "edit";
+
+type StepId = "basics" | "identity" | "details" | "review";
 
 interface TopicFormProps {
   topicId?: string | null;
   onSubmitComplete?: (mode: TopicFormMode) => void;
 }
 
+const wizardSteps: { id: StepId; title: string; description: string }[] = [
+  { id: "basics", title: "Basics", description: "Give your topic a clear name and category." },
+  { id: "identity", title: "Identity", description: "Choose an icon and colour for quick recognition." },
+  { id: "details", title: "Details", description: "Decide how reviews behave and add helpful context." },
+  { id: "review", title: "Review & create", description: "Double-check everything before launching." }
+];
+
 const isValidTimeValue = (value: string) => /^([0-1]\d|2[0-3]):([0-5]\d)$/.test(value);
+
+const toDateInputValue = (value: string | null | undefined) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+};
+
+const toIsoDateFromInput = (value: string) => {
+  if (!value) return null;
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString();
+};
+
+const buildExamSuggestion = (examDate: string): {
+  intervals: number[];
+  recommendedCount: number;
+  daysUntilExam: number;
+} | null => {
+  if (!examDate) return null;
+  const exam = new Date(`${examDate}T00:00:00`);
+  if (Number.isNaN(exam.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = daysBetween(today, exam);
+  if (days <= 0) {
+    return {
+      intervals: [...defaultIntervals],
+      recommendedCount: defaultIntervals.length,
+      daysUntilExam: days
+    };
+  }
+
+  const recommendedCount = Math.max(
+    MIN_INTERVALS,
+    Math.min(MAX_INTERVALS, Math.ceil(days / 21) + 3)
+  );
+
+  const blueprint = INTERVAL_BLUEPRINT.slice(0, recommendedCount);
+  const lastBlueprint = blueprint[blueprint.length - 1] ?? 1;
+  const scale = lastBlueprint > 0 ? Math.max(0.2, Math.min(2, days / lastBlueprint)) : 1;
+
+  const cumulative: number[] = blueprint.map((value, index) => {
+    const scaled = Math.max(1, Math.round(value * scale));
+    if (index === 0) return scaled;
+    return Math.max(cumulative[index - 1] + 1, scaled);
+  });
+
+  if (cumulative[cumulative.length - 1] > days) {
+    cumulative[cumulative.length - 1] = days;
+    for (let i = cumulative.length - 2; i >= 0; i -= 1) {
+      if (cumulative[i] >= cumulative[i + 1]) {
+        cumulative[i] = Math.max(1, cumulative[i + 1] - 1);
+      }
+    }
+  }
+
+  const intervals = cumulative.map((value, index) =>
+    index === 0 ? Math.max(1, value) : Math.max(1, value - cumulative[index - 1])
+  );
+
+  return {
+    intervals,
+    recommendedCount,
+    daysUntilExam: days
+  };
+};
 
 export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitComplete }) => {
   const { addTopic, updateTopic, addCategory, categories, topics } = useTopicStore((state) => ({
@@ -47,6 +139,9 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
   const isEditing = Boolean(topicId && topic);
   const lastLoadedTopicRef = React.useRef<string | null>(null);
 
+  const [stepIndex, setStepIndex] = React.useState(0);
+  const [stepError, setStepError] = React.useState<string | null>(null);
+
   const [title, setTitle] = React.useState("");
   const [notes, setNotes] = React.useState("");
   const [categoryId, setCategoryId] = React.useState<string | null>("general");
@@ -58,6 +153,10 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
   const [timeOption, setTimeOption] = React.useState<string>("09:00");
   const [customTime, setCustomTime] = React.useState("09:00");
   const [intervals, setIntervals] = React.useState<number[]>(() => [...defaultIntervals]);
+  const [examDate, setExamDate] = React.useState<string>("");
+  const [autoAdjustPreference, setAutoAdjustPreference] = React.useState<AutoAdjustPreference>(
+    DEFAULT_AUTO_ADJUST
+  );
 
   const resetToDefaults = React.useCallback(() => {
     setTitle("");
@@ -71,6 +170,10 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
     setCustomTime("09:00");
     setIntervals([...defaultIntervals]);
     setNewCategory("");
+    setExamDate("");
+    setAutoAdjustPreference(DEFAULT_AUTO_ADJUST);
+    setStepIndex(0);
+    setStepError(null);
   }, []);
 
   React.useEffect(() => {
@@ -80,9 +183,8 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
     }
   }, [topicId, resetToDefaults]);
 
-  React.useEffect(() => {
-    if (!isEditing || !topic) return;
-    if (lastLoadedTopicRef.current === topic.id) return;
+  const loadTopic = React.useCallback(() => {
+    if (!topic) return;
 
     lastLoadedTopicRef.current = topic.id;
 
@@ -102,11 +204,11 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
     setColor(topic.color);
     setIntervals([...topic.intervals]);
     setNewCategory("");
+    setExamDate(toDateInputValue(topic.examDate ?? null));
+    setAutoAdjustPreference(topic.autoAdjustPreference ?? DEFAULT_AUTO_ADJUST);
 
     if (topic.reminderTime) {
-      const presetMatch = REMINDER_TIME_OPTIONS.find(
-        (option) => option.value === topic.reminderTime
-      );
+      const presetMatch = REMINDER_TIME_OPTIONS.find((option) => option.value === topic.reminderTime);
       if (presetMatch && presetMatch.value !== "custom" && presetMatch.value !== "none") {
         setTimeOption(presetMatch.value);
         setReminderTime(presetMatch.value);
@@ -121,27 +223,34 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
       setReminderTime(null);
       setCustomTime("09:00");
     }
-  }, [isEditing, topic, categories]);
 
-  const handleCreateCategory = () => {
-    const label = newCategory.trim();
-    if (!label) return;
+    setStepIndex(0);
+    setStepError(null);
+  }, [topic, categories]);
 
-    const existing = categories.find(
-      (item) => item.label.toLowerCase() === label.toLowerCase()
-    );
+  React.useEffect(() => {
+    if (!topic || topic.id === lastLoadedTopicRef.current) return;
+    loadTopic();
+  }, [topic, loadTopic]);
 
-    if (existing) {
-      setCategoryId(existing.id);
-      setCategoryLabel(existing.label);
-      setNewCategory("");
+  const handleTimeOptionChange = (value: string) => {
+    setTimeOption(value);
+    if (value === "none") {
+      setReminderTime(null);
       return;
     }
+    if (value === "custom") {
+      setReminderTime(customTime);
+      return;
+    }
+    setReminderTime(value);
+  };
 
-    const category = addCategory({ label, color, icon });
-    setCategoryId(category.id);
-    setCategoryLabel(category.label);
-    setNewCategory("");
+  const handleCustomTimeChange = (value: string) => {
+    setCustomTime(value);
+    if (isValidTimeValue(value)) {
+      setReminderTime(value);
+    }
   };
 
   const handleNewCategoryKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -151,112 +260,19 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
     }
   };
 
-  const handleTimeOptionChange = (value: string) => {
-    if (value === "none") {
-      setTimeOption(value);
-      setReminderTime(null);
-      return;
-    }
-
-    if (value === "custom") {
-      setTimeOption(value);
-      const nextCustom = isValidTimeValue(customTime) ? customTime : "09:00";
-      setCustomTime(nextCustom);
-      setReminderTime(nextCustom);
-      return;
-    }
-
-    setTimeOption(value);
-    setReminderTime(value);
-    setCustomTime(value);
-  };
-
-  const handleCustomTimeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const next = event.target.value;
-    setCustomTime(next);
-    if (isValidTimeValue(next)) {
-      setReminderTime(next);
-    }
-  };
-
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!title.trim()) {
-      toast.error("Topic title is required");
-      return;
-    }
-
-    let resolvedCategoryId = categoryId;
-    let resolvedCategoryLabel = categoryLabel;
-
-    if (categoryId === "create") {
-      const label = newCategory.trim();
-      if (!label) {
-        toast.error("Name your new category first");
-        return;
-      }
-
-      const existing = categories.find(
-        (item) => item.label.toLowerCase() === label.toLowerCase()
-      );
-
-      if (existing) {
-        resolvedCategoryId = existing.id;
-        resolvedCategoryLabel = existing.label;
-        setCategoryId(existing.id);
-        setCategoryLabel(existing.label);
-        setNewCategory("");
-      } else {
-        const created = addCategory({ label, color, icon });
-        resolvedCategoryId = created.id;
-        resolvedCategoryLabel = created.label;
-        setCategoryId(created.id);
-        setCategoryLabel(created.label);
-        setNewCategory("");
-      }
-    }
-
-    let nextReminderTime: string | null;
-    if (timeOption === "none") {
-      nextReminderTime = null;
-    } else if (timeOption === "custom") {
-      if (!isValidTimeValue(customTime)) {
-        toast.error("Enter a valid custom reminder time");
-        return;
-      }
-      nextReminderTime = customTime;
-    } else {
-      nextReminderTime = timeOption;
-    }
-
-    const payload = {
-      title,
-      notes,
-      categoryId: resolvedCategoryId,
-      categoryLabel: resolvedCategoryLabel,
-      icon,
-      color,
-      reminderTime: nextReminderTime,
-      intervals: [...intervals].sort((a, b) => a - b)
-    };
-
-    if (isEditing && topic) {
-      updateTopic(topic.id, payload);
-      toast.success("Topic updated");
-      onSubmitComplete?.("edit");
-      return;
-    }
-
-    addTopic(payload);
-    toast.success("Topic saved");
-    resetToDefaults();
-    onSubmitComplete?.("create");
+  const handleCreateCategory = () => {
+    const trimmed = newCategory.trim();
+    if (!trimmed) return;
+    const category = addCategory({ label: trimmed, color, icon });
+    setCategoryId(category.id);
+    setCategoryLabel(category.label);
+    setNewCategory("");
+    toast.success("Category saved");
   };
 
   const handleCategoryChange = (value: string) => {
     if (value === "create") {
       setCategoryId("create");
-      setCategoryLabel("");
       return;
     }
     setCategoryId(value);
@@ -264,36 +280,270 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
     setCategoryLabel(selected?.label ?? "");
   };
 
+  const handleReset = () => {
+    if (isEditing) {
+      loadTopic();
+      return;
+    }
+    resetToDefaults();
+  };
+
+  const validateStep = (step: StepId) => {
+    if (step === "basics") {
+      if (!title.trim()) {
+        setStepError("Give your topic a memorable name before moving on.");
+        return false;
+      }
+    }
+    if (step === "details") {
+      if (intervals.length === 0) {
+        setStepError("Please add at least one review interval.");
+        return false;
+      }
+    }
+    setStepError(null);
+    return true;
+  };
+
+  const goToPreviousStep = () => {
+    setStepError(null);
+    setStepIndex((index) => Math.max(0, index - 1));
+  };
+
+  const goToNextStep = () => {
+    const currentStep = wizardSteps[stepIndex].id;
+    if (!validateStep(currentStep)) return;
+    setStepIndex((index) => Math.min(wizardSteps.length - 1, index + 1));
+  };
+
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const currentStep = wizardSteps[stepIndex].id;
+    if (currentStep !== "review") {
+      goToNextStep();
+      return;
+    }
+
+    const normalizedExamDate = toIsoDateFromInput(examDate);
+
+    const payload = {
+      title: title.trim(),
+      notes,
+      categoryId: categoryId === "create" ? null : categoryId,
+      categoryLabel: categoryId === "create" ? newCategory.trim() : categoryLabel,
+      icon,
+      color,
+      reminderTime,
+      intervals: intervals.length > 0 ? intervals : [...defaultIntervals],
+      examDate: normalizedExamDate,
+      autoAdjustPreference
+    };
+
+    try {
+      if (categoryId === "create" && newCategory.trim()) {
+        const category = addCategory({ label: newCategory.trim(), color, icon });
+        payload.categoryId = category.id;
+        payload.categoryLabel = category.label;
+      }
+
+      if (isEditing && topic) {
+        updateTopic(topic.id, payload);
+        toast.success("Topic updated");
+        onSubmitComplete?.("edit");
+      } else {
+        addTopic(payload);
+        toast.success("Topic added to your review plan");
+        onSubmitComplete?.("create");
+        resetToDefaults();
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to save topic");
+    }
+  };
+
+  const currentStep = wizardSteps[stepIndex];
+
+  const examSuggestion = React.useMemo(() => buildExamSuggestion(examDate), [examDate]);
+
+  const handleApplySuggestion = () => {
+    if (!examSuggestion) return;
+    setIntervals(examSuggestion.intervals);
+    toast.success("Intervals updated for your exam timeline");
+  };
+
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="rounded-3xl border border-white/5 bg-white/5 p-6 shadow-lg backdrop-blur"
-    >
-      <div className="space-y-5">
+    <form onSubmit={handleSubmit} data-testid="topic-form" className="space-y-6">
+      <WizardSteps steps={wizardSteps} activeStep={currentStep.id} />
+
+      <div className="rounded-3xl border border-white/5 bg-slate-950/60 p-5 shadow-lg shadow-slate-900/30 backdrop-blur">
+        <header className="mb-4 space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            Step {stepIndex + 1} of {wizardSteps.length}
+          </p>
+          <h2 className="text-xl font-semibold text-white">{currentStep.title}</h2>
+          <p className="text-sm text-zinc-400">{currentStep.description}</p>
+        </header>
+
+        <WizardStepContent
+          step={currentStep.id}
+          title={title}
+          onTitleChange={setTitle}
+          categories={categories}
+          categoryId={categoryId}
+          categoryLabel={categoryLabel}
+          onCategoryChange={handleCategoryChange}
+          newCategory={newCategory}
+          onNewCategoryChange={setNewCategory}
+          onNewCategoryKeyDown={handleNewCategoryKeyDown}
+          onCreateCategory={handleCreateCategory}
+          icon={icon}
+          onIconChange={setIcon}
+          color={color}
+          onColorChange={setColor}
+          notes={notes}
+          onNotesChange={setNotes}
+          reminderTime={reminderTime}
+          timeOption={timeOption}
+          onTimeOptionChange={handleTimeOptionChange}
+          customTime={customTime}
+          onCustomTimeChange={handleCustomTimeChange}
+          intervals={intervals}
+          onIntervalsChange={setIntervals}
+          examDate={examDate}
+          onExamDateChange={setExamDate}
+          examSuggestion={examSuggestion}
+          onApplySuggestion={handleApplySuggestion}
+          autoAdjustPreference={autoAdjustPreference}
+          onAutoAdjustPreferenceChange={setAutoAdjustPreference}
+        />
+
+        {stepError ? (
+          <p className="mt-4 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+            {stepError}
+          </p>
+        ) : null}
+      </div>
+
+      <footer className="flex items-center justify-between">
+        <Button type="button" variant="ghost" onClick={handleReset} className="rounded-2xl text-zinc-400 hover:text-white">
+          Start over
+        </Button>
+        <div className="flex items-center gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={goToPreviousStep}
+            disabled={stepIndex === 0}
+            className="gap-2 rounded-2xl border-white/20 text-white disabled:opacity-40"
+          >
+            <ChevronLeft className="h-4 w-4" /> Back
+          </Button>
+          {currentStep.id === "review" ? (
+            <Button type="submit" className="gap-2 rounded-2xl">
+              <CheckCircle2 className="h-4 w-4" /> {isEditing ? "Save changes" : "Create topic"}
+            </Button>
+          ) : (
+            <Button type="button" onClick={goToNextStep} className="gap-2 rounded-2xl">
+              Next {currentStep.id === "details" ? "review" : "step"}
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      </footer>
+    </form>
+  );
+};
+
+interface WizardStepContentProps {
+  step: StepId;
+  title: string;
+  onTitleChange: (value: string) => void;
+  categories: { id: string; label: string; color: string }[];
+  categoryId: string | null;
+  categoryLabel: string;
+  onCategoryChange: (value: string) => void;
+  newCategory: string;
+  onNewCategoryChange: (value: string) => void;
+  onNewCategoryKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
+  onCreateCategory: () => void;
+  icon: string;
+  onIconChange: (value: string) => void;
+  color: string;
+  onColorChange: (value: string) => void;
+  notes: string;
+  onNotesChange: (value: string) => void;
+  reminderTime: string | null;
+  timeOption: string;
+  onTimeOptionChange: (value: string) => void;
+  customTime: string;
+  onCustomTimeChange: (value: string) => void;
+  intervals: number[];
+  onIntervalsChange: (value: number[]) => void;
+  examDate: string;
+  onExamDateChange: (value: string) => void;
+  examSuggestion: ReturnType<typeof buildExamSuggestion>;
+  onApplySuggestion: () => void;
+  autoAdjustPreference: AutoAdjustPreference;
+  onAutoAdjustPreferenceChange: (value: AutoAdjustPreference) => void;
+}
+
+const WizardStepContent: React.FC<WizardStepContentProps> = ({
+  step,
+  title,
+  onTitleChange,
+  categories,
+  categoryId,
+  categoryLabel,
+  onCategoryChange,
+  newCategory,
+  onNewCategoryChange,
+  onNewCategoryKeyDown,
+  onCreateCategory,
+  icon,
+  onIconChange,
+  color,
+  onColorChange,
+  notes,
+  onNotesChange,
+  reminderTime,
+  timeOption,
+  onTimeOptionChange,
+  customTime,
+  onCustomTimeChange,
+  intervals,
+  onIntervalsChange,
+  examDate,
+  onExamDateChange,
+  examSuggestion,
+  onApplySuggestion,
+  autoAdjustPreference,
+  onAutoAdjustPreferenceChange
+}) => {
+  if (step === "basics") {
+    return (
+      <div className="space-y-6">
         <div className="space-y-2">
-          <Label htmlFor="topic">Topic</Label>
+          <Label htmlFor="topic">Topic title</Label>
           <Input
             id="topic"
             value={title}
-            onChange={(event) => setTitle(event.target.value)}
+            onChange={(event) => onTitleChange(event.target.value)}
             placeholder="What do you want to remember?"
+            className="h-11 rounded-2xl border-white/10 bg-white/10"
           />
         </div>
 
         <div className="space-y-2">
           <Label>Category</Label>
-          <Select value={categoryId ?? undefined} onValueChange={handleCategoryChange}>
-            <SelectTrigger>
+          <Select value={categoryId ?? undefined} onValueChange={onCategoryChange}>
+            <SelectTrigger className="h-11 rounded-2xl border-white/10 bg-white/10">
               <SelectValue placeholder="Select category" />
             </SelectTrigger>
             <SelectContent>
               {categories.map((category) => (
                 <SelectItem key={category.id} value={category.id}>
                   <span className="flex items-center gap-2">
-                    <span
-                      className="h-2 w-2 rounded-full"
-                      style={{ backgroundColor: category.color }}
-                    />
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: category.color }} />
                     {category.label}
                   </span>
                 </SelectItem>
@@ -302,35 +552,69 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
             </SelectContent>
           </Select>
           {categoryId === "create" ? (
-            <div className="mt-3 flex gap-2">
+            <div className="mt-3 flex flex-col gap-3 sm:flex-row">
               <Input
                 value={newCategory}
-                onChange={(event) => setNewCategory(event.target.value)}
-                onKeyDown={handleNewCategoryKeyDown}
+                onChange={(event) => onNewCategoryChange(event.target.value)}
+                onKeyDown={onNewCategoryKeyDown}
                 placeholder="New category name"
+                className="h-11 rounded-2xl border-white/10 bg-white/10"
               />
-              <Button type="button" onClick={handleCreateCategory} disabled={!newCategory.trim()}>
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                className="sm:w-auto"
+                onClick={onCreateCategory}
+                disabled={!newCategory.trim()}
+              >
                 Save
               </Button>
             </div>
           ) : null}
+          <p className="text-xs text-zinc-400">
+            Categories help you group related topics and power the dashboard filters.
+          </p>
         </div>
+      </div>
+    );
+  }
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label>Icon</Label>
-            <IconPicker value={icon} onChange={setIcon} />
-          </div>
-          <div className="space-y-2">
-            <Label>Color</Label>
-            <ColorPicker value={color} onChange={setColor} />
+  if (step === "identity") {
+    return (
+      <div className="space-y-6">
+        <div className="rounded-2xl border border-white/10 bg-white/10 p-5 shadow-lg">
+          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Visual identity</p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Icon</Label>
+              <IconPicker value={icon} onChange={onIconChange} />
+            </div>
+            <div className="space-y-2">
+              <Label>Colour</Label>
+              <ColorPicker value={color} onChange={onColorChange} />
+            </div>
           </div>
         </div>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-zinc-300">
+          Pair the icon and colour with the category “{categoryLabel || "General"}” so you can spot this topic instantly in the dashboard.
+        </div>
+      </div>
+    );
+  }
 
+  if (step === "details") {
+    return (
+      <div className="space-y-6">
         <div className="space-y-2">
-          <Label>Reminder</Label>
-          <Select value={timeOption} onValueChange={handleTimeOptionChange}>
-            <SelectTrigger>
+          <Label className="flex items-center gap-2">
+            Reminder
+            <span title="Pick a reminder time to nudge you on days with scheduled reviews." className="text-accent">
+              <Info className="h-3.5 w-3.5" />
+            </span>
+          </Label>
+          <Select value={timeOption} onValueChange={onTimeOptionChange}>
+            <SelectTrigger className="h-11 rounded-2xl border-white/10 bg-white/10">
               <SelectValue placeholder="Select reminder time" />
             </SelectTrigger>
             <SelectContent>
@@ -345,33 +629,201 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
             <Input
               type="time"
               value={customTime}
-              onChange={handleCustomTimeChange}
-              className="w-full"
+              onChange={(event) => onCustomTimeChange(event.target.value)}
+              className="mt-2 h-11 w-40 rounded-2xl border-white/10 bg-white/10"
             />
           ) : null}
+          <p className="text-xs text-zinc-400">
+            Reminders arrive at the chosen time. You can switch them off anytime.
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              Exam date (optional)
+              <span title="Have an exam coming up? Set the date and we’ll optimise your review intervals — no sessions will be scheduled past this date." className="text-accent">
+                <Info className="h-3.5 w-3.5" />
+              </span>
+            </Label>
+            <Input
+              type="date"
+              value={examDate}
+              onChange={(event) => onExamDateChange(event.target.value)}
+              className="h-11 w-56 rounded-2xl border-white/10 bg-white/10"
+              min={new Date().toISOString().slice(0, 10)}
+            />
+            {examSuggestion ? (
+              <div className="rounded-2xl border border-accent/30 bg-accent/10 px-4 py-3 text-xs text-accent">
+                <p className="font-semibold">
+                  {examSuggestion.daysUntilExam > 0
+                    ? `Exam in ${examSuggestion.daysUntilExam} day${examSuggestion.daysUntilExam === 1 ? "" : "s"}.`
+                    : "Exam date is today."}
+                </p>
+                <p className="mt-1 text-accent/80">
+                  We recommend {examSuggestion.recommendedCount} intervals to stay on track. Apply the suggestion to distribute reviews evenly without crossing your exam date.
+                </p>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="mt-2 rounded-xl border-accent/40 text-accent hover:bg-accent/10"
+                  onClick={onApplySuggestion}
+                >
+                  Use suggested intervals
+                </Button>
+              </div>
+            ) : (
+              <p className="text-xs text-zinc-500">
+                Have an exam coming up? Set the date and we’ll optimise your review intervals — no sessions will be scheduled past this date.
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              Intervals
+              <span title="Intervals space your reviews. Longer gaps appear as you succeed." className="text-accent">
+                <Info className="h-3.5 w-3.5" />
+              </span>
+            </Label>
+            <div className="rounded-2xl border border-white/10 bg-white/10 p-4">
+              <IntervalEditor value={intervals} onChange={onIntervalsChange} />
+            </div>
+            <p className="text-xs text-zinc-400">
+              Adjust or add intervals to match your pace. We’ll keep them flexible so reviews never pile up.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              Auto-adjust preference
+              <span title="Decide how the schedule adapts when you review earlier than planned." className="text-accent">
+                <Info className="h-3.5 w-3.5" />
+              </span>
+            </Label>
+            <Select value={autoAdjustPreference} onValueChange={(value: AutoAdjustPreference) => onAutoAdjustPreferenceChange(value)}>
+              <SelectTrigger className="h-11 rounded-2xl border-white/10 bg-white/10 text-left">
+                <SelectValue placeholder="Choose behaviour" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(AUTO_ADJUST_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-zinc-400">
+              You can change this later from the dashboard if you prefer a different level of automation.
+            </p>
+          </div>
+
+          <div className="space-y-2 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-200">
+            <p className="font-semibold">⚠ Skipping today may cause too many reviews to pile up later.</p>
+            <p className="text-amber-100/80">
+              Use the “Skip today” action sparingly — we’ll rebalance the schedule, but you should still aim to review consistently.
+            </p>
+          </div>
         </div>
 
         <div className="space-y-2">
-          <Label>Notes</Label>
+          <Label className="flex items-center gap-2">
+            Notes
+            <span title="Add mnemonics or context to refresh your memory fast." className="text-accent">
+              <Info className="h-3.5 w-3.5" />
+            </span>
+          </Label>
           <Textarea
             value={notes}
-            onChange={(event) => setNotes(event.target.value)}
+            onChange={(event) => onNotesChange(event.target.value)}
             placeholder="Capture keywords, mnemonics, or highlights..."
-            rows={5}
+            rows={6}
+            className="min-h-[160px] rounded-2xl border-white/10 bg-white/10"
           />
         </div>
+      </div>
+    );
+  }
 
-        <div className="space-y-2">
-          <Label>Intervals</Label>
-          <IntervalEditor value={intervals} onChange={setIntervals} />
-        </div>
-
-        <div className="flex justify-end">
-          <Button type="submit" className="px-6">
-            {isEditing ? "Update Topic" : "Save Topic"}
-          </Button>
+  return (
+    <div className="space-y-4 text-sm text-zinc-300">
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+        <h3 className="text-base font-semibold text-white">Basics</h3>
+        <p className="text-xs text-zinc-400">{title || "Untitled topic"}</p>
+        <div className="mt-2 text-xs text-zinc-400">
+          Category: <span className="text-white">{categoryLabel || "General"}</span>
         </div>
       </div>
-    </form>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <h3 className="text-base font-semibold text-white">Visual identity</h3>
+          <p className="text-xs text-zinc-400">Icon and colour picked for quick recognition.</p>
+          <div className="mt-3 flex items-center gap-3">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl" style={{ backgroundColor: `${color}22` }}>
+              <IconPreview name={icon} className="h-5 w-5" />
+            </span>
+            <div className="text-xs text-zinc-400">
+              Current colour: <span className="text-white">{color}</span>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-2">
+          <h3 className="text-base font-semibold text-white">Schedule</h3>
+          <p className="text-xs text-zinc-400">
+            Reminder: <span className="text-white">{timeOption === "none" ? "None" : reminderTime ?? "Custom"}</span>
+          </p>
+          <p className="text-xs text-zinc-400">
+            Intervals: <span className="text-white">{intervals.join(", ")} day{intervals.length === 1 ? "" : "s"}</span>
+          </p>
+          <p className="text-xs text-zinc-400">
+            Auto-adjust: <span className="text-white">{AUTO_ADJUST_LABELS[autoAdjustPreference]}</span>
+          </p>
+          <p className="text-xs text-zinc-400">
+            Exam date: <span className="text-white">{examDate ? formatFullDate(`${examDate}T00:00:00`) : "Not set"}</span>
+          </p>
+        </div>
+      </div>
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+        <h3 className="text-base font-semibold text-white">Notes preview</h3>
+        <p className="text-xs text-zinc-400">
+          {notes.trim() || "Nothing yet — add a note in the previous step to make reviews richer."}
+        </p>
+      </div>
+    </div>
   );
 };
+
+const WizardSteps = ({ steps, activeStep }: { steps: typeof wizardSteps; activeStep: StepId }) => {
+  const activeIndex = steps.findIndex((step) => step.id === activeStep);
+  return (
+    <nav aria-label="Topic creation steps" className="flex items-center justify-between gap-3 rounded-3xl border border-white/5 bg-white/5 px-4 py-3">
+      {steps.map((step, index) => {
+        const isActive = step.id === activeStep;
+        const isCompleted = index < activeIndex;
+        return (
+          <div key={step.id} className="flex flex-1 items-center gap-3 text-left">
+            <span
+              className={`flex h-8 w-8 items-center justify-center rounded-full border text-sm font-semibold ${
+                isCompleted
+                  ? "border-emerald-400/40 bg-emerald-500/20 text-emerald-100"
+                  : isActive
+                  ? "border-accent/40 bg-accent/15 text-accent"
+                  : "border-white/10 bg-white/5 text-zinc-400"
+              }`}
+            >
+              {isCompleted ? <CheckCircle2 className="h-4 w-4" /> : index + 1}
+            </span>
+            <div>
+              <p className={`text-xs font-semibold uppercase tracking-wide ${isActive ? "text-white" : "text-zinc-400"}`}>
+                {step.title}
+              </p>
+              <p className="text-[11px] text-zinc-500">{step.description}</p>
+            </div>
+          </div>
+        );
+      })}
+    </nav>
+  );
+};
+

@@ -44,7 +44,7 @@ export const IntervalEditor: React.FC<IntervalEditorProps> = ({ value, onChange 
               key={preset.id}
               type="button"
               variant={active ? "default" : "outline"}
-              className="rounded-full px-4"
+              className="rounded-full px-4 text-sm shadow-sm hover:-translate-y-0.5"
               onClick={() => togglePreset(preset.days)}
             >
               {preset.label}
@@ -58,13 +58,13 @@ export const IntervalEditor: React.FC<IntervalEditorProps> = ({ value, onChange 
           onChange={(event) => setCustomValue(event.target.value)}
           onKeyDown={handleCustomKeyDown}
           placeholder="Custom (days)"
-          className="w-32"
+          className="h-11 w-32"
           type="number"
           min={1}
           step={1}
           inputMode="numeric"
         />
-        <Button type="button" variant="outline" onClick={handleAddCustom}>
+        <Button type="button" variant="outline" size="lg" className="rounded-xl" onClick={handleAddCustom}>
           Add
         </Button>
       </div>

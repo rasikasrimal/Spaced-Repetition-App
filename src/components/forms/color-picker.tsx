@@ -13,24 +13,25 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({ value, onChange }) => 
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" className="h-10 w-full justify-start gap-3">
-          <span
-            className="h-6 w-6 rounded-full border border-white/30"
-            style={{ backgroundColor: value }}
-          />
-          <span className="text-sm text-zinc-200">{value.toUpperCase()}</span>
+        <Button
+          variant="outline"
+          size="lg"
+          className="h-11 w-full justify-start gap-3 rounded-xl border-white/10 bg-white/10 text-left text-sm text-zinc-200 hover:bg-white/15"
+        >
+          <span className="h-6 w-6 rounded-full border border-white/20" style={{ backgroundColor: value }} />
+          <span className="font-medium tracking-tight">{value.toUpperCase()}</span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-64" sideOffset={12}>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">Color</p>
+      <PopoverContent className="w-64 space-y-3" sideOffset={12}>
+        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Color</p>
         <div className="grid grid-cols-5 gap-2">
           {COLOR_OPTIONS.map((option) => (
             <button
               key={option}
               type="button"
               className={cn(
-                "flex h-10 w-10 items-center justify-center rounded-full border border-transparent transition-transform hover:scale-105",
-                option === value && "ring-2 ring-accent"
+                "flex aspect-square items-center justify-center rounded-xl border border-white/10 transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                option === value && "border-accent ring-2 ring-accent/60"
               )}
               style={{ backgroundColor: option }}
               onClick={() => onChange(option)}

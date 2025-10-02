@@ -1,10 +1,10 @@
-export type IntervalPreset = {
+﻿export type IntervalPreset = {
   id: string;
   label: string;
   days: number;
 };
 
-export type TopicEventType = "started" | "reviewed";
+export type TopicEventType = "started" | "reviewed" | "skipped";
 
 export interface TopicEvent {
   id: string;
@@ -13,7 +13,10 @@ export interface TopicEvent {
   at: string;
   intervalDays?: number;
   notes?: string;
+  backfill?: boolean;
 }
+
+export type AutoAdjustPreference = "always" | "never" | "ask";
 
 export interface TopicForgettingConfig {
   beta?: number;
@@ -35,8 +38,12 @@ export type Topic = {
   intervalIndex: number;
   nextReviewDate: string;
   lastReviewedAt: string | null;
+  lastReviewedOn?: string | null;
+  examDate?: string | null;
+  autoAdjustPreference?: AutoAdjustPreference;
   createdAt: string;
   startedAt?: string;
+  startedOn?: string | null;
   events?: TopicEvent[];
   forgetting?: TopicForgettingConfig;
 };
@@ -47,3 +54,4 @@ export type Category = {
   color: string;
   icon: string;
 };
+

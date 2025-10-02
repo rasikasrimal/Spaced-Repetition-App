@@ -1,84 +1,29 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
-import { TopicForm } from "@/components/forms/topic-form";
 import { Dashboard } from "@/components/dashboard/dashboard";
-import { TimelinePanel } from "@/components/visualizations/timeline-panel";
-import { Button } from "@/components/ui/button";
-import { motion } from "framer-motion";
-import { CalendarClock } from "lucide-react";
 import { useReminderScheduler } from "@/hooks/use-reminder-scheduler";
+import { useRouter } from "next/navigation";
 
 export default function HomePage() {
-  const [showForm, setShowForm] = React.useState(false);
-  const [editingTopicId, setEditingTopicId] = React.useState<string | null>(null);
+  const router = useRouter();
   useReminderScheduler();
 
-  const handleToggleForm = () => {
-    setShowForm((previous) => {
-      const next = !previous;
-      if (!next) {
-        setEditingTopicId(null);
-      }
-      return next;
-    });
-  };
+  const handleCreateTopic = React.useCallback(() => {
+    router.push("/topics/new");
+  }, [router]);
 
-  const handleCreateTopic = () => {
-    setEditingTopicId(null);
-    setShowForm(true);
-  };
-
-  const handleEditTopic = (id: string) => {
-    setEditingTopicId(id);
-    setShowForm(true);
-  };
-
-  const handleFormComplete = (mode: "create" | "edit") => {
-    if (mode === "edit") {
-      setShowForm(false);
-    }
-    setEditingTopicId(null);
-  };
-
-  const toggleLabel = showForm
-    ? editingTopicId
-      ? "Close editor"
-      : "Close form"
-    : "Add new topic";
+  const handleEditTopic = React.useCallback(
+    (id: string) => {
+      router.push(`/topics/${id}/edit`);
+    },
+    [router]
+  );
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-8 px-4 py-10 md:px-6 lg:px-8">
-      <motion.section
-        layout
-        className="flex flex-col gap-6 rounded-3xl border border-white/5 bg-gradient-to-br from-white/10 via-white/5 to-white/0 p-8 shadow-2xl"
-      >
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-start gap-4">
-            <div className="rounded-2xl bg-accent/20 p-3 text-accent">
-              <CalendarClock className="h-6 w-6" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-semibold text-white">Stay ahead of your reviews</h1>
-              <p className="max-w-2xl text-sm text-zinc-300">
-                Your topics are listed by next review date so you always know what is coming up next.
-                Open the composer whenever you want to add something new.
-              </p>
-            </div>
-          </div>
-          <Button variant="outline" onClick={handleToggleForm}>
-            {toggleLabel}
-          </Button>
-        </div>
-        <div className={showForm ? "grid gap-6 lg:grid-cols-[minmax(0,360px)_1fr]" : "grid gap-6"}>
-          {showForm ? (
-            <TopicForm topicId={editingTopicId} onSubmitComplete={handleFormComplete} />
-          ) : null}
-          <Dashboard onCreateTopic={handleCreateTopic} onEditTopic={handleEditTopic} />
-        </div>
-      </motion.section>
-
-      <TimelinePanel />
+    <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 px-4 py-10 md:px-6 lg:px-8">
+      <Dashboard onCreateTopic={handleCreateTopic} onEditTopic={handleEditTopic} />
     </main>
   );
 }
+
