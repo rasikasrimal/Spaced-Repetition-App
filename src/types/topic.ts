@@ -1,10 +1,4 @@
-export type IntervalPreset = {
-  id: string;
-  label: string;
-  days: number;
-};
-
-export type TopicEventType = "started" | "reviewed";
+﻿export type TopicEventType = "started" | "reviewed" | "skipped";
 
 export interface TopicEvent {
   id: string;
@@ -13,7 +7,10 @@ export interface TopicEvent {
   at: string;
   intervalDays?: number;
   notes?: string;
+  backfill?: boolean;
 }
+
+export type AutoAdjustPreference = "always" | "never" | "ask";
 
 export interface TopicForgettingConfig {
   beta?: number;
@@ -22,12 +19,32 @@ export interface TopicForgettingConfig {
   growthPerSuccessfulReview?: number;
 }
 
+export type Subject = {
+  id: string;
+  name: string;
+  color: string;
+  icon: string;
+  examDate?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SubjectSummary = {
+  subjectId: string;
+  topicsCount: number;
+  upcomingReviewsCount: number;
+  nextReviewAt: string | null;
+  updatedAt: string;
+};
+
 export type Topic = {
   id: string;
   title: string;
   notes: string;
-  categoryId: string | null;
-  categoryLabel: string;
+  subjectId: string | null;
+  subjectLabel: string;
+  categoryId?: string | null;
+  categoryLabel?: string;
   icon: string;
   color: string;
   reminderTime: string | null;
@@ -35,15 +52,11 @@ export type Topic = {
   intervalIndex: number;
   nextReviewDate: string;
   lastReviewedAt: string | null;
+  lastReviewedOn?: string | null;
+  autoAdjustPreference?: AutoAdjustPreference;
   createdAt: string;
   startedAt?: string;
+  startedOn?: string | null;
   events?: TopicEvent[];
   forgetting?: TopicForgettingConfig;
-};
-
-export type Category = {
-  id: string;
-  label: string;
-  color: string;
-  icon: string;
 };

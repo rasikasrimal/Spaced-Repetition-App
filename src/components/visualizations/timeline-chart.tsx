@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 
@@ -7,7 +7,7 @@ export type TimelineSeries = {
   topicTitle: string;
   color: string;
   points: { t: number; r: number }[];
-  events: { id: string; t: number; type: "started" | "reviewed"; intervalDays?: number; notes?: string }[];
+  events: { id: string; t: number; type: "started" | "reviewed" | "skipped"; intervalDays?: number; notes?: string }[];
 };
 
 interface TimelineChartProps {
@@ -108,7 +108,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
           topic: string;
           time: number;
           retention?: number;
-          type?: "started" | "reviewed";
+          type?: "started" | "reviewed" | "skipped";
           intervalDays?: number;
           notes?: string;
         }
@@ -263,6 +263,17 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                   onMouseEnter={handleFocus}
                   onMouseLeave={hideTooltip}
                 />
+              ) : event.type === "skipped" ? (
+                <polygon
+                  points="0,-6 6,0 0,6 -6,0"
+                  fill={line.color}
+                  tabIndex={0}
+                  aria-label={`${line.topicTitle} skipped ${formatTimestamp(event.t)}`}
+                  onFocus={handleFocus}
+                  onBlur={hideTooltip}
+                  onMouseEnter={handleFocus}
+                  onMouseLeave={hideTooltip}
+                />
               ) : (
                 <circle
                   r={5}
@@ -360,6 +371,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
 );
 
 TimelineChart.displayName = "TimelineChart";
+
 
 
 
