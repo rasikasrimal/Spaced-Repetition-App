@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { nanoid } from "nanoid";
 import { Category, Topic, TopicEvent } from "@/types/topic";
 import { idbStorage } from "@/lib/idb-storage";
+import { nativeFileStorage } from "@/lib/native-file-storage";
 
 export type ReviewStatus = "due" | "scheduled" | "completed";
 
@@ -224,7 +225,12 @@ export const useTopicStore = create<TopicStore>()(
     }),
     {
       name: STORAGE_KEY,
-      storage: createJSONStorage(() => idbStorage),
+      storage: createJSONStorage(() => {
+        if (typeof window !== "undefined" && (window as any).__TAURI__) {
+          return nativeFileStorage;
+        }
+        return idbStorage;
+      }),
       version: VERSION,
       migrate: async (persistedState, from) => migratePersistedState(persistedState as PersistedState | undefined, from),
       onRehydrateStorage: () => {
