@@ -23,7 +23,7 @@ import { AutoAdjustPreference, Subject } from "@/types/topic";
 import { daysBetween, formatFullDate } from "@/lib/date";
 import { IconPreview } from "@/components/icon-preview";
 
-const defaultIntervals = DEFAULT_INTERVALS.map((preset) => preset.days);
+const defaultIntervals = [...DEFAULT_INTERVALS];
 
 const DEFAULT_AUTO_ADJUST: AutoAdjustPreference = "ask";
 const INTERVAL_BLUEPRINT = [1, 3, 7, 14, 21, 30, 45, 60, 75, 90, 110, 130];
@@ -597,7 +597,7 @@ const WizardStepContent: React.FC<WizardStepContentProps> = ({
           </div>
         </div>
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-zinc-300">
-          Pair the icon and colour with the category “{categoryLabel || "General"}” so you can spot this topic instantly in the dashboard.
+          Pair the icon and colour with the subject “{categoryLabel || "General"}” so you can spot this topic instantly in the dashboard.
         </div>
       </div>
     );
@@ -639,12 +639,19 @@ const WizardStepContent: React.FC<WizardStepContentProps> = ({
         </div>
 
         <div className="space-y-3">
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-zinc-300">
+          <div className="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-zinc-300">
             <p className="font-semibold text-white">Subject exam timeline</p>
+            <p className="text-xs text-zinc-200">
+              Set the exam date for this subject to optimize your review schedule. No reviews will be scheduled after the exam.
+            </p>
             {selectedSubjectExamDate ? (
-              <p>Reviews will never be scheduled after {formatFullDate(selectedSubjectExamDate)}.</p>
+              <p className="text-xs text-emerald-200">
+                No reviews will be scheduled after {formatFullDate(selectedSubjectExamDate)}.
+              </p>
             ) : (
-              <p>No exam date set. Update it from the Subjects page whenever you&rsquo;re ready.</p>
+              <p className="text-xs text-zinc-400">
+                No exam date set yet. You can update it from the Subjects page whenever you&rsquo;re ready.
+              </p>
             )}
           </div>
 

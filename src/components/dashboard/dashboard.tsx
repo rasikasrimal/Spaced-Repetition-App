@@ -1,8 +1,10 @@
 ﻿"use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useTopicStore } from "@/stores/topics";
 import { TopicCard } from "@/components/dashboard/topic-card";
+import { IconPreview } from "@/components/icon-preview";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -18,10 +20,11 @@ import {
   Plus,
   Search,
   Sparkles,
-  Trophy
+  Trophy,
+  NotebookPen
 } from "lucide-react";
-import { formatDateWithWeekday, formatRelativeToNow, getDayKey, isToday, startOfToday } from "@/lib/date";
-import { Topic } from "@/types/topic";
+import { daysBetween, formatDateWithWeekday, formatFullDate, formatRelativeToNow, getDayKey, isToday, startOfToday } from "@/lib/date";
+import { Subject, Topic } from "@/types/topic";
 
 interface DashboardProps {
   onCreateTopic: () => void;
@@ -29,7 +32,14 @@ interface DashboardProps {
 }
 
 type StatusFilter = "all" | "due" | "upcoming" | "completed";
-type SortOption = "next-review" | "title-asc" | "recently-reviewed" | "category";
+type SortOption = "next-review" | "title-asc" | "recently-reviewed" | "subject";
+
+type SubjectInsight = {
+  subject: Subject;
+  topicCount: number;
+  daysRemaining: number | null;
+  examDate: Date | null;
+};
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
@@ -66,8 +76,8 @@ const sortTopics = (topics: Topic[], sortOption: SortOption): Topic[] => {
         const bReviewed = b.lastReviewedAt ? new Date(b.lastReviewedAt).getTime() : 0;
         return bReviewed - aReviewed;
       });
-    case "category":
-      return cloned.sort((a, b) => a.categoryLabel.localeCompare(b.categoryLabel));
+    case "subject":
+      return cloned.sort((a, b) => a.subjectLabel.localeCompare(b.subjectLabel));
     case "next-review":
     default:
       return cloned.sort(
@@ -95,15 +105,41 @@ const computeStreak = (topics: Topic[]) => {
 };
 
 export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic }) => {
-  const { topics, categories } = useTopicStore((state) => ({
+  const { topics, categories, subjects } = useTopicStore((state) => ({
     topics: state.topics,
-    categories: state.categories
+    categories: state.categories,
+    subjects: state.subjects
   }));
+
+  const subjectInsights = React.useMemo<SubjectInsight[]>(() => {
+    const today = startOfToday();
+    return subjects
+      .map((subject) => {
+        const subjectTopics = topics.filter((topic) => topic.subjectId === subject.id);
+        const examDate = subject.examDate ? new Date(subject.examDate) : null;
+        const validExam = examDate && !Number.isNaN(examDate.getTime()) ? examDate : null;
+        const daysRemaining = validExam ? Math.max(0, daysBetween(today, validExam)) : null;
+        return {
+          subject,
+          topicCount: subjectTopics.length,
+          daysRemaining,
+          examDate: validExam
+        };
+      })
+      .sort((a, b) => {
+        if (a.examDate && b.examDate) {
+          return a.examDate.getTime() - b.examDate.getTime();
+        }
+        if (a.examDate) return -1;
+        if (b.examDate) return 1;
+        return a.subject.name.localeCompare(b.subject.name);
+      });
+  }, [subjects, topics]);
 
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all");
   const [sortOption, setSortOption] = React.useState<SortOption>("next-review");
-  const [categoryFilter, setCategoryFilter] = React.useState<Set<string>>(new Set());
+  const [subjectFilter, setSubjectFilter] = React.useState<Set<string>>(new Set());
 
   const {
     groupedTopics,
@@ -128,7 +164,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
         topic.notes.toLowerCase().includes(normalizedSearch) ||
         topic.categoryLabel.toLowerCase().includes(normalizedSearch);
       const categoryId = topic.categoryId ?? "__uncategorised";
-      const matchesCategory = categoryFilter.size === 0 || categoryFilter.has(categoryId);
+      const matchesCategory = subjectFilter.size === 0 || subjectFilter.has(categoryId);
       return matchesSearch && matchesCategory;
     });
 
@@ -180,7 +216,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
       upcomingHighlights,
       streak
     };
-  }, [topics, search, sortOption, categoryFilter]);
+  }, [topics, search, sortOption, subjectFilter]);
 
   const groupsToRender = (statusFilter === "all"
     ? (["due", "upcoming", "completed"] as const)
@@ -191,8 +227,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
     meta: groupMeta[key]
   }));
 
-  const handleToggleCategory = React.useCallback((id: string) => {
-    setCategoryFilter((prev) => {
+  const handleToggleSubject = React.useCallback((id: string) => {
+    setSubjectFilter((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
         next.delete(id);
@@ -201,11 +237,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
       }
       return next;
     });
-  }, [setCategoryFilter]);
+  }, [setSubjectFilter]);
 
-  const handleClearCategories = React.useCallback(() => {
-    setCategoryFilter(new Set());
-  }, [setCategoryFilter]);
+  const handleClearSubjects = React.useCallback(() => {
+    setSubjectFilter(new Set());
+  }, [setSubjectFilter]);
+
+  const overloadWarning = dueCount >= 15
+    ? `⚠ You have ${dueCount} reviews pending. Consider completing a few today to avoid overload later.`
+    : null;
 
   const handleFocusDue = () => {
     setStatusFilter("due");
@@ -228,7 +268,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
               <h1 className="text-3xl font-semibold text-white md:text-4xl">Your next five minutes matter</h1>
               {dueCount === 0 ? (
                 <p className="text-sm text-zinc-300">
-                  ?? Great work! You’ve completed today’s reviews. Here’s what’s coming next.
+                  Great work! You’ve completed today’s reviews. Here’s what’s coming next.
                 </p>
               ) : (
                 <p className="text-sm text-zinc-300">
@@ -242,6 +282,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
                 </p>
               ) : null}
             </div>
+            {overloadWarning ? (
+              <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-4 py-2 text-sm text-amber-100">
+                {overloadWarning}
+              </div>
+            ) : null}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <StatPill label="Due today" value={dueCount} icon={Flame} tone="text-rose-200" />
               <StatPill label="Upcoming" value={upcomingCount} icon={CalendarClock} tone="text-amber-200" />
@@ -267,10 +312,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
           <FilterCard
             search={search}
             onSearchChange={setSearch}
-            categoryFilter={categoryFilter}
-            onToggleCategory={handleToggleCategory}
-            onClearCategories={handleClearCategories}
-            categories={categories}
+            subjectFilter={subjectFilter}
+            onToggleSubject={handleToggleSubject}
+            onClearSubjects={handleClearSubjects}
+            subjects={categories}
             statusFilter={statusFilter}
             onStatusChange={setStatusFilter}
             sortOption={sortOption}
@@ -298,11 +343,74 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
         </div>
 
         <aside className="flex flex-col gap-6">
+          <SubjectManagementCard subjects={subjectInsights} />
           <UpcomingScheduleCard upcoming={upcomingHighlights} />
           <TimelinePanel variant="compact" />
         </aside>
       </div>
     </section>
+  );
+};
+
+
+const SubjectManagementCard = ({ subjects }: { subjects: SubjectInsight[] }) => {
+  return (
+    <div className="rounded-3xl border border-white/5 bg-slate-900/50 p-5 shadow-lg shadow-slate-900/30">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <span className="hidden h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-accent sm:flex">
+            <NotebookPen className="h-5 w-5" />
+          </span>
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Subject management</p>
+            <h2 className="text-lg font-semibold text-white">Keep subjects exam-ready</h2>
+            <p className="text-xs text-zinc-400">Review exam timelines and topic counts at a glance.</p>
+          </div>
+        </div>
+        <Button asChild variant="outline" size="sm" className="rounded-full border-white/20 text-xs text-white">
+          <Link href="/subjects">Manage</Link>
+        </Button>
+      </div>
+      <div className="mt-4 space-y-3">
+        {subjects.length === 0 ? (
+          <p className="text-xs text-zinc-500">Add a subject to start organising your topics.</p>
+        ) : (
+          subjects.map(({ subject, topicCount, daysRemaining, examDate }) => (
+            <div
+              key={subject.id}
+              className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-3 py-3"
+            >
+              <div className="flex items-center gap-3">
+                <span
+                  className="flex h-9 w-9 items-center justify-center rounded-xl"
+                  style={{ backgroundColor: `${subject.color}1f` }}
+                >
+                  <IconPreview name={subject.icon} className="h-4 w-4" />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-white">{subject.name}</p>
+                  <p className="text-xs text-zinc-400">{topicCount} topic{topicCount === 1 ? "" : "s"}</p>
+                </div>
+              </div>
+              <div className="text-right text-xs text-zinc-400">
+                {examDate ? (
+                  <>
+                    <p className="text-amber-100">Exam {formatFullDate(examDate.toISOString())}</p>
+                    <p>
+                      {daysRemaining === 0
+                        ? "Exam today"
+                        : `${daysRemaining} day${daysRemaining === 1 ? "" : "s"} left`}
+                    </p>
+                  </>
+                ) : (
+                  <p>No exam date</p>
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
   );
 };
 
@@ -378,10 +486,10 @@ const ProgressCard = ({
 const FilterCard = ({
   search,
   onSearchChange,
-  categoryFilter,
-  onToggleCategory,
-  onClearCategories,
-  categories,
+  subjectFilter,
+  onToggleSubject,
+  onClearSubjects,
+  subjects,
   statusFilter,
   onStatusChange,
   sortOption,
@@ -389,10 +497,10 @@ const FilterCard = ({
 }: {
   search: string;
   onSearchChange: (value: string) => void;
-  categoryFilter: Set<string>;
-  onToggleCategory: (id: string) => void;
-  onClearCategories: () => void;
-  categories: { id: string; label: string; color: string }[];
+  subjectFilter: Set<string>;
+  onToggleSubject: (id: string) => void;
+  onClearSubjects: () => void;
+  subjects: { id: string; label: string; color: string }[];
   statusFilter: StatusFilter;
   onStatusChange: (value: StatusFilter) => void;
   sortOption: SortOption;
@@ -406,7 +514,7 @@ const FilterCard = ({
           <Input
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
-            placeholder="Search by topic, note, or category"
+            placeholder="Search by topic, note, or subject"
             className="h-10 border-none bg-transparent text-sm text-white placeholder:text-zinc-500 focus-visible:ring-0"
           />
         </div>
@@ -439,36 +547,36 @@ const FilterCard = ({
               </SelectItem>
               <SelectItem value="title-asc">Topic name (A-Z)</SelectItem>
               <SelectItem value="recently-reviewed">Recently reviewed</SelectItem>
-              <SelectItem value="category">Category</SelectItem>
+              <SelectItem value="subject">Subject</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        {categories.map((category) => {
-          const active = categoryFilter.has(category.id);
+        {subjects.map((subject) => {
+          const active = subjectFilter.has(subject.id);
           return (
             <button
               type="button"
-              key={category.id}
-              onClick={() => onToggleCategory(category.id)}
+              key={subject.id}
+              onClick={() => onToggleSubject(subject.id)}
               className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs transition ${
                 active
                   ? "border-white/40 bg-white/10 text-white"
                   : "border-white/10 bg-transparent text-zinc-400 hover:text-white"
               }`}
             >
-              <span className="inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: category.color }} />
-              {category.label}
+              <span className="inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: subject.color }} />
+              {subject.label}
             </button>
           );
         })}
-        {categoryFilter.size > 0 ? (
+        {subjectFilter.size > 0 ? (
           <button
             type="button"
             className="inline-flex items-center gap-2 rounded-full border border-transparent px-3 py-1 text-xs text-zinc-400 hover:text-white"
-            onClick={onClearCategories}
+            onClick={onClearSubjects}
           >
             Clear filters
           </button>

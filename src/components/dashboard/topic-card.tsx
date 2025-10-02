@@ -14,7 +14,7 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { useTopicStore } from "@/stores/topics";
-import { AutoAdjustPreference, Topic } from "@/types/topic";
+import { AutoAdjustPreference, Subject, Topic } from "@/types/topic";
 import {
   formatDateWithWeekday,
   formatFullDate,
@@ -56,14 +56,20 @@ const autoAdjustLabels: Record<AutoAdjustPreference, string> = {
 };
 
 export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
-  const { markReviewed, deleteTopic, updateTopic, skipTopic, setAutoAdjustPreference } = useTopicStore(
+  const { markReviewed, deleteTopic, updateTopic, skipTopic, setAutoAdjustPreference, subjects } = useTopicStore(
     (state) => ({
       markReviewed: state.markReviewed,
       deleteTopic: state.deleteTopic,
       updateTopic: state.updateTopic,
       skipTopic: state.skipTopic,
-      setAutoAdjustPreference: state.setAutoAdjustPreference
+      setAutoAdjustPreference: state.setAutoAdjustPreference,
+      subjects: state.subjects
     })
+  );
+
+  const subject: Subject | null = React.useMemo(
+    () => subjects.find((item) => item.id === topic.subjectId) ?? null,
+    [subjects, topic.subjectId]
   );
 
   const [notesValue, setNotesValue] = React.useState(topic.notes ?? "");
@@ -84,7 +90,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
   const totalIntervals = Math.max(topic.intervals.length, 1);
   const clampedIndex = Math.min(topic.intervalIndex, totalIntervals - 1);
   const progress = Math.round(((clampedIndex + (reviewedToday ? 1 : 0)) / totalIntervals) * 100);
-  const examDateLabel = topic.examDate ? formatFullDate(topic.examDate) : null;
+  const examDateLabel = subject?.examDate ? formatFullDate(subject.examDate) : null;
   const autoAdjustPreference = topic.autoAdjustPreference ?? "ask";
 
   React.useEffect(() => {
@@ -115,7 +121,6 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
       color: overrides.color ?? topic.color,
       reminderTime: overrides.reminderTime ?? topic.reminderTime,
       intervals: overrides.intervals ?? topic.intervals,
-      examDate: overrides.examDate ?? topic.examDate ?? null,
       autoAdjustPreference: overrides.autoAdjustPreference ?? topic.autoAdjustPreference ?? autoAdjustPreference,
       startedOn: overrides.startedOn ?? topic.startedOn ?? topic.startedAt ?? null,
       lastReviewedOn: overrides.lastReviewedOn ?? topic.lastReviewedOn ?? topic.lastReviewedAt ?? null
@@ -199,7 +204,8 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
   const confirmSkip = () => {
     skipTopic(topic.id);
     toast("Skip noted", {
-      description: "We’ve reshuffled upcoming reviews to keep things balanced."
+      description:
+        "Skipped today. Your upcoming sessions have been adjusted — but don’t worry, we’ll keep you on track before your exam."
     });
     setShowSkipConfirm(false);
   };
@@ -487,8 +493,8 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
       <ConfirmationDialog
         open={showAdjustPrompt}
         onClose={() => setShowAdjustPrompt(false)}
-        title="You reviewed earlier than planned"
-        description="Adjust your future schedule?"
+        title="You studied this earlier than planned"
+        description="Adjust future intervals to reflect your progress?"
         confirmLabel="Adjust schedule"
         cancelLabel="Keep original plan"
         onConfirm={() => {
