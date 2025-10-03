@@ -26,7 +26,7 @@ const DEFAULT_PROFILE: Profile = {
   email: "alex@example.com",
   role: "Learner",
   avatarColor: "#38bdf8",
-  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC",
+  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone ?? "Asia/Colombo",
   notifications: {
     email: true,
     push: false

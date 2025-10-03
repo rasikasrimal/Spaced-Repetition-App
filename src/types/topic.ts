@@ -1,10 +1,4 @@
-﻿export type IntervalPreset = {
-  id: string;
-  label: string;
-  days: number;
-};
-
-export type TopicEventType = "started" | "reviewed" | "skipped";
+﻿export type TopicEventType = "started" | "reviewed" | "skipped";
 
 export interface TopicEvent {
   id: string;
@@ -65,4 +59,5 @@ export type Topic = {
   startedOn?: string | null;
   events?: TopicEvent[];
   forgetting?: TopicForgettingConfig;
+  reviseNowLastUsedAt?: string | null;
 };
