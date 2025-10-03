@@ -221,8 +221,8 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
       time: DEFAULT_REVIEW_TIME,
       quality: 0.5
     };
-    setDrafts(sortDrafts([...drafts, draft], timezone));
-  }, [drafts, timezone]);
+    setDrafts((previous) => sortDrafts([...previous, draft], timezone));
+  }, [timezone]);
 
   const updateDraft = React.useCallback(
     (localId: string, updates: Partial<HistoryDraft>) => {
@@ -261,9 +261,9 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
       };
     });
 
-    setDrafts(sortDrafts([...drafts, ...additions], timezone));
+    setDrafts((previous) => sortDrafts([...previous, ...additions], timezone));
     setBulkInput("");
-  }, [bulkInput, bulkQuality, drafts, timezone]);
+  }, [bulkInput, bulkQuality, timezone]);
 
   const resetState = React.useCallback(() => {
     setDrafts([]);
