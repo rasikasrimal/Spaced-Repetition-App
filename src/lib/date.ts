@@ -75,6 +75,41 @@ export const startOfDayInTimeZone = (value: string | Date, timeZone: string) => 
   return new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
 };
 
+export const toDateInputValueInTimeZone = (value: string | Date, timeZone: string) => {
+  const { year, month, day } = getZonedParts(value, timeZone);
+  const monthStr = String(month).padStart(2, "0");
+  const dayStr = String(day).padStart(2, "0");
+  return `${year}-${monthStr}-${dayStr}`;
+};
+
+export const toTimeInputValueInTimeZone = (value: string | Date, timeZone: string) => {
+  const { hour, minute } = getZonedParts(value, timeZone);
+  const hourStr = String(hour).padStart(2, "0");
+  const minuteStr = String(minute).padStart(2, "0");
+  return `${hourStr}:${minuteStr}`;
+};
+
+export const combineDateAndTimeInTimeZone = (
+  dateInput: string,
+  timeInput: string | null,
+  timeZone: string
+) => {
+  if (!dateInput) {
+    throw new Error("Date input is required");
+  }
+  const safeTime = timeInput && /^\d{2}:\d{2}$/.test(timeInput) ? timeInput : "12:00";
+  const base = startOfDayInTimeZone(`${dateInput}T00:00:00.000Z`, timeZone);
+  const [hours, minutes] = safeTime.split(":").map((segment) => Number.parseInt(segment, 10));
+  const result = new Date(base.getTime());
+  if (Number.isFinite(hours)) {
+    result.setUTCHours(result.getUTCHours() + hours);
+  }
+  if (Number.isFinite(minutes)) {
+    result.setUTCMinutes(result.getUTCMinutes() + minutes);
+  }
+  return result.toISOString();
+};
+
 const toDayKey = (value: string | Date) => {
   const normalized = normalizeToStartOfDay(value);
   const month = String(normalized.getMonth() + 1).padStart(2, "0");

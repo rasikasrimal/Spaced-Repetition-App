@@ -115,6 +115,11 @@ type TopicStore = TopicStoreState & {
   updateTopic: (id: string, payload: TopicPayload) => void;
   deleteTopic: (id: string) => void;
   markReviewed: (id: string, options?: MarkReviewedOptions) => boolean;
+  updateTopicHistory: (
+    id: string,
+    entries: TopicHistoryEntry[],
+    options?: UpdateTopicHistoryOptions
+  ) => UpdateTopicHistoryResult;
   skipTopic: (id: string) => void;
   setAutoAdjustPreference: (id: string, preference: AutoAdjustPreference) => void;
   trackReviseNowBlocked: () => void;
@@ -420,6 +425,26 @@ const createReviewedEvent = (
 
 const VERSION = 7;
 type PersistedState = TopicStoreState & { version?: number; categories?: LegacyCategory[] };
+
+type TopicHistoryEntry = {
+  id?: string;
+  at: string;
+  quality: ReviewQuality;
+};
+
+type UpdateTopicHistoryOptions = {
+  timeZone?: string;
+};
+
+type UpdateTopicHistoryResult =
+  | { success: true; mergedDays: string[] }
+  | { success: false; error: string };
+
+const QUALITY_PRIORITY: Record<ReviewQuality, number> = {
+  0: 0,
+  0.5: 1,
+  1: 2
+};
 
 const migrate = (persisted: PersistedState, from: number): PersistedState => {
   if (!persisted.topics) {
@@ -988,6 +1013,158 @@ export const useTopicStore = create<TopicStore>()(
       },
       deleteTopic: (id) => {
         set((state) => ({ topics: state.topics.filter((topic) => topic.id !== id) }));
+      },
+      updateTopicHistory: (id, entries, options) => {
+        const state = get();
+        const topic = state.topics.find((item) => item.id === id);
+        if (!topic) {
+          return { success: false, error: "Topic not found" };
+        }
+
+        const timeZone = options?.timeZone ?? DEFAULT_TIME_ZONE;
+        const subject = findSubjectById(state.subjects, topic.subjectId ?? null);
+        const now = nowInTimeZone(timeZone);
+        const nowMs = now.getTime();
+        const examDate = subject?.examDate ?? null;
+        const examMs = examDate ? new Date(examDate).getTime() : null;
+
+        const deduped = new Map<string, TopicHistoryEntry>();
+        const mergedDays: string[] = [];
+
+        for (const entry of entries) {
+          const reviewedAt = new Date(entry.at);
+          if (Number.isNaN(reviewedAt.getTime())) {
+            return { success: false, error: "History entry has an invalid date" };
+          }
+          if (reviewedAt.getTime() > nowMs) {
+            return { success: false, error: "History cannot include future dates" };
+          }
+          if (examMs && reviewedAt.getTime() > examMs) {
+            return {
+              success: false,
+              error: subject
+                ? `That date is after the exam for ${subject.name}. Choose an earlier date.`
+                : "That date exceeds the subject exam cut-off."
+            };
+          }
+
+          const dayKey = getDayKeyInTimeZone(reviewedAt.toISOString(), timeZone);
+          const existing = deduped.get(dayKey);
+          if (existing) {
+            mergedDays.push(dayKey);
+            const existingRank = QUALITY_PRIORITY[existing.quality];
+            const candidateRank = QUALITY_PRIORITY[entry.quality];
+            if (
+              candidateRank > existingRank ||
+              (candidateRank === existingRank && reviewedAt.getTime() > new Date(existing.at).getTime())
+            ) {
+              deduped.set(dayKey, { ...entry, at: reviewedAt.toISOString() });
+            }
+          } else {
+            deduped.set(dayKey, { ...entry, at: reviewedAt.toISOString() });
+          }
+        }
+
+        const ordered = Array.from(deduped.values()).sort(
+          (a, b) => new Date(a.at).getTime() - new Date(b.at).getTime()
+        );
+
+        const reviewEvents: TopicEvent[] = [];
+        let stability = DEFAULT_STABILITY_DAYS;
+        let reviewsCount = 0;
+        let intervalIndex = 0;
+        let lastIntervalDays = computeIntervalDays(DEFAULT_STABILITY_DAYS, topic.retrievabilityTarget);
+        const subjectDifficulty = resolveDifficultyModifier(
+          subject?.difficultyModifier ?? topic.subjectDifficultyModifier
+        );
+
+        for (const entry of ordered) {
+          reviewsCount += 1;
+          stability = updateStability(stability, entry.quality);
+          const effectiveStability = Math.max(stability * subjectDifficulty, STABILITY_MIN_DAYS);
+          const intervalDays = computeIntervalDays(effectiveStability, topic.retrievabilityTarget);
+          lastIntervalDays = intervalDays;
+          const reviewedAtDate = new Date(entry.at);
+          const reviewedAtIso = reviewedAtDate.toISOString();
+          const nextReviewIso = clampToExamDate(
+            new Date(new Date(reviewedAtIso).getTime() + intervalDays * DAY_MS),
+            examDate
+          );
+
+          reviewEvents.push({
+            id: entry.id ?? nanoid(),
+            topicId: topic.id,
+            type: "reviewed",
+            at: reviewedAtIso,
+            intervalDays,
+            reviewQuality: entry.quality,
+            reviewKind: "scheduled",
+            resultingStability: stability,
+            targetRetrievability: topic.retrievabilityTarget,
+            nextReviewAt: nextReviewIso,
+            backfill: reviewedAtDate.getTime() < nowMs ? true : undefined
+          });
+
+          const intervalCap = Math.max(topic.intervals.length - 1, 0);
+          intervalIndex = Math.min(reviewsCount, intervalCap);
+        }
+
+        const nonReviewEvents = (topic.events ?? []).filter((event) => event.type !== "reviewed");
+        const startedAt = topic.startedAt ?? topic.createdAt;
+        const markBackfilled =
+          ordered.length > 0 && new Date(ordered[0].at).getTime() < new Date(startedAt).getTime();
+        let events = ensureStartedEvent(topic.id, nonReviewEvents, startedAt, markBackfilled);
+        events = ensureEventsSorted([...events, ...reviewEvents]);
+
+        let nextReviewDate = topic.nextReviewDate;
+        let lastReviewedAt: string | null = null;
+
+        if (reviewEvents.length > 0) {
+          const lastEvent = reviewEvents[reviewEvents.length - 1];
+          lastReviewedAt = lastEvent.at;
+          const intervalDays = lastEvent.intervalDays ?? lastIntervalDays;
+          const referenceDate = new Date(lastEvent.at);
+          nextReviewDate = scheduleNextReviewDate({
+            topicId: topic.id,
+            referenceDate,
+            intervalDays,
+            topics: state.topics,
+            timeZone,
+            examDate,
+            minimumDate: referenceDate
+          });
+        } else {
+          stability = DEFAULT_STABILITY_DAYS;
+          reviewsCount = 0;
+          intervalIndex = 0;
+        }
+
+        const finalStability = Math.min(
+          Math.max(stability, STABILITY_MIN_DAYS),
+          STABILITY_MAX_DAYS
+        );
+
+        const uniqueMergedDays = Array.from(new Set(mergedDays)).sort();
+
+        set((prev) => ({
+          topics: prev.topics.map((item) => {
+            if (item.id !== id) return item;
+            return {
+              ...item,
+              events,
+              stability: finalStability,
+              reviewsCount,
+              intervalIndex,
+              nextReviewDate,
+              lastReviewedAt,
+              lastReviewedOn: lastReviewedAt,
+              subjectDifficultyModifier: subjectDifficulty,
+              reviseNowLastUsedAt: item.reviseNowLastUsedAt
+            };
+          })
+        }));
+
+        return { success: true, mergedDays: uniqueMergedDays };
       },
       markReviewed: (id, options) => {
         const state = get();

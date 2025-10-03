@@ -26,6 +26,9 @@ This document outlines the lightweight testing strategy for the Spaced Repetitio
 | Calendar dots & exam chip | Apply subject filter, inspect month grid for multi-subject days, open a future day sheet | Dots display one per subject colour, overflow shows `+N` with tooltip list, future days display “Scheduled for this day,” today enables Revise. |
 | Timeline zoom/pan/reset | Zoom in with controls, drag to pan, use Reset button, export PNG | Zooming clamps to minimum span, panning stays within domain, Reset returns to full range, export matches on-screen view including dotted exam markers when enabled. |
 | Progress today updates | Complete reviews until 100% | Progress band shows `{completed}/{total} reviews completed • {X}% complete` message and success state “Great work! You’ve completed today’s reviews.” |
+| Backfill history accuracy | Subjects → expand subject → open Edit history → add Easy, Easy, Hard entries over the last month | Intervals extend after successive easies, shorten after the hard, and next due date matches the replayed schedule. |
+| Duplicate merge prompt | Subjects → Edit history → add the same date twice | Merge warning appears and saving keeps a single entry with the highest quality. |
+| Timeline per-subject view | Timeline → switch to Per subject → zoom and export | Mini-charts share axes, zoom/pan/reset apply to all, and export matches the on-screen grid. |
 
 ## Timeline zoom acceptance criteria
 

@@ -26,6 +26,18 @@ The Spaced Repetition App is a local-first study companion built with Next.js, T
 - **Timeline markers** – Dotted vertical exam indicators in the subject’s colour, visible in exports and toggleable from the toolbar.
 - **Revise daily rule** – Each topic can be revised once per local calendar day based on the profile timezone; locked attempts surface “You’ve already revised this today. Available again after midnight.”
 
+## Backfill past study
+
+- Expand a subject on the Subjects page and choose **Edit history** to log previous review dates and qualities.
+- The history editor merges duplicate days, replays the forgetting model chronologically, and recalculates the next due date with load smoothing.
+- Saving emits a toast (“History saved. Schedule and timeline updated.”) and refreshes the dashboard, calendar, and timeline immediately.
+
+## Per-subject timeline
+
+- Use the **View: Combined • Per subject** switch on the Timeline to render small multiples grouped by subject.
+- Zoom, pan, and reset controls remain synchronised across every mini-chart, and exports capture the exact grid layout.
+- Exam markers and the Today line respect per-subject filtering so the view matches the combined summary.
+
 ## How to zoom
 
 - Drag across the timeline to zoom the time range; hold Shift to include the retention axis.
