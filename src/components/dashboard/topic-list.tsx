@@ -3,6 +3,7 @@
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { QuickRevisionDialog } from "@/components/dashboard/quick-revision-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -34,6 +35,7 @@ import {
   nextStartOfDayInTimeZone
 } from "@/lib/date";
 import { cn } from "@/lib/utils";
+import { REVISE_LOCKED_MESSAGE } from "@/lib/constants";
 import { toast } from "sonner";
 
 export type TopicStatus = "overdue" | "due-today" | "upcoming";
@@ -127,6 +129,7 @@ export function TopicList({
   const [searchFocused, setSearchFocused] = React.useState(false);
   const [subjectOpen, setSubjectOpen] = React.useState(false);
   const [sortOpen, setSortOpen] = React.useState(false);
+  const [subjectSearch, setSubjectSearch] = React.useState("");
   const searchFieldRef = React.useRef<HTMLInputElement | null>(null);
   const appliedFiltersDescriptionId = React.useId();
   const [isHydrated, setIsHydrated] = React.useState(false);
@@ -134,6 +137,12 @@ export function TopicList({
   React.useEffect(() => {
     setIsHydrated(true);
   }, []);
+
+  React.useEffect(() => {
+    if (!subjectOpen) {
+      setSubjectSearch("");
+    }
+  }, [subjectOpen]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -240,6 +249,16 @@ export function TopicList({
   const allSubjectIds = React.useMemo(() => subjectOptions.map((option) => option.id), [subjectOptions]);
   const totalSubjectOptions = subjectOptions.length;
 
+  const normalizedSubjectSearch = subjectSearch.trim().toLowerCase();
+  const filteredSubjectOptions = React.useMemo(() => {
+    if (!normalizedSubjectSearch) {
+      return subjectOptions;
+    }
+    return subjectOptions.filter((option) =>
+      option.name.toLowerCase().includes(normalizedSubjectSearch)
+    );
+  }, [subjectOptions, normalizedSubjectSearch]);
+
   const selectedSubjectCount = subjectFilter === null ? totalSubjectOptions : subjectFilter.size;
   const allSubjectsSelected = subjectFilter === null || selectedSubjectCount === totalSubjectOptions;
 
@@ -339,20 +358,23 @@ export function TopicList({
     >
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:gap-4">
-          <div role="search" className="xl:flex-1">
+          <div role="search" className="w-full xl:flex-[1.4] xl:min-w-[22rem] xl:pr-6">
             <label htmlFor="dashboard-topic-search" className="sr-only">
               Search topics
             </label>
             <div
               className={cn(
-                "group relative flex h-11 w-full min-w-0 items-center gap-2 rounded-xl border border-white/15 bg-slate-900/70 px-3 text-sm text-white shadow-sm transition",
-                "hover:border-white/25 hover:shadow-lg hover:shadow-slate-950/40",
+                "group relative flex h-12 w-full min-w-0 items-center rounded-2xl border border-white/15 bg-slate-950/75 px-4 text-sm text-white shadow-lg shadow-slate-950/40 transition",
+                "hover:border-white/25 hover:shadow-xl hover:shadow-slate-950/60",
                 searchFocused
-                  ? "border-accent ring-2 ring-accent/50 ring-offset-2 ring-offset-slate-950"
-                  : "focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/50 focus-within:ring-offset-2 focus-within:ring-offset-slate-950"
+                  ? "border-accent ring-2 ring-accent/45 ring-offset-2 ring-offset-slate-950"
+                  : "focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/45 focus-within:ring-offset-2 focus-within:ring-offset-slate-950"
               )}
             >
-              <Search className="h-4 w-4 flex-none text-zinc-400" aria-hidden="true" />
+              <Search
+                className="pointer-events-none absolute left-4 h-5 w-5 flex-none text-zinc-400"
+                aria-hidden="true"
+              />
               <input
                 ref={searchFieldRef}
                 id="dashboard-topic-search"
@@ -372,7 +394,7 @@ export function TopicList({
                   }
                 }}
                 placeholder="Search topics…"
-                className="flex-1 bg-transparent text-sm text-white placeholder:text-zinc-400 focus:outline-none"
+                className="h-full w-full rounded-2xl bg-transparent pl-10 pr-12 text-sm text-white placeholder:text-zinc-400 focus:outline-none"
                 aria-describedby={filterDescriptions ? appliedFiltersDescriptionId : undefined}
                 autoComplete="off"
                 spellCheck={false}
@@ -388,7 +410,7 @@ export function TopicList({
                   handleClearSearch();
                 }}
                 className={cn(
-                  "ml-1 inline-flex h-7 w-7 flex-none items-center justify-center rounded-full text-zinc-400 transition",
+                  "absolute right-3 inline-flex h-7 w-7 flex-none items-center justify-center rounded-full text-zinc-400 transition",
                   "hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950",
                   searchInput ? "opacity-100" : "pointer-events-none opacity-0"
                 )}
@@ -401,7 +423,10 @@ export function TopicList({
                 Active filters: {filterDescriptions}
               </span>
             ) : null}
-            <p className="mt-1 text-xs text-zinc-500">Press / to search</p>
+            <div className="mt-1 flex items-center justify-between text-xs text-zinc-500">
+              <p>Press / to search</p>
+              <p className="hidden sm:block">Esc clears the field</p>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400 xl:flex-nowrap xl:justify-end">
@@ -460,17 +485,35 @@ export function TopicList({
                     <button
                       type="button"
                       className="text-xs font-medium text-zinc-300 hover:underline"
-                      onClick={() => onSubjectFilterChange(new Set())}
+                      onClick={() => onSubjectFilterChange(new Set<string>())}
                     >
                       Clear all
                     </button>
                   </div>
                 </div>
+                <div className="mt-3">
+                  <label htmlFor="subject-filter-search" className="sr-only">
+                    Search subjects
+                  </label>
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" aria-hidden="true" />
+                    <Input
+                      id="subject-filter-search"
+                      type="search"
+                      value={subjectSearch}
+                      onChange={(event) => setSubjectSearch(event.target.value)}
+                      placeholder="Search subjects"
+                      className="h-9 w-full rounded-xl border-white/10 bg-slate-950/80 pl-9 pr-3 text-xs text-white placeholder:text-zinc-500 focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/40"
+                    />
+                  </div>
+                </div>
                 <div className="mt-3 max-h-64 space-y-1 overflow-y-auto">
                   {subjectOptions.length === 0 ? (
                     <p className="text-xs text-zinc-400">No subjects yet.</p>
+                  ) : filteredSubjectOptions.length === 0 ? (
+                    <p className="text-xs text-zinc-400">No matching subjects.</p>
                   ) : (
-                    subjectOptions.map((option) => {
+                    filteredSubjectOptions.map((option) => {
                       const isChecked = subjectFilter === null ? true : subjectFilter.has(option.id);
                       return (
                         <button
@@ -662,22 +705,13 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
     () => (hasUsedReviseToday ? nextStartOfDayInTimeZone(timezone, zonedNow) : null),
     [hasUsedReviseToday, timezone, zonedNow]
   );
-  const nextAvailabilityDateLabel = React.useMemo(
-    () =>
-      nextAvailability
-        ? formatInTimeZone(nextAvailability, timezone, {
-            weekday: "short",
-            month: "short",
-            day: "numeric"
-          })
-        : null,
-    [nextAvailability, timezone]
-  );
-  const nextAvailabilityMessage = nextAvailabilityDateLabel
-    ? `You’ve already revised this today. Available again after midnight on ${nextAvailabilityDateLabel}.`
-    : "You’ve already revised this today. Available again after midnight.";
-  const nextAvailabilitySubtext = nextAvailabilityDateLabel
-    ? `Available again after midnight on ${nextAvailabilityDateLabel}`
+  const nextAvailabilityMessage = REVISE_LOCKED_MESSAGE;
+  const nextAvailabilitySubtext = nextAvailability
+    ? `Available again after midnight (${formatInTimeZone(nextAvailability, timezone, {
+        month: "short",
+        day: "numeric",
+        timeZoneName: "short"
+      })})`
     : "Available again after midnight";
 
   const statusMeta = STATUS_META[item.status];
@@ -714,7 +748,7 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
         window.setTimeout(() => setRecentlyRevised(false), 1500);
         return true;
       } else if (source === "revise-now") {
-        toast.error("Already used today. Try again after midnight.");
+        toast.error(REVISE_LOCKED_MESSAGE);
       }
       return false;
     }
@@ -728,7 +762,7 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
 
     if (!success) {
       if (source === "revise-now") {
-        toast.error("Already used today. Try again after midnight.");
+        toast.error(REVISE_LOCKED_MESSAGE);
       }
       return false;
     }
@@ -750,9 +784,13 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
   const handleReviseNow = (event: React.MouseEvent<HTMLButtonElement>) => {
     if (hasUsedReviseToday) {
       trackReviseNowBlocked();
-      toast.error("Already used today. Try again after midnight.");
+      toast.error(REVISE_LOCKED_MESSAGE);
       return;
     }
+    setShowDeleteConfirm(false);
+    setShowSkipConfirm(false);
+    setShowAdjustPrompt(false);
+    pendingReviewSource.current = undefined;
     revisionTriggerRef.current = event.currentTarget;
     setShowQuickRevision(true);
   };
