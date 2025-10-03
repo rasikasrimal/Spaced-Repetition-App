@@ -75,11 +75,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
     window.sessionStorage.setItem(STATUS_FILTER_STORAGE_KEY, statusFilter);
   }, [statusFilter]);
 
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.sessionStorage.setItem(STATUS_FILTER_STORAGE_KEY, statusFilter);
-  }, [statusFilter]);
-
   const resolvedSubjectFilter = subjectFilter ?? null;
 
   const enrichedTopics = React.useMemo<TopicListItem[]>(() => {
@@ -325,6 +320,7 @@ const ProgressTodayModule = ({
   const safeTotal = total === 0 ? completed : total;
   const safePercent = Number.isFinite(completionPercent) ? Math.max(0, Math.min(100, completionPercent)) : 0;
   const isComplete = safePercent >= 100;
+  const summaryText = `${completed}/${safeTotal} reviews completed • ${safePercent}% complete. Keep up the rhythm — every checkmark keeps your memory sharp.`;
 
   return (
     <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-accent/25 via-accent/20 to-transparent px-6 py-8 text-white shadow-xl shadow-slate-950/30 md:px-8">
@@ -336,7 +332,7 @@ const ProgressTodayModule = ({
             <h2 className="text-3xl font-semibold">
               {completed}/{safeTotal} reviews completed
             </h2>
-            <p className="text-sm text-white/70">Keep up the rhythm — every checkmark keeps your memory sharp.</p>
+            <p className="text-sm text-white/70">{summaryText}</p>
           </div>
           <div className="space-y-3 text-sm text-white/80">
             <div className="h-2 w-full overflow-hidden rounded-full bg-white/20">

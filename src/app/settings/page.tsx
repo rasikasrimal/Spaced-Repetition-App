@@ -95,6 +95,9 @@ export default function SettingsPage() {
               placeholder="UTC"
               className="h-11 rounded-2xl border-white/10 bg-white/10"
             />
+            <p className="text-xs text-zinc-500">
+              We use this timezone for all date labels and to reset the daily revise limit at local midnight.
+            </p>
           </div>
         </div>
 

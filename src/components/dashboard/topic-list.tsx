@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { QuickRevisionDialog } from "@/components/dashboard/quick-revision-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { IconPreview } from "@/components/icon-preview";
 import { useTopicStore } from "@/stores/topics";
 import { Subject, Topic } from "@/types/topic";
 import {
@@ -921,14 +922,13 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400 md:hidden">
                 <span
-                  className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2.5 py-1"
                   style={{ backgroundColor: `${(subject?.color ?? "#64748b")}1f` }}
                 >
-                  <span
-                    className="h-2 w-2 rounded-full"
-                    style={{ backgroundColor: subject?.color ?? "#64748b" }}
-                  />
-                  {subject ? subject.name : "No subject"}
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/15 text-white">
+                    <IconPreview name={subject?.icon ?? "Sparkles"} className="h-3.5 w-3.5" />
+                  </span>
+                  <span>{subject ? subject.name : "No subject"}</span>
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <CalendarClock className="h-3 w-3" aria-hidden="true" /> {nextReviewRelativeLabel}
@@ -946,7 +946,9 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
             className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium"
             style={{ backgroundColor: `${(subject?.color ?? "#64748b")}1f` }}
           >
-            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: subject?.color ?? "#64748b" }} />
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/15 text-white">
+              <IconPreview name={subject?.icon ?? "Sparkles"} className="h-3.5 w-3.5" />
+            </span>
             {subject ? subject.name : "No subject"}
           </span>
         </div>

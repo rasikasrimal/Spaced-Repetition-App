@@ -88,5 +88,5 @@ Zoom controls, drag panning, and shift-scroll translate into domain updates that
 
 ## Iconography
 - Header icons: `rounded-2xl bg-accent/20 p-3 text-accent` with `h-6 w-6`
-- Topic avatars: tint containers with inline style ``style={{ backgroundColor: `${color}22` }}``
+- Subject badges: inline pill uses subject colour tint (`${color}1f`) plus an `IconPreview` rendered at `h-3.5 w-3.5` on a `bg-white/15` disc for contrast.
 - Action icons: `h-4 w-4` within ghost buttons, consistent spacing via `gap-2`

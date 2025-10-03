@@ -290,7 +290,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   const resolveTopicColor = React.useCallback(
     (topic: Topic) => {
       const subject = topic.subjectId ? subjectLookup.get(topic.subjectId) : undefined;
-      return subject?.color ?? topic.color ?? "#7c3aed";
+      return subject?.color ?? "#7c3aed";
     },
     [subjectLookup]
   );

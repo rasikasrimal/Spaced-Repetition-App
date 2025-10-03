@@ -83,10 +83,8 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
     [subjects, topic.subjectId]
   );
 
-  const fallbackIcon = topic.icon ?? "Sparkles";
-  const fallbackColor = topic.color ?? "#38bdf8";
-  const identityIcon = subject?.icon ?? fallbackIcon;
-  const identityColor = subject?.color ?? fallbackColor;
+  const identityIcon = subject?.icon ?? "Sparkles";
+  const identityColor = subject?.color ?? "#38bdf8";
 
   const [notesValue, setNotesValue] = React.useState(topic.notes ?? "");
   const [reminderValue, setReminderValue] = React.useState<ReminderValue>(() => {
