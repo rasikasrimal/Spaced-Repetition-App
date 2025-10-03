@@ -129,6 +129,11 @@ export function TopicList({
   const [sortOpen, setSortOpen] = React.useState(false);
   const searchFieldRef = React.useRef<HTMLInputElement | null>(null);
   const appliedFiltersDescriptionId = React.useId();
+  const [isHydrated, setIsHydrated] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -179,11 +184,20 @@ export function TopicList({
     });
   }, []);
 
+  const clearSearch = React.useCallback(
+    (shouldRefocus: boolean) => {
+      setSearchInput("");
+      setSearchQuery("");
+      if (shouldRefocus) {
+        focusSearchField();
+      }
+    },
+    [focusSearchField]
+  );
+
   const handleClearSearch = React.useCallback(() => {
-    setSearchInput("");
-    setSearchQuery("");
-    focusSearchField();
-  }, [focusSearchField]);
+    clearSearch(true);
+  }, [clearSearch]);
 
   const handleResetFilters = React.useCallback(() => {
     onStatusFilterChange("all");
@@ -352,10 +366,9 @@ export function TopicList({
                   if (event.key === "Escape") {
                     if (searchInput) {
                       event.preventDefault();
-                      handleClearSearch();
-                    } else {
-                      (event.currentTarget as HTMLInputElement).blur();
+                      clearSearch(false);
                     }
+                    (event.currentTarget as HTMLInputElement).blur();
                   }
                 }}
                 placeholder="Search topics…"
