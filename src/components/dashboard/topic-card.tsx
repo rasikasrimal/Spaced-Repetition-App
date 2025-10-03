@@ -83,6 +83,11 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
     [subjects, topic.subjectId]
   );
 
+  const fallbackIcon = topic.icon ?? "Sparkles";
+  const fallbackColor = topic.color ?? "#38bdf8";
+  const identityIcon = subject?.icon ?? fallbackIcon;
+  const identityColor = subject?.color ?? fallbackColor;
+
   const [notesValue, setNotesValue] = React.useState(topic.notes ?? "");
   const [reminderValue, setReminderValue] = React.useState<ReminderValue>(() => {
     if (!topic.reminderTime) return "none";
@@ -189,10 +194,10 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
     (overrides: Partial<Omit<Topic, "id" | "events" | "forgetting">>) => ({
       title: overrides.title ?? topic.title,
       notes: overrides.notes ?? topic.notes ?? "",
+      subjectId: overrides.subjectId ?? topic.subjectId ?? null,
+      subjectLabel: overrides.subjectLabel ?? topic.subjectLabel,
       categoryId: overrides.categoryId ?? topic.categoryId,
       categoryLabel: overrides.categoryLabel ?? topic.categoryLabel,
-      icon: overrides.icon ?? topic.icon,
-      color: overrides.color ?? topic.color,
       reminderTime: overrides.reminderTime ?? topic.reminderTime,
       intervals: overrides.intervals ?? topic.intervals,
       autoAdjustPreference: overrides.autoAdjustPreference ?? topic.autoAdjustPreference ?? autoAdjustPreference,
@@ -439,15 +444,15 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
             <div className="flex items-start gap-3">
               <span
                 className="flex h-12 w-12 items-center justify-center rounded-2xl shadow-inner"
-                style={{ backgroundColor: `${topic.color}1f` }}
+                style={{ backgroundColor: `${identityColor}1f` }}
               >
-                <IconPreview name={topic.icon} className="h-5 w-5" />
+                <IconPreview name={identityIcon} className="h-5 w-5" />
               </span>
               <div className="space-y-1.5">
                 <h3 className="text-lg font-semibold text-white">{topic.title}</h3>
                 {topic.categoryLabel ? (
                   <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-zinc-100">
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: topic.color }} />
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: identityColor }} />
                     {topic.categoryLabel}
                   </span>
                 ) : null}

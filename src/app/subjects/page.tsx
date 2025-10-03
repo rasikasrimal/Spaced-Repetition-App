@@ -162,6 +162,29 @@ const SubjectAdminPage: React.FC = () => {
                             <ColorPicker value={editDraft.color} onChange={(value) => setEditDraft((prev) => ({ ...prev, color: value }))} />
                           </div>
                         </div>
+                        <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Live preview</p>
+                          <div className="mt-3 flex items-center gap-3">
+                            <span
+                              className="flex h-12 w-12 items-center justify-center rounded-2xl"
+                              style={{ backgroundColor: `${editDraft.color}22` }}
+                              aria-hidden="true"
+                            >
+                              <IconPreview name={editDraft.icon} className="h-5 w-5" />
+                            </span>
+                            <div className="text-xs text-zinc-300 space-y-1">
+                              <p>
+                                Icon: <span className="text-white">{editDraft.icon}</span>
+                              </p>
+                              <p>
+                                Colour: <span className="text-white">{editDraft.color}</span>
+                              </p>
+                              <p className="text-[11px] text-zinc-500">
+                                Saving updates every topic assigned to this subject.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
                         <div className="flex items-center justify-end gap-3">
                           <Button type="button" variant="ghost" onClick={handleCancelEdit}>
                             Cancel
@@ -272,6 +295,27 @@ const SubjectAdminPage: React.FC = () => {
               <div className="space-y-2">
                 <Label>Color</Label>
                 <ColorPicker value={color} onChange={setColor} />
+              </div>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Live preview</p>
+              <div className="mt-3 flex items-center gap-3">
+                <span
+                  className="flex h-12 w-12 items-center justify-center rounded-2xl"
+                  style={{ backgroundColor: `${color}22` }}
+                  aria-hidden="true"
+                >
+                  <IconPreview name={icon} className="h-5 w-5" />
+                </span>
+                <div className="text-xs text-zinc-300 space-y-1">
+                  <p>
+                    Icon: <span className="text-white">{icon}</span>
+                  </p>
+                  <p>
+                    Colour: <span className="text-white">{color}</span>
+                  </p>
+                  <p className="text-[11px] text-zinc-500">Topics created in this subject will use this identity.</p>
+                </div>
               </div>
             </div>
             <Button type="submit" className="w-full gap-2">
