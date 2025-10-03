@@ -8,7 +8,13 @@ export type TimelineSeries = {
   topicTitle: string;
   color: string;
   points: { t: number; r: number }[];
-  events: { id: string; t: number; type: "started" | "reviewed" | "skipped"; intervalDays?: number; notes?: string }[];
+  events: {
+    id: string;
+    t: number;
+    type: "started" | "reviewed" | "skipped" | "checkpoint";
+    intervalDays?: number;
+    notes?: string;
+  }[];
 };
 
 export type TimelineExamMarker = {
@@ -341,7 +347,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
           topic: string;
           time: number;
           retention?: number;
-          type?: "started" | "reviewed" | "skipped";
+          type?: "started" | "reviewed" | "skipped" | "checkpoint";
           intervalDays?: number;
           notes?: string;
         }
@@ -815,6 +821,19 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                   onMouseEnter={handleFocus}
                   onMouseLeave={hideTooltip}
                 />
+              ) : event.type === "checkpoint" ? (
+                <circle
+                  r={6}
+                  fill="white"
+                  stroke={line.color}
+                  strokeWidth={2}
+                  tabIndex={0}
+                  aria-label={`${line.topicTitle} checkpoint ${tooltipDateFormatter.format(new Date(event.t))}`}
+                  onFocus={handleFocus}
+                  onBlur={hideTooltip}
+                  onMouseEnter={handleFocus}
+                  onMouseLeave={hideTooltip}
+                />
               ) : (
                 <circle
                   r={5}
@@ -1162,7 +1181,13 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                   )}
                   {tooltip.type && (
                     <div>
-                      Event: {tooltip.type === "started" ? "Started" : tooltip.type === "skipped" ? "Skipped" : "Reviewed"}
+                      Event: {tooltip.type === "started"
+                        ? "Started"
+                        : tooltip.type === "skipped"
+                        ? "Skipped"
+                        : tooltip.type === "checkpoint"
+                        ? "Checkpoint"
+                        : "Reviewed"}
                     </div>
                   )}
                   {typeof tooltip.intervalDays !== "undefined" && (

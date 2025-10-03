@@ -65,50 +65,55 @@ const deriveSeries = (
   for (const segment of segments) {
     const topic = visibleTopics.find((item) => item.id === segment.topicId);
     if (!topic) continue;
-    const seriesColor = resolveColor(topic);
+    const color = resolveColor(topic);
     if (!byTopic.has(segment.topicId)) {
       byTopic.set(segment.topicId, {
         topicId: topic.id,
         topicTitle: topic.title,
-        color: seriesColor,
+        color,
         points: [],
         events: []
       });
     }
+
     const bucket = byTopic.get(segment.topicId)!;
     const samples = sampleSegment(segment, 160);
     bucket.points.push(...samples);
-    const fromTs = new Date(segment.from.at).getTime();
-    if (!bucket.events.some((event) => event.id === segment.from.id)) {
+
+    const startTs = new Date(segment.start.at).getTime();
+    if (!bucket.events.some((event) => event.id === segment.start.id)) {
       bucket.events.push({
-        id: segment.from.id,
-        t: fromTs,
-        type: segment.from.type,
-        intervalDays: segment.from.intervalDays,
-        notes: segment.from.notes
+        id: segment.start.id,
+        t: startTs,
+        type: segment.start.type,
+        intervalDays: segment.start.intervalDays,
+        notes: segment.start.notes
       });
     }
-    if (segment.to) {
-      const toTs = new Date(segment.to.at).getTime();
-      if (!bucket.events.some((event) => event.id === segment.to!.id)) {
-        bucket.events.push({
-          id: segment.to.id,
-          t: toTs,
-          type: segment.to.type,
-          intervalDays: segment.to.intervalDays,
-          notes: segment.to.notes
-        });
-      }
+
+    const checkpointId = `${segment.topicId}-checkpoint-${segment.endAt}`;
+    if (!bucket.events.some((event) => event.id === checkpointId)) {
+      const endTs = new Date(segment.endAt).getTime();
+      const intervalDays = Math.max(0, (endTs - startTs) / DAY_MS);
+      bucket.events.push({
+        id: checkpointId,
+        t: endTs,
+        type: "checkpoint",
+        intervalDays,
+        notes: `Retention target ≈ ${(segment.target * 100).toFixed(0)}%`
+      });
     }
   }
 
   const series: TimelineSeries[] = [];
   for (const topic of visibleTopics) {
     const pack = byTopic.get(topic.id);
+    const subjectEvents = topic.events ?? [];
+    const startedAt = topic.startedAt
+      ? new Date(topic.startedAt).getTime()
+      : new Date(topic.createdAt).getTime();
+
     if (!pack) {
-      const startedAt = topic.startedAt
-        ? new Date(topic.startedAt).getTime()
-        : new Date(topic.createdAt).getTime();
       series.push({
         topicId: topic.id,
         topicTitle: topic.title,
@@ -122,29 +127,38 @@ const deriveSeries = (
             id: `start-${topic.id}`,
             t: startedAt,
             type: "started",
-            intervalDays: topic.intervals?.[0],
             notes: topic.notes
           }
         ]
       });
       continue;
     }
-    const skipEvents = (topic.events ?? []).filter((event) => event.type === "skipped");
-    if (skipEvents.length > 0) {
-      for (const event of skipEvents) {
-        if (!pack.events.some((existing) => existing.id === event.id)) {
-          pack.events.push({
-            id: event.id,
-            t: new Date(event.at).getTime(),
-            type: "skipped" as const
-          });
-        }
-      }
+
+    if (!pack.events.some((event) => event.type === "started")) {
+      pack.events.push({
+        id: `start-${topic.id}`,
+        t: startedAt,
+        type: "started",
+        notes: topic.notes
+      });
     }
+
+    for (const event of subjectEvents) {
+      if (event.type !== "skipped") continue;
+      if (pack.events.some((existing) => existing.id === event.id)) continue;
+      pack.events.push({
+        id: event.id,
+        t: new Date(event.at).getTime(),
+        type: "skipped",
+        notes: event.notes
+      });
+    }
+
     pack.points.sort((a, b) => a.t - b.t);
     pack.events.sort((a, b) => a.t - b.t);
     series.push(pack);
   }
+
   return series;
 };
 
