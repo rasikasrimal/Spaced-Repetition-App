@@ -34,6 +34,7 @@ import {
   nextStartOfDayInTimeZone
 } from "@/lib/date";
 import { cn } from "@/lib/utils";
+import { REVISE_LOCKED_MESSAGE } from "@/lib/constants";
 import { toast } from "sonner";
 
 export type TopicStatus = "overdue" | "due-today" | "upcoming";
@@ -460,7 +461,7 @@ export function TopicList({
                     <button
                       type="button"
                       className="text-xs font-medium text-zinc-300 hover:underline"
-                      onClick={() => onSubjectFilterChange(new Set())}
+                      onClick={() => onSubjectFilterChange(new Set<string>())}
                     >
                       Clear all
                     </button>
@@ -662,22 +663,13 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
     () => (hasUsedReviseToday ? nextStartOfDayInTimeZone(timezone, zonedNow) : null),
     [hasUsedReviseToday, timezone, zonedNow]
   );
-  const nextAvailabilityDateLabel = React.useMemo(
-    () =>
-      nextAvailability
-        ? formatInTimeZone(nextAvailability, timezone, {
-            weekday: "short",
-            month: "short",
-            day: "numeric"
-          })
-        : null,
-    [nextAvailability, timezone]
-  );
-  const nextAvailabilityMessage = nextAvailabilityDateLabel
-    ? `You’ve already revised this today. Available again after midnight on ${nextAvailabilityDateLabel}.`
-    : "You’ve already revised this today. Available again after midnight.";
-  const nextAvailabilitySubtext = nextAvailabilityDateLabel
-    ? `Available again after midnight on ${nextAvailabilityDateLabel}`
+  const nextAvailabilityMessage = REVISE_LOCKED_MESSAGE;
+  const nextAvailabilitySubtext = nextAvailability
+    ? `Available again after midnight (${formatInTimeZone(nextAvailability, timezone, {
+        month: "short",
+        day: "numeric",
+        timeZoneName: "short"
+      })})`
     : "Available again after midnight";
 
   const statusMeta = STATUS_META[item.status];
@@ -714,7 +706,7 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
         window.setTimeout(() => setRecentlyRevised(false), 1500);
         return true;
       } else if (source === "revise-now") {
-        toast.error("Already used today. Try again after midnight.");
+        toast.error(REVISE_LOCKED_MESSAGE);
       }
       return false;
     }
@@ -728,7 +720,7 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
 
     if (!success) {
       if (source === "revise-now") {
-        toast.error("Already used today. Try again after midnight.");
+        toast.error(REVISE_LOCKED_MESSAGE);
       }
       return false;
     }
@@ -750,9 +742,13 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
   const handleReviseNow = (event: React.MouseEvent<HTMLButtonElement>) => {
     if (hasUsedReviseToday) {
       trackReviseNowBlocked();
-      toast.error("Already used today. Try again after midnight.");
+      toast.error(REVISE_LOCKED_MESSAGE);
       return;
     }
+    setShowDeleteConfirm(false);
+    setShowSkipConfirm(false);
+    setShowAdjustPrompt(false);
+    pendingReviewSource.current = undefined;
     revisionTriggerRef.current = event.currentTarget;
     setShowQuickRevision(true);
   };
