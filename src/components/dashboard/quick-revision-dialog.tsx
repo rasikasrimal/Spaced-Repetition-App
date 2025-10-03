@@ -29,9 +29,22 @@ export function QuickRevisionDialog({
   returnFocusRef
 }: QuickRevisionDialogProps) {
   const [isMounted, setIsMounted] = React.useState(false);
-  const overlayRef = React.useRef<HTMLDivElement | null>(null);
   const dialogRef = React.useRef<HTMLDivElement | null>(null);
   const previouslyFocused = React.useRef<HTMLElement | null>(null);
+  const overlayRef = React.useRef<HTMLDivElement | null>(null);
+
+  const getFocusableElements = React.useCallback(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return [] as HTMLElement[];
+
+    return Array.from(
+      dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
+    ).filter((node) => {
+      if (node.hasAttribute("disabled")) return false;
+      if (node.getAttribute("aria-hidden") === "true") return false;
+      return node.tabIndex !== -1;
+    });
+  }, []);
 
   React.useEffect(() => {
     setIsMounted(true);
@@ -44,15 +57,19 @@ export function QuickRevisionDialog({
 
     const body = document.body;
     const previousOverflow = body.style.overflow;
+    const previousPaddingRight = body.style.paddingRight;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+
     body.style.overflow = "hidden";
+    if (scrollbarWidth > 0) {
+      body.style.paddingRight = `${scrollbarWidth}px`;
+    }
 
     const dialog = dialogRef.current;
     if (dialog) {
-      const focusable = dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
-      const first = focusable[0];
-      if (first) {
-        window.requestAnimationFrame(() => first.focus());
-      }
+      const focusable = getFocusableElements();
+      const target = focusable[0] ?? dialog;
+      window.requestAnimationFrame(() => target.focus({ preventScroll: true }));
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -67,9 +84,7 @@ export function QuickRevisionDialog({
       const element = dialogRef.current;
       if (!element) return;
 
-      const focusable = Array.from(
-        element.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
-      ).filter((node) => !node.hasAttribute("disabled"));
+      const focusable = getFocusableElements();
 
       if (focusable.length === 0) {
         event.preventDefault();
@@ -89,19 +104,35 @@ export function QuickRevisionDialog({
       }
     };
 
+    const handleFocusIn = (event: FocusEvent) => {
+      const dialogElement = dialogRef.current;
+      if (!dialogElement) return;
+
+      if (dialogElement.contains(event.target as Node)) {
+        return;
+      }
+
+      const focusable = getFocusableElements();
+      const fallback = focusable[0] ?? dialogElement;
+      window.requestAnimationFrame(() => fallback.focus({ preventScroll: true }));
+    };
+
     document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("focusin", handleFocusIn);
 
     return () => {
       body.style.overflow = previousOverflow;
+      body.style.paddingRight = previousPaddingRight;
       document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("focusin", handleFocusIn);
     };
-  }, [open, onClose]);
+  }, [getFocusableElements, open, onClose]);
 
   React.useEffect(() => {
     if (open) return;
 
     const target = returnFocusRef?.current ?? previouslyFocused.current;
-    if (target) {
+    if (target && target.isConnected) {
       window.requestAnimationFrame(() => target.focus());
     }
   }, [open, returnFocusRef]);
@@ -113,7 +144,7 @@ export function QuickRevisionDialog({
   const overlay = (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-[1000] flex items-end justify-center bg-slate-950/80 px-4 pb-[max(env(safe-area-inset-bottom),16px)] pt-6 backdrop-blur-sm transition sm:items-center sm:pb-6"
+      className="fixed inset-0 z-[1000] flex items-end justify-center bg-slate-950/80 px-4 pb-[max(env(safe-area-inset-bottom),16px)] pt-[max(env(safe-area-inset-top),24px)] backdrop-blur-sm transition sm:items-center sm:pb-6"
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === overlayRef.current) {
@@ -127,7 +158,8 @@ export function QuickRevisionDialog({
         aria-modal="true"
         aria-labelledby="quick-revision-title"
         aria-describedby="quick-revision-description"
-        className="relative w-full max-w-md rounded-3xl border border-white/10 bg-slate-900/95 p-6 text-white shadow-2xl sm:p-8"
+        className="relative w-full max-w-md max-h-[calc(100vh-3rem)] overflow-y-auto rounded-3xl border border-white/10 bg-slate-900/95 p-6 text-white shadow-2xl outline-none sm:max-h-[min(520px,calc(100vh-6rem))] sm:p-8"
+        tabIndex={-1}
       >
         <button
           type="button"
