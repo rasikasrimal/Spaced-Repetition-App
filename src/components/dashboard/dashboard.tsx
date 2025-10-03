@@ -449,11 +449,14 @@ const PersonalizedReviewPlanModule = ({
       <div className="space-y-4">
         <div>
           <h2 className="text-lg font-semibold text-white">Personalized review plan</h2>
-          <p className="text-sm text-zinc-300">Your next five minutes matter</p>
+          <p className="text-sm text-zinc-300">Your next five minutes matter.</p>
         </div>
         <div className="space-y-2 text-sm text-zinc-300">
           {dueCount === 0 ? (
-            <p>Great work! You’ve completed today’s reviews. Here’s what’s coming next.</p>
+            <>
+              <p className="text-white">Great work! You’ve completed today’s reviews.</p>
+              <p>Here’s what’s coming next.</p>
+            </>
           ) : (
             <p>Stay in rhythm — log today’s reviews to keep your streak alive.</p>
           )}
