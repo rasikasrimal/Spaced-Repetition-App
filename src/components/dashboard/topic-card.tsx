@@ -596,6 +596,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
             <div className="space-y-1 text-right text-xs sm:text-left">
               <p className="font-medium text-emerald-300">Logged today’s revision.</p>
               <p className="text-zinc-400">{nextAvailabilityMessage}</p>
+
             </div>
           ) : null}
           <div className="flex items-center gap-2">

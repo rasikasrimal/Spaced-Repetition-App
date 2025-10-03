@@ -189,6 +189,14 @@ export function TopicList({ id, items, subjects, onEditTopic, onCreateTopic, tim
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem(DENSITY_STORAGE_KEY) as Density | null;
+    if (stored && densityOptions.some((option) => option.id === stored)) {
+      setDensity(stored);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
     window.localStorage.setItem(DENSITY_STORAGE_KEY, density);
   }, [density]);
 
