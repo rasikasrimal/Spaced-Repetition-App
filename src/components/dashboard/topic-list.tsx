@@ -4,6 +4,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { QuickRevisionDialog } from "@/components/dashboard/quick-revision-dialog";
 import { useTopicStore } from "@/stores/topics";
 import { Subject, Topic } from "@/types/topic";
 import {
@@ -103,11 +104,7 @@ export function TopicList({ id, items, subjects, onEditTopic, onCreateTopic, tim
   const [subjectFilter, setSubjectFilter] = React.useState<Set<string>>(new Set());
   const [sortOption, setSortOption] = React.useState<SortOption>("next");
   const [expandedId, setExpandedId] = React.useState<string | null>(null);
-  const [density, setDensity] = React.useState<Density>(() => {
-    if (typeof window === "undefined") return "comfortable";
-    const stored = window.localStorage.getItem(DENSITY_STORAGE_KEY) as Density | null;
-    return stored ?? "comfortable";
-  });
+  const [density, setDensity] = React.useState<Density>("comfortable");
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [rowHeights, setRowHeights] = React.useState<Map<string, number>>(() => new Map());
   const containerRef = React.useRef<HTMLDivElement | null>(null);
@@ -116,6 +113,14 @@ export function TopicList({ id, items, subjects, onEditTopic, onCreateTopic, tim
   const [densityOpen, setDensityOpen] = React.useState(false);
   const [subjectOpen, setSubjectOpen] = React.useState(false);
   const [sortOpen, setSortOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem(DENSITY_STORAGE_KEY) as Density | null;
+    if (stored && densityOptions.some((option) => option.id === stored)) {
+      setDensity(stored);
+    }
+  }, []);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -637,6 +642,9 @@ function TopicListRow({
   const [showAdjustPrompt, setShowAdjustPrompt] = React.useState(false);
   const [recentlyRevised, setRecentlyRevised] = React.useState(false);
   const pendingReviewSource = React.useRef<"revise-now" | undefined>();
+  const [showQuickRevision, setShowQuickRevision] = React.useState(false);
+  const revisionTriggerRef = React.useRef<HTMLButtonElement | null>(null);
+  const [isLoggingRevision, setIsLoggingRevision] = React.useState(false);
 
   const autoAdjustPreference = item.topic.autoAdjustPreference ?? "ask";
 
@@ -693,7 +701,7 @@ function TopicListRow({
   const examDateLabel = subject?.examDate ? formatFullDate(subject.examDate) : null;
   const daysUntilExam = subject?.examDate ? Math.max(0, daysBetween(zonedNow, subject.examDate)) : null;
 
-  const handleMarkReviewed = (adjustFuture?: boolean, source?: "revise-now") => {
+  const handleMarkReviewed = (adjustFuture?: boolean, source?: "revise-now"): boolean => {
     const nowIso = new Date().toISOString();
     const scheduledTime = new Date(item.topic.nextReviewDate).getTime();
     const nowTime = Date.now();
@@ -704,7 +712,7 @@ function TopicListRow({
       if (autoAdjustPreference === "ask") {
         pendingReviewSource.current = source;
         setShowAdjustPrompt(true);
-        return;
+        return false;
       }
       const shouldAdjust = autoAdjustPreference === "always";
       const success = markReviewed(item.topic.id, {
@@ -714,15 +722,14 @@ function TopicListRow({
         timeZone: timezone
       });
       if (success) {
-        toast.success(
-          source === "revise-now" ? "Great job—logged today’s quick revision." : "Review recorded early"
-        );
+        toast.success(source === "revise-now" ? "Logged today’s revision" : "Review recorded early");
         setRecentlyRevised(true);
         window.setTimeout(() => setRecentlyRevised(false), 1500);
+        return true;
       } else if (source === "revise-now") {
         toast.error("Already used today. Try again after midnight.");
       }
-      return;
+      return false;
     }
 
     const success = markReviewed(item.topic.id, {
@@ -736,34 +743,50 @@ function TopicListRow({
       if (source === "revise-now") {
         toast.error("Already used today. Try again after midnight.");
       }
-      return;
+      return false;
     }
 
     setRecentlyRevised(true);
     window.setTimeout(() => setRecentlyRevised(false), 1500);
 
     if (source === "revise-now") {
-      toast.success("Great job—logged today’s quick revision.");
+      toast.success("Logged today’s revision");
     } else if (isEarly) {
       toast.success("Review recorded early");
     } else {
       toast.success("Great job! Schedule updated.");
     }
+
+    return true;
   };
 
-  const handleReviseNow = () => {
+  const handleReviseNow = (event: React.MouseEvent<HTMLButtonElement>) => {
     if (hasUsedReviseToday) {
       trackReviseNowBlocked();
       toast.error("Already used today. Try again after midnight.");
       return;
     }
+    revisionTriggerRef.current = event.currentTarget;
+    setShowQuickRevision(true);
+  };
 
+  const handleConfirmQuickRevision = () => {
+    setIsLoggingRevision(true);
     try {
-      handleMarkReviewed(undefined, "revise-now");
+      const success = handleMarkReviewed(false, "revise-now");
+      if (success) {
+        setShowQuickRevision(false);
+      }
     } catch (error) {
       console.error(error);
       toast.error("Could not record that revision. Please try again once you're back online.");
+    } finally {
+      setIsLoggingRevision(false);
     }
+  };
+
+  const handleCloseQuickRevision = () => {
+    setShowQuickRevision(false);
   };
 
   const dismissAdjustPrompt = () => {
@@ -850,7 +873,7 @@ function TopicListRow({
           <div className="flex items-center gap-2">
             <Button
               size="sm"
-              onClick={handleReviseNow}
+              onClick={(event) => handleReviseNow(event)}
               disabled={hasUsedReviseToday}
               className="rounded-2xl"
               title={
@@ -963,6 +986,15 @@ function TopicListRow({
         confirmTone="danger"
         onConfirm={confirmDelete}
         icon={<Trash2 className="h-5 w-5" />}
+      />
+
+      <QuickRevisionDialog
+        open={showQuickRevision}
+        onConfirm={handleConfirmQuickRevision}
+        onClose={handleCloseQuickRevision}
+        topicTitle={item.topic.title}
+        isConfirming={isLoggingRevision}
+        returnFocusRef={revisionTriggerRef}
       />
 
       <ConfirmationDialog
