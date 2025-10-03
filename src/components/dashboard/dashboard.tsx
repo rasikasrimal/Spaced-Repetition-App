@@ -15,6 +15,7 @@ import {
   NO_SUBJECT_KEY
 } from "@/components/dashboard/topic-list";
 import { useZonedNow } from "@/hooks/use-zoned-now";
+import { usePersistedSubjectFilter } from "@/hooks/use-persisted-subject-filter";
 import { CalendarClock, Flame, LucideIcon, Plus, Trophy, Info } from "lucide-react";
 import { formatDateWithWeekday, formatRelativeToNow, getDayKey, isToday, startOfToday } from "@/lib/date";
 import { Subject, Topic } from "@/types/topic";
@@ -25,7 +26,6 @@ interface DashboardProps {
 }
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
-const SUBJECT_FILTER_STORAGE_KEY = "dashboard-subject-filter";
 const STATUS_FILTER_STORAGE_KEY = "dashboard-status-filter";
 const useIsomorphicLayoutEffect =
   typeof window !== "undefined" ? React.useLayoutEffect : React.useEffect;
@@ -59,9 +59,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
 
   const [hideSubjectNudge, setHideSubjectNudge] = React.useState(false);
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all");
-  const [subjectFilter, setSubjectFilter] = React.useState<SubjectFilterValue | undefined>(
-    undefined
-  );
+  const { subjectFilter, setSubjectFilter } = usePersistedSubjectFilter();
 
   useIsomorphicLayoutEffect(() => {
     if (typeof window === "undefined") return;
@@ -72,34 +70,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
     }
   }, []);
 
-  useIsomorphicLayoutEffect(() => {
-    if (typeof window === "undefined") return;
-    const stored = window.localStorage.getItem(SUBJECT_FILTER_STORAGE_KEY);
-    if (!stored) {
-      setSubjectFilter(null);
-      return;
-    }
-    try {
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed) && parsed.every((value) => typeof value === "string")) {
-        setSubjectFilter(parsed.length === 0 ? new Set<string>() : new Set<string>(parsed));
-      } else {
-        setSubjectFilter(null);
-      }
-    } catch {
-      setSubjectFilter(null);
-    }
-  }, []);
-
   React.useEffect(() => {
     if (typeof window === "undefined") return;
-    if (typeof subjectFilter === "undefined") return;
-    if (subjectFilter === null) {
-      window.localStorage.removeItem(SUBJECT_FILTER_STORAGE_KEY);
-    } else {
-      window.localStorage.setItem(SUBJECT_FILTER_STORAGE_KEY, JSON.stringify(Array.from(subjectFilter)));
-    }
-  }, [subjectFilter]);
+    window.sessionStorage.setItem(STATUS_FILTER_STORAGE_KEY, statusFilter);
+  }, [statusFilter]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -248,7 +222,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
 
   const handleSubjectFilterChange = React.useCallback((value: SubjectFilterValue) => {
     setSubjectFilter(value === null ? null : new Set<string>(value));
-  }, []);
+  }, [setSubjectFilter]);
 
   const handleStatusFilterChange = React.useCallback((value: StatusFilter) => {
     setStatusFilter(value);

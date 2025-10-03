@@ -30,6 +30,34 @@ flowchart LR
 
 Search, filter, and sort preferences now persist between dashboard sessions using sessionStorage/localStorage, preventing layout shifts when navigating away and back.
 
+### Calendar legend & day sheet
+
+```mermaid
+flowchart LR
+  StoredFilter[Subjects dropdown<br/>localStorage key `dashboard-subject-filter`] --> CalendarGrid[Month grid<br/>subject-colored dots]
+  StoredFilter --> DaySheet[Day sheet<br/>grouped by subject]
+  ExamDates[Subject exam dates] --> CalendarGrid
+  CalendarGrid --> Overflow[+N overflow badge<br/>tooltip lists all subjects]
+  CalendarGrid --> Legend[Inline legend chips]
+  DaySheet --> ReviseGate[Revise today only<br/>locks after local midnight]
+```
+
+Calendar and dashboard now share the same persisted subjects filter, so toggling a subject in either view updates the other. Day sheets group topics by subject, exposing revise actions only for the current day and messaging future or locked entries.
+
+### Timeline zoom, pan, and export
+
+```mermaid
+flowchart LR
+  ZoomControls[Zoom buttons ±<br/>scroll / drag interactions] --> Domain[Active timeline domain]
+  ResetButton[Reset button<br/>double-click canvas] --> Domain
+  Domain --> TimelineChart[Timeline chart<br/>date-only axis]
+  Domain --> ExamMarkers[Exam marker toggle<br/>dotted subject lines]
+  TimelineChart --> Exports[Export SVG/PNG<br/>cloned current viewport]
+  TimelineChart --> Screenreaders[SR hints<br/>pan & zoom instructions]
+```
+
+Zoom controls, drag panning, and shift-scroll translate into domain updates that feed the SVG timeline. Reset returns to the full domain, while exports clone the currently rendered SVG so the downloaded chart matches the on-screen viewport.
+
 ## Typography
 - Primary page title (`Stay ahead of your reviews`): `text-3xl font-semibold text-white`
 - Section titles (e.g. `Scheduled Reviews`, empty state heading): `text-2xl`/`text-xl` with `font-semibold text-white`
