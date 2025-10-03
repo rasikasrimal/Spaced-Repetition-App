@@ -770,4 +770,3 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
     </AnimatePresence>
   );
 };
-

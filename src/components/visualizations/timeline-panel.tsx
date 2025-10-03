@@ -649,5 +649,3 @@ export function TimelinePanel({ variant = "default" }: TimelinePanelProps): JSX.
     </section>
   );
 }
-
-

@@ -383,5 +383,3 @@ const UpcomingScheduleCard = ({ upcoming }: { upcoming: Topic[] }) => {
     </div>
   );
 };
-
-

@@ -20,6 +20,28 @@ npm run dev
 
 Then open http://localhost:3000 in your browser.
 
+## Testing
+
+Run the lint suite to catch common issues and ensure the Playwright smoke tests still render the UI as expected:
+
+```bash
+npm run lint
+npm run test:visual
+```
+
+`npm run test:visual` launches the bundled Playwright test suite, which validates critical UI flows and ensures the primary dashboard renders without regression.
+
+## Deployment
+
+Build a production bundle and start the optimized server:
+
+```bash
+npm run build
+npm run start
+```
+
+Deployments can be hosted on any platform that supports Next.js 14 (for example, Vercel or a container image). The app persists data in the browser using Zustand's `localStorage` integration, so no external services are required.
+
 ## Tech stack
 
 - Next.js 14 (App Router)
