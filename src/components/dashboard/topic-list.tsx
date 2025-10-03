@@ -357,8 +357,8 @@ export function TopicList({
       className="rounded-3xl border border-white/5 bg-slate-900/40 p-6 shadow-lg shadow-slate-900/40"
     >
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:gap-4">
-          <div role="search" className="w-full xl:flex-[1.4] xl:min-w-[22rem] xl:pr-6">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:gap-6">
+          <div role="search" className="w-full xl:flex-1 xl:min-w-0 xl:pr-8">
             <label htmlFor="dashboard-topic-search" className="sr-only">
               Search topics
             </label>
@@ -429,7 +429,7 @@ export function TopicList({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400 xl:flex-nowrap xl:justify-end">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400 xl:flex-nowrap xl:justify-end xl:gap-3">
             <div
               className="flex items-center gap-1 rounded-full border border-white/10 bg-slate-900/60 p-1"
               role="group"
