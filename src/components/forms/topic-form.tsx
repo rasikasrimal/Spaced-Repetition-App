@@ -1,4 +1,4 @@
-Ôªø"use client";
+"use client";
 
 import * as React from "react";
 import { useTopicStore } from "@/stores/topics";
@@ -190,9 +190,12 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
     setTitle(topic.title);
     setNotes(topic.notes);
 
+    const normalizedCategoryLabel = topic.categoryLabel?.toLowerCase();
     const matchedCategory = topic.categoryId
       ? categories.find((item) => item.id === topic.categoryId)
-      : categories.find((item) => item.label.toLowerCase() === topic.categoryLabel.toLowerCase());
+      : normalizedCategoryLabel
+      ? categories.find((item) => item.label.toLowerCase() === normalizedCategoryLabel)
+      : undefined;
 
     const resolvedCategoryId = matchedCategory?.id ?? topic.categoryId ?? "general";
     const resolvedCategoryLabel = matchedCategory?.label ?? topic.categoryLabel ?? "General";
@@ -658,7 +661,7 @@ const WizardStepContent: React.FC<WizardStepContentProps> = ({
               <IntervalEditor value={intervals} onChange={onIntervalsChange} />
             </div>
             <p className="text-xs text-zinc-400">
-              Adjust or add intervals to match your pace. We‚Äôll keep them flexible so reviews never pile up.
+              Adjust or add intervals to match your pace. Weíll keep them flexible so reviews never pile up.
             </p>
           </div>
 
@@ -687,9 +690,9 @@ const WizardStepContent: React.FC<WizardStepContentProps> = ({
           </div>
 
           <div className="space-y-2 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-200">
-            <p className="font-semibold">‚ö† Skipping today may cause too many reviews to pile up later.</p>
+            <p className="font-semibold">? Skipping today may cause too many reviews to pile up later.</p>
             <p className="text-amber-100/80">
-              Use the ‚ÄúSkip today‚Äù action sparingly ‚Äî we‚Äôll rebalance the schedule, but you should still aim to review consistently.
+              Use the ìSkip todayî action sparingly ó weíll rebalance the schedule, but you should still aim to review consistently.
             </p>
           </div>
         </div>
@@ -769,7 +772,7 @@ const WizardStepContent: React.FC<WizardStepContentProps> = ({
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
         <h3 className="text-base font-semibold text-white">Notes preview</h3>
         <p className="text-xs text-zinc-400">
-          {notes.trim() || "Nothing yet ‚Äî add a note in the previous step to make reviews richer."}
+          {notes.trim() || "Nothing yet ó add a note in the previous step to make reviews richer."}
         </p>
       </div>
     </div>
@@ -808,4 +811,7 @@ const WizardSteps = ({ steps, activeStep }: { steps: typeof wizardSteps; activeS
     </nav>
   );
 };
+
+
+
 
