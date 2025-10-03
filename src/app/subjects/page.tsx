@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useTopicStore } from "@/stores/topics";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +22,6 @@ import { toast } from "sonner";
 import { Calendar, ChevronDown, Clock, PencilLine, Plus, Trash2 } from "lucide-react";
 import { useProfileStore } from "@/stores/profile";
 import { DAY_MS } from "@/lib/forgetting-curve";
-import { TopicHistoryEditor } from "@/components/topics/history-editor";
 
 const toDateInputValue = (value: string | null | undefined) => {
   if (!value) return "";
@@ -63,7 +63,6 @@ const SubjectAdminPage: React.FC = () => {
   const [editing, setEditing] = React.useState<string | null>(null);
   const [editDraft, setEditDraft] = React.useState({ name: "", examDate: "", color: "#38bdf8", icon: "Sparkles" });
   const [expandedSubjects, setExpandedSubjects] = React.useState<Set<string>>(new Set());
-  const [historyTarget, setHistoryTarget] = React.useState<{ topic: Topic; subject: Subject | null } | null>(null);
 
   const summaryById = React.useMemo(() => {
     const map = new Map<string, SubjectSummary>();
@@ -367,14 +366,10 @@ const SubjectAdminPage: React.FC = () => {
                                       >
                                         {statusMeta.label}
                                       </span>
-                                      <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        className="gap-2"
-                                        onClick={() => setHistoryTarget({ topic, subject })}
-                                      >
-                                        <Clock className="h-4 w-4" /> Edit history
+                                      <Button asChild size="sm" variant="outline" className="gap-2">
+                                        <Link href={`/subjects/${topic.id}/history`}>
+                                          <Clock className="h-4 w-4" /> Edit history
+                                        </Link>
                                       </Button>
                                     </div>
                                   </div>
@@ -464,14 +459,6 @@ const SubjectAdminPage: React.FC = () => {
           </form>
         </aside>
       </section>
-      {historyTarget ? (
-        <TopicHistoryEditor
-          open={Boolean(historyTarget)}
-          topic={historyTarget.topic}
-          subject={historyTarget.subject}
-          onClose={() => setHistoryTarget(null)}
-        />
-      ) : null}
     </main>
   );
 };
