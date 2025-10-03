@@ -1,15 +1,35 @@
 ﻿import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { nanoid } from "nanoid";
-import { addDays, daysBetween, getDayKeyInTimeZone } from "@/lib/date";
+import {
+  addDays,
+  daysBetween,
+  getDayKeyInTimeZone,
+  nowInTimeZone,
+  startOfDayInTimeZone
+} from "@/lib/date";
 import {
   AutoAdjustPreference,
+  ReviewKind,
+  ReviewQuality,
   Subject,
   SubjectSummary,
   Topic,
   TopicEvent
 } from "@/types/topic";
 import { featureFlags } from "@/lib/feature-flags";
+import {
+  DAY_MS,
+  DEFAULT_RETRIEVABILITY_TARGET,
+  DEFAULT_STABILITY_DAYS,
+  STABILITY_MAX_DAYS,
+  STABILITY_MIN_DAYS,
+  computeIntervalDays,
+  computeRiskScore,
+  computeRetrievability,
+  getAverageQuality,
+  updateStability
+} from "@/lib/forgetting-curve";
 
 type LegacyCategory = {
   id: string;
@@ -32,6 +52,9 @@ export type TopicPayload = {
   startedOn?: string | null;
   lastReviewedOn?: string | null;
   reviseNowLastUsedAt?: string | null;
+  stability?: number;
+  retrievabilityTarget?: number;
+  reviewsCount?: number;
 };
 
 type SubjectCreatePayload = {
@@ -39,6 +62,7 @@ type SubjectCreatePayload = {
   examDate?: string | null;
   color?: string | null;
   icon?: string | null;
+  difficultyModifier?: number | null;
 };
 
 type SubjectUpdatePayload = {
@@ -46,6 +70,7 @@ type SubjectUpdatePayload = {
   examDate?: string | null;
   color?: string | null;
   icon?: string | null;
+  difficultyModifier?: number | null;
 };
 
 type ReviseNowMetrics = {
@@ -56,6 +81,13 @@ type ReviseNowMetrics = {
   lastSuccessAt: string | null;
   lastBlockedAt: string | null;
   lastLeadTimeMs: number | null;
+};
+
+type AutoSkipResult = {
+  topicId: string;
+  previousDate: string;
+  nextDate: string;
+  kind: ReviewKind;
 };
 
 type TopicStoreState = {
@@ -70,6 +102,7 @@ type MarkReviewedOptions = {
   adjustFuture?: boolean;
   source?: "revise-now";
   timeZone?: string;
+  quality?: ReviewQuality;
 };
 
 type TopicStore = TopicStoreState & {
@@ -85,6 +118,7 @@ type TopicStore = TopicStoreState & {
   skipTopic: (id: string) => void;
   setAutoAdjustPreference: (id: string, preference: AutoAdjustPreference) => void;
   trackReviseNowBlocked: () => void;
+  autoSkipOverdueTopics: (timeZone: string) => AutoSkipResult[];
 };
 
 const DEFAULT_SUBJECT_ID = "subject-general";
@@ -104,12 +138,17 @@ const createDefaultSubject = (): Subject => {
     color: "#38bdf8",
     icon: "Sparkles",
     examDate: null,
+    difficultyModifier: 1,
     createdAt: now,
     updatedAt: now
   };
 };
 
 const DEFAULT_TIME_ZONE = "Asia/Colombo";
+const DAILY_SOFT_CAP = 20;
+const LOAD_SMOOTHING_OFFSETS = [0, 1, -1, 2, -2, 3, -3, 4, -4];
+const MIN_RESCHEDULE_BUFFER_MS = 60 * 60 * 1000;
+const SKIP_NUDGE_DAYS = 1;
 
 const createDefaultReviseMetrics = (): ReviseNowMetrics => ({
   successCount: 0,
@@ -171,30 +210,152 @@ const computeSubjectSummaries = (subjects: Subject[], topics: Topic[]): SubjectS
   });
 };
 
-const clampToExamDate = (candidate: string, examDate?: string | null) => {
-  if (!examDate) return candidate;
-  const candidateDate = new Date(candidate);
+const clampToExamDate = (candidate: string | Date, examDate?: string | null) => {
+  const iso = candidate instanceof Date ? candidate.toISOString() : candidate;
+  if (!examDate) return iso;
+  const candidateDate = new Date(iso);
   const exam = new Date(examDate);
-  if (Number.isNaN(exam.getTime())) return candidate;
+  if (Number.isNaN(exam.getTime())) return iso;
   if (candidateDate.getTime() > exam.getTime()) {
     return exam.toISOString();
   }
-  return candidate;
+  return iso;
 };
 
-const computeNextReviewDate = (
-  lastReviewedAt: string | null,
-  intervals: number[],
-  intervalIndex: number,
-  reference: Date,
-  examDate?: string | null
-): string => {
-  const safeIntervals = intervals.length > 0 ? intervals : [1];
-  const clampedIndex = Math.max(0, Math.min(intervalIndex, safeIntervals.length - 1));
-  const baseDate = lastReviewedAt ? new Date(lastReviewedAt) : reference;
-  const nextDate = new Date(baseDate);
-  nextDate.setDate(baseDate.getDate() + safeIntervals[clampedIndex]);
-  return clampToExamDate(nextDate.toISOString(), examDate);
+const clampDateToExam = (candidate: Date, examDate?: string | null) => {
+  return new Date(clampToExamDate(candidate, examDate));
+};
+
+const resolveDifficultyModifier = (value?: number | null) => {
+  if (typeof value !== "number" || Number.isNaN(value)) return 1;
+  return Math.min(Math.max(value, 0.5), 1.5);
+};
+
+const collectRecentQualities = (events: TopicEvent[] | undefined, sampleSize = 5): number[] => {
+  if (!events) return [];
+  const reviewed = events
+    .filter((event) => event.type === "reviewed" && typeof event.reviewQuality === "number")
+    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+  return reviewed.slice(0, sampleSize).map((event) => event.reviewQuality ?? 0);
+};
+
+const countTopicsOnDay = (
+  topics: Topic[],
+  dayKey: string,
+  timeZone: string,
+  ignoreTopicId?: string
+) => {
+  return topics.reduce((count, topic) => {
+    if (topic.id === ignoreTopicId) return count;
+    const topicKey = getDayKeyInTimeZone(topic.nextReviewDate, timeZone);
+    if (topicKey === dayKey) {
+      return count + 1;
+    }
+    return count;
+  }, 0);
+};
+
+type LoadSmoothingParams = {
+  candidate: Date;
+  topics: Topic[];
+  topicId: string;
+  timeZone: string;
+  examDate?: string | null;
+  minTime: number;
+};
+
+const applyLoadSmoothing = ({
+  candidate,
+  topics,
+  topicId,
+  timeZone,
+  examDate,
+  minTime
+}: LoadSmoothingParams) => {
+  let bestCandidate = candidate;
+  let bestLoad = Number.POSITIVE_INFINITY;
+
+  for (const offset of LOAD_SMOOTHING_OFFSETS) {
+    let adjusted = new Date(candidate.getTime() + offset * DAY_MS);
+    if (adjusted.getTime() < minTime) {
+      continue;
+    }
+    adjusted = clampDateToExam(adjusted, examDate);
+    if (adjusted.getTime() < minTime) {
+      continue;
+    }
+    const dayKey = getDayKeyInTimeZone(adjusted.toISOString(), timeZone);
+    const load = countTopicsOnDay(topics, dayKey, timeZone, topicId);
+    if (load < DAILY_SOFT_CAP) {
+      return adjusted;
+    }
+    if (load < bestLoad || (load === bestLoad && adjusted.getTime() < bestCandidate.getTime())) {
+      bestLoad = load;
+      bestCandidate = adjusted;
+    }
+  }
+
+  return bestCandidate;
+};
+
+type ScheduleNextReviewParams = {
+  topicId: string;
+  referenceDate: Date;
+  intervalDays: number;
+  topics: Topic[];
+  timeZone: string;
+  examDate?: string | null;
+  minimumDate?: Date;
+};
+
+const scheduleNextReviewDate = ({
+  topicId,
+  referenceDate,
+  intervalDays,
+  topics,
+  timeZone,
+  examDate,
+  minimumDate
+}: ScheduleNextReviewParams): string => {
+  const baseTime = referenceDate.getTime() + intervalDays * DAY_MS;
+  const minAllowedTime = Math.max(
+    minimumDate ? minimumDate.getTime() : referenceDate.getTime(),
+    referenceDate.getTime() + MIN_RESCHEDULE_BUFFER_MS
+  );
+  let candidate = new Date(Math.max(baseTime, minAllowedTime));
+  candidate = clampDateToExam(candidate, examDate);
+  candidate = applyLoadSmoothing({
+    candidate,
+    topics,
+    topicId,
+    timeZone,
+    examDate,
+    minTime: minAllowedTime
+  });
+  return candidate.toISOString();
+};
+
+type SkipScheduleParams = {
+  topic: Topic;
+  topics: Topic[];
+  timeZone: string;
+  examDate?: string | null;
+  fromDate: Date;
+};
+
+const scheduleSkipReviewDate = ({ topic, topics, timeZone, examDate, fromDate }: SkipScheduleParams) => {
+  const minAllowedTime = Math.max(fromDate.getTime(), Date.now());
+  let candidate = new Date(fromDate.getTime() + SKIP_NUDGE_DAYS * DAY_MS);
+  candidate = clampDateToExam(candidate, examDate ?? null);
+  candidate = applyLoadSmoothing({
+    candidate,
+    topics,
+    topicId: topic.id,
+    timeZone,
+    examDate: examDate ?? null,
+    minTime: minAllowedTime
+  });
+  return candidate.toISOString();
 };
 
 const ensureEventsSorted = (events: TopicEvent[]) =>
@@ -235,52 +396,29 @@ const ensureStartedEvent = (
   return upsertEvent(collection, event);
 };
 
-const evenlyDistributeFrom = (
-  reference: Date,
-  topic: Topic,
-  examDate: string | null
-): string => {
-  const nowStart = new Date(reference.getFullYear(), reference.getMonth(), reference.getDate());
-  const remainingReviews = Math.max(1, topic.intervals.length - topic.intervalIndex);
-
-  if (!examDate) {
-    const target = new Date(topic.nextReviewDate ?? reference.toISOString());
-    target.setDate(target.getDate() + 1);
-    return target.toISOString();
-  }
-
-  const exam = new Date(examDate);
-  if (Number.isNaN(exam.getTime())) {
-    return addDays(nowStart, 1);
-  }
-
-  if (nowStart.getTime() >= exam.getTime()) {
-    return exam.toISOString();
-  }
-
-  const daysRemaining = Math.max(1, daysBetween(nowStart, exam));
-  const intervalSize = Math.max(1, Math.floor(daysRemaining / remainingReviews));
-  const candidate = new Date(nowStart);
-  candidate.setDate(candidate.getDate() + intervalSize);
-  if (candidate.getTime() > exam.getTime()) {
-    return exam.toISOString();
-  }
-  return candidate.toISOString();
-};
-
 const createReviewedEvent = (
   topicId: string,
   reviewedAtIso: string,
-  intervalDays: number
+  intervalDays: number,
+  quality: ReviewQuality,
+  kind: ReviewKind,
+  stability: number,
+  target: number,
+  nextReviewAt: string
 ): TopicEvent => ({
   id: nanoid(),
   topicId,
   type: "reviewed",
   at: reviewedAtIso,
-  intervalDays
+  intervalDays,
+  reviewQuality: quality,
+  reviewKind: kind,
+  resultingStability: stability,
+  targetRetrievability: target,
+  nextReviewAt
 });
 
-const VERSION = 6;
+const VERSION = 7;
 type PersistedState = TopicStoreState & { version?: number; categories?: LegacyCategory[] };
 
 const migrate = (persisted: PersistedState, from: number): PersistedState => {
@@ -317,12 +455,62 @@ const migrate = (persisted: PersistedState, from: number): PersistedState => {
     if (typeof (topic as any).reviseNowLastUsedAt === "undefined") {
       (topic as any).reviseNowLastUsedAt = null;
     }
+    if (typeof (topic as any).stability !== "number" || Number.isNaN((topic as any).stability)) {
+      (topic as any).stability = DEFAULT_STABILITY_DAYS;
+    } else {
+      (topic as any).stability = Math.min(
+        Math.max((topic as any).stability, STABILITY_MIN_DAYS),
+        STABILITY_MAX_DAYS
+      );
+    }
+    if (typeof (topic as any).retrievabilityTarget !== "number") {
+      (topic as any).retrievabilityTarget = DEFAULT_RETRIEVABILITY_TARGET;
+    }
+    if (typeof (topic as any).reviewsCount !== "number") {
+      const reviewEvents = Array.isArray((topic as any).events)
+        ? (topic as any).events.filter((event: any) => event.type === "reviewed")
+        : [];
+      (topic as any).reviewsCount = reviewEvents.length;
+    }
+    if (typeof (topic as any).subjectDifficultyModifier !== "number") {
+      (topic as any).subjectDifficultyModifier = 1;
+    } else {
+      (topic as any).subjectDifficultyModifier = resolveDifficultyModifier(
+        (topic as any).subjectDifficultyModifier
+      );
+    }
+    if ((topic as any).forgetting) {
+      delete (topic as any).forgetting;
+    }
+    if (Array.isArray((topic as any).events)) {
+      (topic as any).events = (topic as any).events.map((event: any) => {
+        if (event.type === "reviewed") {
+          return {
+            ...event,
+            reviewKind: event.reviewKind ?? "scheduled",
+            reviewQuality: typeof event.reviewQuality === "number" ? event.reviewQuality : 1,
+            resultingStability: event.resultingStability ?? (topic as any).stability,
+            targetRetrievability: event.targetRetrievability ?? (topic as any).retrievabilityTarget,
+            nextReviewAt: event.nextReviewAt ?? (topic as any).nextReviewDate
+          };
+        }
+        if (event.type === "skipped") {
+          return {
+            ...event,
+            reviewKind: event.reviewKind ?? "skip_user",
+            nextReviewAt: event.nextReviewAt ?? (topic as any).nextReviewDate
+          };
+        }
+        return event;
+      });
+    }
   }
 
   if (from < VERSION) {
     const now = new Date().toISOString();
     const existingSubjects = new Map<string, Subject>();
     for (const subject of persisted.subjects) {
+      subject.difficultyModifier = resolveDifficultyModifier(subject.difficultyModifier);
       existingSubjects.set(subject.id, subject);
     }
 
@@ -411,6 +599,7 @@ export const useTopicStore = create<TopicStore>()(
           color: payload.color ?? "#38bdf8",
           icon: payload.icon ?? "Sparkles",
           examDate: normalizeExamDate(payload.examDate),
+          difficultyModifier: resolveDifficultyModifier(payload.difficultyModifier),
           createdAt: now,
           updatedAt: now
         };
@@ -467,6 +656,10 @@ export const useTopicStore = create<TopicStore>()(
         const examDate = payload.examDate ? normalizeExamDate(payload.examDate) : null;
         const identityColor = payload.color ?? existing.color;
         const identityIcon = payload.icon ?? existing.icon;
+        const nextDifficulty =
+          typeof payload.difficultyModifier === "undefined"
+            ? existing.difficultyModifier ?? 1
+            : resolveDifficultyModifier(payload.difficultyModifier);
         set((state) => ({
           subjects: state.subjects.map((subject) => {
             if (subject.id !== id) return subject;
@@ -476,6 +669,7 @@ export const useTopicStore = create<TopicStore>()(
               color: identityColor ?? subject.color,
               icon: identityIcon ?? subject.icon,
               examDate: typeof payload.examDate === "undefined" ? subject.examDate : examDate,
+              difficultyModifier: nextDifficulty,
               updatedAt: new Date().toISOString()
             };
           }),
@@ -494,7 +688,8 @@ export const useTopicStore = create<TopicStore>()(
               ...topic,
               subjectLabel: updatedName ?? topic.subjectLabel,
               icon: identityIcon ?? topic.icon,
-              color: identityColor ?? topic.color
+              color: identityColor ?? topic.color,
+              subjectDifficultyModifier: nextDifficulty
             };
           })
         }));
@@ -587,9 +782,10 @@ export const useTopicStore = create<TopicStore>()(
           }
         }
 
-        const subjectExamDate = resolvedSubject?.examDate ?? null;
+        const subjectExamDate = resolvedSubject?.examDate ?? payload.examDate ?? null;
         const subjectColor = resolvedSubject?.color ?? payload.color ?? "#38bdf8";
         const subjectIcon = resolvedSubject?.icon ?? payload.icon ?? "Sparkles";
+        const subjectDifficulty = resolveDifficultyModifier(resolvedSubject?.difficultyModifier);
         const startedOnIso = payload.startedOn ?? createdAt;
         const startedAtDate = new Date(startedOnIso);
         const lastReviewedAtDate = payload.lastReviewedOn ? new Date(payload.lastReviewedOn) : null;
@@ -604,23 +800,40 @@ export const useTopicStore = create<TopicStore>()(
           startedAtDate.getTime() !== now.getTime()
         );
 
-        if (lastReviewedAtDate) {
-          events = appendEvent(events, {
-            id: nanoid(),
-            topicId,
-            type: "reviewed",
-            at: lastReviewedAtDate.toISOString(),
-            intervalDays: payload.intervals[Math.min(intervalIndex, payload.intervals.length - 1)] ?? 1
-          });
-        }
-
-        const nextReviewDate = computeNextReviewDate(
-          lastReviewedAtDate ? lastReviewedAtDate.toISOString() : null,
-          payload.intervals,
-          intervalIndex,
-          now,
-          subjectExamDate
+        const existingTopics = get().topics;
+        const stability = Math.min(
+          Math.max(payload.stability ?? DEFAULT_STABILITY_DAYS, STABILITY_MIN_DAYS),
+          STABILITY_MAX_DAYS
         );
+        const retrievabilityTarget = payload.retrievabilityTarget ?? DEFAULT_RETRIEVABILITY_TARGET;
+        const reviewsCount = payload.reviewsCount ?? (lastReviewedAtDate ? 1 : 0);
+        const effectiveStability = Math.max(stability * subjectDifficulty, STABILITY_MIN_DAYS);
+        const intervalDays = computeIntervalDays(effectiveStability, retrievabilityTarget);
+        const referenceDate = lastReviewedAtDate ?? now;
+        const minimumDate = lastReviewedAtDate ?? now;
+        const nextReviewDate = scheduleNextReviewDate({
+          topicId,
+          referenceDate,
+          intervalDays,
+          topics: existingTopics,
+          timeZone: DEFAULT_TIME_ZONE,
+          examDate: subjectExamDate,
+          minimumDate
+        });
+
+        if (lastReviewedAtDate) {
+          const backfillReview = createReviewedEvent(
+            topicId,
+            lastReviewedAtDate.toISOString(),
+            intervalDays,
+            1,
+            "scheduled",
+            stability,
+            retrievabilityTarget,
+            nextReviewDate
+          );
+          events = appendEvent(events, { ...backfillReview, backfill: true });
+        }
 
         const effectiveSubjectId = resolvedSubject?.id ?? DEFAULT_SUBJECT_ID;
         const effectiveSubjectLabel = resolvedSubject?.name ?? requestedLabel;
@@ -639,12 +852,15 @@ export const useTopicStore = create<TopicStore>()(
           nextReviewDate,
           lastReviewedAt: lastReviewedAtDate ? lastReviewedAtDate.toISOString() : null,
           lastReviewedOn: lastReviewedAtDate ? lastReviewedAtDate.toISOString() : null,
+          stability,
+          retrievabilityTarget,
+          reviewsCount,
+          subjectDifficultyModifier: subjectDifficulty,
           autoAdjustPreference: payload.autoAdjustPreference ?? "ask",
           createdAt,
           startedAt: startedAtDate.toISOString(),
           startedOn: startedAtDate.toISOString(),
           events,
-          forgetting: undefined,
           reviseNowLastUsedAt: payload.reviseNowLastUsedAt ?? null
         };
 
@@ -652,13 +868,13 @@ export const useTopicStore = create<TopicStore>()(
       },
       updateTopic: (id, payload) => {
         const now = new Date();
-        const { subjects } = get();
+        const state = get();
         const requestedLabelRaw = payload.subjectLabel ?? payload.categoryLabel ?? "General";
         const requestedLabel = requestedLabelRaw.trim() || "General";
         const requestedId = payload.subjectId ?? payload.categoryId ?? null;
 
         let resolvedSubject =
-          findSubjectById(subjects, requestedId) ?? findSubjectByName(subjects, requestedLabel);
+          findSubjectById(state.subjects, requestedId) ?? findSubjectByName(state.subjects, requestedLabel);
 
         if (!resolvedSubject && featureFlags.subjectsWrite) {
           resolvedSubject = get().addSubject({
@@ -667,68 +883,101 @@ export const useTopicStore = create<TopicStore>()(
           });
         }
 
-        const subjectColor = resolvedSubject?.color ?? payload.color ?? "#38bdf8";
-        const subjectIcon = resolvedSubject?.icon ?? payload.icon ?? "Sparkles";
-
-        set((state) => ({
-          topics: state.topics.map((topic) => {
+        set((current) => ({
+          topics: current.topics.map((topic) => {
             if (topic.id !== id) return topic;
 
             const effectiveSubject =
               resolvedSubject ??
-              findSubjectById(state.subjects, topic.subjectId ?? null) ??
-              findSubjectById(state.subjects, DEFAULT_SUBJECT_ID) ??
+              findSubjectById(current.subjects, topic.subjectId ?? null) ??
+              findSubjectById(current.subjects, DEFAULT_SUBJECT_ID) ??
               createDefaultSubject();
-            const examDate = effectiveSubject.examDate ?? null;
 
-            const startedOn = payload.startedOn ?? topic.startedOn ?? topic.startedAt ?? topic.createdAt;
-            const lastReviewedOn = payload.lastReviewedOn ?? topic.lastReviewedOn ?? topic.lastReviewedAt ?? null;
+            const subjectDifficulty = resolveDifficultyModifier(effectiveSubject.difficultyModifier);
+            const examDate = effectiveSubject.examDate ?? payload.examDate ?? null;
 
-            const startedAt = startedOn ?? topic.startedAt ?? topic.createdAt;
-            const lastReviewedAt = lastReviewedOn ?? null;
+            const stability = Math.min(
+              Math.max(payload.stability ?? topic.stability ?? DEFAULT_STABILITY_DAYS, STABILITY_MIN_DAYS),
+              STABILITY_MAX_DAYS
+            );
+            const retrievabilityTarget =
+              payload.retrievabilityTarget ?? topic.retrievabilityTarget ?? DEFAULT_RETRIEVABILITY_TARGET;
+            const reviewsCount = payload.reviewsCount ?? topic.reviewsCount ?? 0;
+            const intervals = payload.intervals.length > 0 ? payload.intervals : topic.intervals;
 
-            const nextReviewDate = computeNextReviewDate(
-              lastReviewedAt,
-              payload.intervals,
-              topic.intervalIndex,
-              now,
-              examDate
+            const startedAtIso =
+              payload.startedOn ?? topic.startedOn ?? topic.startedAt ?? topic.createdAt ?? now.toISOString();
+            const startedAtDate = new Date(startedAtIso);
+
+            const lastReviewedAtIso =
+              payload.lastReviewedOn ?? topic.lastReviewedOn ?? topic.lastReviewedAt ?? null;
+            const lastReviewedAtDate = lastReviewedAtIso ? new Date(lastReviewedAtIso) : null;
+
+            const intervalDays = computeIntervalDays(
+              Math.max(stability * subjectDifficulty, STABILITY_MIN_DAYS),
+              retrievabilityTarget
             );
 
-            let events = ensureStartedEvent(topic.id, topic.events, startedAt, startedAt !== topic.createdAt);
-            if (lastReviewedAt) {
-              events = appendEvent(events, {
-                id: nanoid(),
-                topicId: topic.id,
-                type: "reviewed",
-                at: lastReviewedAt,
-                intervalDays: payload.intervals[Math.min(topic.intervalIndex, payload.intervals.length - 1)] ?? 1
-              });
+            const nextReviewDate = scheduleNextReviewDate({
+              topicId: topic.id,
+              referenceDate: lastReviewedAtDate ?? now,
+              intervalDays,
+              topics: current.topics,
+              timeZone: DEFAULT_TIME_ZONE,
+              examDate,
+              minimumDate: lastReviewedAtDate ?? now
+            });
+
+            let events = ensureStartedEvent(
+              topic.id,
+              topic.events,
+              startedAtDate.toISOString(),
+              startedAtDate.toISOString() !== (topic.startedAt ?? topic.createdAt)
+            );
+
+            if (lastReviewedAtIso) {
+              const reviewEvent = createReviewedEvent(
+                topic.id,
+                lastReviewedAtIso,
+                intervalDays,
+                1,
+                "scheduled",
+                stability,
+                retrievabilityTarget,
+                nextReviewDate
+              );
+              const existingReviewIndex = events.findIndex(
+                (event) => event.type === "reviewed" && event.at === lastReviewedAtIso
+              );
+              if (existingReviewIndex >= 0) {
+                events[existingReviewIndex] = { ...events[existingReviewIndex], ...reviewEvent };
+              } else {
+                events = appendEvent(events, reviewEvent);
+              }
             }
-
-            const effectiveSubjectId = effectiveSubject.id ?? topic.subjectId ?? DEFAULT_SUBJECT_ID;
-            const effectiveSubjectLabel = effectiveSubject.name ?? requestedLabel;
-
-            const effectiveColor = effectiveSubject.color ?? subjectColor;
-            const effectiveIcon = effectiveSubject.icon ?? subjectIcon;
 
             return {
               ...topic,
               title: payload.title,
               notes: payload.notes,
-              subjectId: effectiveSubjectId,
-              subjectLabel: effectiveSubjectLabel,
-              categoryId: payload.categoryId ?? effectiveSubjectId,
-              categoryLabel: payload.categoryLabel ?? effectiveSubjectLabel,
+              subjectId: effectiveSubject.id,
+              subjectLabel: effectiveSubject.name,
+              categoryId: payload.categoryId ?? effectiveSubject.id,
+              categoryLabel: payload.categoryLabel ?? effectiveSubject.name,
               reminderTime: payload.reminderTime,
-              intervals: payload.intervals,
-              startedAt,
-              startedOn,
-              lastReviewedAt,
-              lastReviewedOn,
+              intervals,
+              intervalIndex: Math.min(topic.intervalIndex, intervals.length - 1),
               nextReviewDate,
-              events,
+              lastReviewedAt: lastReviewedAtIso,
+              lastReviewedOn: lastReviewedAtIso,
+              stability,
+              retrievabilityTarget,
+              reviewsCount,
+              subjectDifficultyModifier: subjectDifficulty,
               autoAdjustPreference: payload.autoAdjustPreference ?? topic.autoAdjustPreference ?? "ask",
+              startedAt: startedAtDate.toISOString(),
+              startedOn: startedAtDate.toISOString(),
+              events,
               reviseNowLastUsedAt:
                 typeof payload.reviseNowLastUsedAt === "undefined"
                   ? topic.reviseNowLastUsedAt ?? null
@@ -765,8 +1014,15 @@ export const useTopicStore = create<TopicStore>()(
           }
         }
 
-        const currentIntervals = topic.intervals.length > 0 ? topic.intervals : [1];
-        const nextIndex = Math.min(topic.intervalIndex + 1, currentIntervals.length - 1);
+        if (topic.lastReviewedAt) {
+          const lastKey = getDayKeyInTimeZone(topic.lastReviewedAt, timeZone);
+          const attemptKey = getDayKeyInTimeZone(reviewedAtIso, timeZone);
+          if (lastKey === attemptKey && options?.source !== "revise-now") {
+            return false;
+          }
+        }
+
+        const quality: ReviewQuality = options?.quality ?? 1;
         const wasEarly = reviewedAt.getTime() < new Date(topic.nextReviewDate).getTime();
 
         let shouldAdjust = options?.adjustFuture;
@@ -774,8 +1030,12 @@ export const useTopicStore = create<TopicStore>()(
         if (typeof shouldAdjust === "undefined") {
           if (!wasEarly) {
             shouldAdjust = true;
+          } else if (preference === "always") {
+            shouldAdjust = true;
+          } else if (preference === "never") {
+            shouldAdjust = false;
           } else {
-            shouldAdjust = preference === "always" ? true : preference === "never" ? false : false;
+            shouldAdjust = false;
           }
         }
         if (preference === "never") {
@@ -786,31 +1046,54 @@ export const useTopicStore = create<TopicStore>()(
         }
 
         const subject = findSubjectById(state.subjects, topic.subjectId ?? null);
+        const subjectDifficulty = resolveDifficultyModifier(
+          subject?.difficultyModifier ?? topic.subjectDifficultyModifier
+        );
         const examDate = subject?.examDate ?? null;
 
         const leadTimeMsRaw = new Date(topic.nextReviewDate).getTime() - reviewedAt.getTime();
         const leadTimeMs = Math.max(0, leadTimeMsRaw);
-        const intervalDays = currentIntervals[Math.min(nextIndex, currentIntervals.length - 1)] ?? 1;
-        let nextReviewDate = computeNextReviewDate(
-          reviewedAtIso,
-          currentIntervals,
-          nextIndex,
-          reviewedAt,
-          examDate
-        );
 
-        if (wasEarly && !shouldAdjust) {
-          nextReviewDate = topic.nextReviewDate;
+        const nextIntervalIndex = Math.min(topic.intervalIndex + 1, topic.intervals.length - 1);
+        const updatedStability = updateStability(topic.stability, quality);
+        const effectiveStability = Math.max(updatedStability * subjectDifficulty, STABILITY_MIN_DAYS);
+        const intervalDays = computeIntervalDays(effectiveStability, topic.retrievabilityTarget);
+        const reviewsCount = topic.reviewsCount + 1;
+
+        let nextReviewDate = topic.nextReviewDate;
+        if (!wasEarly || shouldAdjust) {
+          nextReviewDate = scheduleNextReviewDate({
+            topicId: topic.id,
+            referenceDate: reviewedAt,
+            intervalDays,
+            topics: state.topics,
+            timeZone,
+            examDate,
+            minimumDate: reviewedAt
+          });
         }
 
-        const reviewedEvent = createReviewedEvent(topic.id, reviewedAtIso, intervalDays);
+        const reviewKind: ReviewKind = options?.source === "revise-now" ? "revise_now" : "scheduled";
+        const reviewedEvent = createReviewedEvent(
+          topic.id,
+          reviewedAtIso,
+          intervalDays,
+          quality,
+          reviewKind,
+          updatedStability,
+          topic.retrievabilityTarget,
+          nextReviewDate
+        );
 
         set((prev) => ({
           topics: prev.topics.map((item) => {
             if (item.id !== id) return item;
             return {
               ...item,
-              intervalIndex: nextIndex,
+              intervalIndex: nextIntervalIndex,
+              stability: updatedStability,
+              reviewsCount,
+              subjectDifficultyModifier: subjectDifficulty,
               lastReviewedAt: reviewedAtIso,
               lastReviewedOn: reviewedAtIso,
               nextReviewDate,
@@ -840,15 +1123,24 @@ export const useTopicStore = create<TopicStore>()(
         if (!topic) return;
 
         const now = new Date();
+        const timeZone = DEFAULT_TIME_ZONE;
+        const subject = findSubjectById(state.subjects, topic.subjectId ?? null);
+        const nextReviewDate = scheduleSkipReviewDate({
+          topic,
+          topics: state.topics,
+          timeZone,
+          examDate: subject?.examDate ?? null,
+          fromDate: new Date(topic.nextReviewDate)
+        });
+
         const skipEvent: TopicEvent = {
           id: nanoid(),
           topicId: id,
           type: "skipped",
-          at: now.toISOString()
+          at: now.toISOString(),
+          reviewKind: "skip_user",
+          nextReviewAt: nextReviewDate
         };
-
-        const subject = findSubjectById(state.subjects, topic.subjectId ?? null);
-        const nextReviewDate = evenlyDistributeFrom(now, topic, subject?.examDate ?? null);
 
         set((prev) => ({
           topics: prev.topics.map((item) => {
@@ -877,6 +1169,60 @@ export const useTopicStore = create<TopicStore>()(
             lastBlockedAt: timestamp
           }
         }));
+      },
+      autoSkipOverdueTopics: (timeZone) => {
+        const state = get();
+        const now = nowInTimeZone(timeZone);
+        const startOfToday = startOfDayInTimeZone(now, timeZone);
+        const startMs = startOfToday.getTime();
+        const todayKey = getDayKeyInTimeZone(now, timeZone);
+        const results: AutoSkipResult[] = [];
+
+        set((prev) => ({
+          topics: prev.topics.map((topic) => {
+            const nextMs = new Date(topic.nextReviewDate).getTime();
+            const reviewedToday =
+              topic.lastReviewedAt &&
+              getDayKeyInTimeZone(topic.lastReviewedAt, timeZone) === todayKey;
+
+            if (reviewedToday || nextMs >= startMs) {
+              return topic;
+            }
+
+            const subject = findSubjectById(prev.subjects, topic.subjectId ?? null);
+            const nextReviewDate = scheduleSkipReviewDate({
+              topic,
+              topics: prev.topics,
+              timeZone,
+              examDate: subject?.examDate ?? null,
+              fromDate: new Date(topic.nextReviewDate)
+            });
+
+            const skipEvent: TopicEvent = {
+              id: nanoid(),
+              topicId: topic.id,
+              type: "skipped",
+              at: now.toISOString(),
+              reviewKind: "skip_auto",
+              nextReviewAt: nextReviewDate
+            };
+
+            results.push({
+              topicId: topic.id,
+              previousDate: topic.nextReviewDate,
+              nextDate: nextReviewDate,
+              kind: "skip_auto"
+            });
+
+            return {
+              ...topic,
+              nextReviewDate,
+              events: appendEvent(topic.events, skipEvent)
+            };
+          })
+        }));
+
+        return results;
       }
     }),
     {

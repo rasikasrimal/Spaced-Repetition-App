@@ -3,12 +3,43 @@
 import * as React from "react";
 import { startOfDayInTimeZone } from "@/lib/date";
 
+export type TimelineSegment = {
+  id: string;
+  points: { t: number; r: number }[];
+  isHistorical: boolean;
+  checkpoint?: { t: number; target: number };
+};
+
+export type TimelineStitch = {
+  id: string;
+  t: number;
+  from: number;
+  to: number;
+  notes?: string;
+};
+
+export type TimelineNowPoint = {
+  t: number;
+  r: number;
+  zeroHorizon: number;
+  notes?: string;
+};
+
 export type TimelineSeries = {
   topicId: string;
   topicTitle: string;
   color: string;
   points: { t: number; r: number }[];
-  events: { id: string; t: number; type: "started" | "reviewed" | "skipped"; intervalDays?: number; notes?: string }[];
+  segments: TimelineSegment[];
+  stitches: TimelineStitch[];
+  events: {
+    id: string;
+    t: number;
+    type: "started" | "reviewed" | "skipped" | "checkpoint";
+    intervalDays?: number;
+    notes?: string;
+  }[];
+  nowPoint?: TimelineNowPoint | null;
 };
 
 export type TimelineExamMarker = {
@@ -341,7 +372,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
           topic: string;
           time: number;
           retention?: number;
-          type?: "started" | "reviewed" | "skipped";
+          type?: "started" | "reviewed" | "skipped" | "checkpoint";
           intervalDays?: number;
           notes?: string;
         }
@@ -765,19 +796,49 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
 
     const paths = series.map((line) => (
       <g key={line.topicId}>
-        <path
-          d={line.points
-            .map((point, index) => `${index === 0 ? "M" : "L"} ${scaleX(point.t)} ${scaleY(point.r)}`)
-            .join(" ")}
-          fill="none"
-          stroke={line.color}
-          strokeWidth={2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+        {line.segments.map((segment) => (
+          <path
+            key={segment.id}
+            d={segment.points
+              .map((point, index) => `${index === 0 ? "M" : "L"} ${scaleX(point.t)} ${scaleY(point.r)}`)
+              .join(" ")}
+            fill="none"
+            stroke={line.color}
+            strokeWidth={segment.isHistorical ? 1.5 : 2.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeOpacity={segment.isHistorical ? 0.4 : 1}
+          />
+        ))}
+        {line.stitches.map((stitch) => {
+          const x = scaleX(stitch.t);
+          const yTop = scaleY(Math.min(1, Math.max(yDomain[0], stitch.to)));
+          const yBottom = scaleY(Math.max(yDomain[0], Math.min(yDomain[1], stitch.from)));
+          return (
+            <line
+              key={stitch.id}
+              x1={x}
+              x2={x}
+              y1={yTop}
+              y2={yBottom}
+              stroke={line.color}
+              strokeWidth={1.5}
+              strokeDasharray="2 2"
+              opacity={0.8}
+              pointerEvents="none"
+            />
+          );
+        })}
         {line.events.map((event) => {
           const x = scaleX(event.t);
-          const y = scaleY(1);
+          let yValue = 1;
+          if (event.type === "checkpoint") {
+            const segment = line.segments.find((seg) => seg.checkpoint && seg.checkpoint.t === event.t);
+            if (segment?.checkpoint) {
+              yValue = segment.checkpoint.target;
+            }
+          }
+          const y = scaleY(Math.max(yDomain[0], Math.min(yDomain[1], yValue)));
           const handleFocus = () =>
             setTooltip({
               x,
@@ -788,48 +849,113 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
               intervalDays: event.intervalDays,
               notes: event.notes
             });
+          const transform = `translate(${x}, ${y})`;
+          if (event.type === "started") {
+            return (
+              <rect
+                key={event.id}
+                x={-5}
+                y={-5}
+                width={10}
+                height={10}
+                fill={line.color}
+                tabIndex={0}
+                transform={transform}
+                aria-label={`${line.topicTitle} started ${tooltipDateFormatter.format(new Date(event.t))}`}
+                onFocus={handleFocus}
+                onBlur={hideTooltip}
+                onMouseEnter={handleFocus}
+                onMouseLeave={hideTooltip}
+              />
+            );
+          }
+          if (event.type === "skipped") {
+            return (
+              <polygon
+                key={event.id}
+                points="0,-6 6,0 0,6 -6,0"
+                fill={line.color}
+                tabIndex={0}
+                transform={transform}
+                aria-label={`${line.topicTitle} skipped ${tooltipDateFormatter.format(new Date(event.t))}`}
+                onFocus={handleFocus}
+                onBlur={hideTooltip}
+                onMouseEnter={handleFocus}
+                onMouseLeave={hideTooltip}
+              />
+            );
+          }
+          if (event.type === "checkpoint") {
+            return (
+              <circle
+                key={event.id}
+                r={6}
+                fill="white"
+                stroke={line.color}
+                strokeWidth={2}
+                tabIndex={0}
+                transform={transform}
+                aria-label={`${line.topicTitle} checkpoint ${tooltipDateFormatter.format(new Date(event.t))}`}
+                onFocus={handleFocus}
+                onBlur={hideTooltip}
+                onMouseEnter={handleFocus}
+                onMouseLeave={hideTooltip}
+              />
+            );
+          }
           return (
-            <g key={event.id} transform={`translate(${x}, ${y})`}>
-              {event.type === "started" ? (
-                <rect
-                  x={-5}
-                  y={-5}
-                  width={10}
-                  height={10}
-                  fill={line.color}
-                  tabIndex={0}
-                  aria-label={`${line.topicTitle} started ${tooltipDateFormatter.format(new Date(event.t))}`}
-                  onFocus={handleFocus}
-                  onBlur={hideTooltip}
-                  onMouseEnter={handleFocus}
-                  onMouseLeave={hideTooltip}
-                />
-              ) : event.type === "skipped" ? (
-                <polygon
-                  points="0,-6 6,0 0,6 -6,0"
-                  fill={line.color}
-                  tabIndex={0}
-                  aria-label={`${line.topicTitle} skipped ${tooltipDateFormatter.format(new Date(event.t))}`}
-                  onFocus={handleFocus}
-                  onBlur={hideTooltip}
-                  onMouseEnter={handleFocus}
-                  onMouseLeave={hideTooltip}
-                />
-              ) : (
-                <circle
-                  r={5}
-                  fill={line.color}
-                  tabIndex={0}
-                  aria-label={`${line.topicTitle} reviewed ${tooltipDateFormatter.format(new Date(event.t))}`}
-                  onFocus={handleFocus}
-                  onBlur={hideTooltip}
-                  onMouseEnter={handleFocus}
-                  onMouseLeave={hideTooltip}
-                />
-              )}
-            </g>
+            <circle
+              key={event.id}
+              r={5}
+              fill={line.color}
+              tabIndex={0}
+              transform={transform}
+              aria-label={`${line.topicTitle} reviewed ${tooltipDateFormatter.format(new Date(event.t))}`}
+              onFocus={handleFocus}
+              onBlur={hideTooltip}
+              onMouseEnter={handleFocus}
+              onMouseLeave={hideTooltip}
+            />
           );
         })}
+        {line.nowPoint && line.nowPoint.t >= xDomain[0] && line.nowPoint.t <= xDomain[1] ? (
+          (() => {
+            const x = scaleX(line.nowPoint!.t);
+            const y = scaleY(line.nowPoint!.r);
+            const handleFocus = () => {
+              const zeroNote = `Would trend to 0% near ${tooltipDateFormatter.format(
+                new Date(line.nowPoint!.zeroHorizon)
+              )}`;
+              const combinedNotes = line.nowPoint!.notes
+                ? `${line.nowPoint!.notes} · ${zeroNote}`
+                : zeroNote;
+              setTooltip({
+                x,
+                y: scaleY(Math.min(line.nowPoint!.r + 0.1, yDomain[1])),
+                topic: line.topicTitle,
+                time: line.nowPoint!.t,
+                retention: line.nowPoint!.r,
+                notes: combinedNotes
+              });
+            };
+            return (
+              <g key={`${line.topicId}-now`} transform={`translate(${x}, ${y})`}>
+                <circle
+                  r={4}
+                  fill={line.color}
+                  stroke="white"
+                  strokeWidth={1.5}
+                  tabIndex={0}
+                  aria-label={`${line.topicTitle} retention now ${Math.round(line.nowPoint!.r * 100)}%`}
+                  onFocus={handleFocus}
+                  onBlur={hideTooltip}
+                  onMouseEnter={handleFocus}
+                  onMouseLeave={hideTooltip}
+                />
+              </g>
+            );
+          })()
+        ) : null}
       </g>
     ));
 
@@ -1162,7 +1288,13 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                   )}
                   {tooltip.type && (
                     <div>
-                      Event: {tooltip.type === "started" ? "Started" : tooltip.type === "skipped" ? "Skipped" : "Reviewed"}
+                      Event: {tooltip.type === "started"
+                        ? "Started"
+                        : tooltip.type === "skipped"
+                        ? "Skipped"
+                        : tooltip.type === "checkpoint"
+                        ? "Checkpoint"
+                        : "Reviewed"}
                     </div>
                   )}
                   {typeof tooltip.intervalDays !== "undefined" && (
