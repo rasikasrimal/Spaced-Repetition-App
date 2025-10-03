@@ -8,9 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { downloadSvg, downloadSvgAsPng } from "@/lib/export-svg";
 import { buildCurveSegments, sampleSegment } from "@/selectors/curves";
 import { useTopicStore } from "@/stores/topics";
-import { Topic } from "@/types/topic";
-import { CalendarClock, Check, Eye, EyeOff, Filter, Search, Sparkles } from "lucide-react";
-import { formatDateWithWeekday, formatRelativeToNow, isDueToday } from "@/lib/date";
+import { useProfileStore } from "@/stores/profile";
+import { Subject, Topic } from "@/types/topic";
+import { CalendarClock, Check, Eye, EyeOff, Filter, Info, Search, Sparkles, AlertTriangle } from "lucide-react";
+import { daysBetween, formatDateWithWeekday, formatRelativeToNow, isDueToday, nowInTimeZone } from "@/lib/date";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_WINDOW_DAYS = 30;
@@ -120,39 +121,186 @@ const deriveSeries = (topics: Topic[], visibility: TopicVisibility): TimelineSer
   return series;
 };
 
+type TimelineDomainMeta = {
+  domain: [number, number] | null;
+  hasActivity: boolean;
+  warning?: string | null;
+  hint?: string | null;
+};
+
+type ExamMarker = {
+  id: string;
+  time: number;
+  color: string;
+  subjectName: string;
+  daysRemaining: number | null;
+  dateISO: string;
+};
+
+const shiftUtcDays = (timestamp: number, days: number) => {
+  const next = new Date(timestamp);
+  next.setUTCDate(next.getUTCDate() + days);
+  return next.getTime();
+};
+
+const computeTimelineDomain = (topics: Topic[], subjects: Subject[], timeZone: string): TimelineDomainMeta => {
+  let earliestStart: number | null = null;
+
+  for (const topic of topics) {
+    const candidates = [topic.startedOn, topic.startedAt, topic.createdAt];
+    for (const candidate of candidates) {
+      if (!candidate) continue;
+      const timestamp = new Date(candidate).getTime();
+      if (Number.isNaN(timestamp)) continue;
+      earliestStart = earliestStart === null ? timestamp : Math.min(earliestStart, timestamp);
+    }
+    for (const event of topic.events ?? []) {
+      if (event.type !== "reviewed") continue;
+      const timestamp = new Date(event.at).getTime();
+      if (Number.isNaN(timestamp)) continue;
+      earliestStart = earliestStart === null ? timestamp : Math.min(earliestStart, timestamp);
+    }
+  }
+
+  if (earliestStart === null) {
+    return { domain: null, hasActivity: false };
+  }
+
+  const examTimestamps = subjects
+    .map((subject) => (subject.examDate ? new Date(subject.examDate).getTime() : Number.NaN))
+    .filter((value) => Number.isFinite(value));
+  const lastExam = examTimestamps.length > 0 ? Math.max(...examTimestamps) : null;
+
+  const scheduleTimestamps = topics
+    .map((topic) => new Date(topic.nextReviewDate).getTime())
+    .filter((value) => Number.isFinite(value));
+  const latestScheduled = scheduleTimestamps.length > 0 ? Math.max(...scheduleTimestamps) : null;
+
+  let hint: string | null = null;
+  let warning: string | null = null;
+
+  let endCandidate: number | null = null;
+  if (lastExam !== null) {
+    endCandidate = lastExam;
+  } else if (latestScheduled !== null) {
+    endCandidate = latestScheduled;
+    hint = "No exam dates yet—showing up to your next scheduled reviews.";
+  } else {
+    const zonedNow = nowInTimeZone(timeZone);
+    endCandidate = shiftUtcDays(zonedNow.getTime(), 30);
+    hint = "No exam dates yet—showing up to your next scheduled reviews.";
+  }
+
+  if (endCandidate === null) {
+    return { domain: null, hasActivity: true, hint };
+  }
+
+  let start = earliestStart;
+  let end = endCandidate;
+
+  if (end < start) {
+    warning = "Timeline adjusted—exam date precedes first study date. Check subject dates.";
+    end = shiftUtcDays(start, 30);
+  }
+
+  if (end === start) {
+    const paddedStart = shiftUtcDays(start, -7);
+    const paddedEnd = shiftUtcDays(end, 7);
+    start = paddedStart;
+    end = paddedEnd;
+  }
+
+  return {
+    domain: [start, end],
+    hasActivity: true,
+    warning,
+    hint
+  };
+};
+
+const clampRangeToBounds = (range: [number, number], bounds: [number, number]): [number, number] => {
+  const [minBound, maxBound] = bounds;
+  const span = Math.max(1, Math.min(range[1] - range[0], maxBound - minBound));
+  if (!Number.isFinite(span) || span <= 0) {
+    return bounds;
+  }
+  let start = Math.max(minBound, Math.min(range[0], maxBound - span));
+  let end = start + span;
+  if (end > maxBound) {
+    end = maxBound;
+    start = end - span;
+  }
+  if (start < minBound) {
+    start = minBound;
+    end = start + span;
+  }
+  return [start, end];
+};
+
 interface TimelinePanelProps {
   variant?: "default" | "compact";
 }
 
 export function TimelinePanel({ variant = "default" }: TimelinePanelProps): JSX.Element {
-  const topics = useTopicStore((state) => state.topics);
-  const categories = useTopicStore((state) => state.categories);
+  const { topics, categories, subjects } = useTopicStore((state) => ({
+    topics: state.topics,
+    categories: state.categories,
+    subjects: state.subjects
+  }));
+  const timezone = useProfileStore((state) => state.profile.timezone);
+  const resolvedTimezone = timezone || "Asia/Colombo";
 
   const [visibility, setVisibility] = React.useState<TopicVisibility>({});
   const [categoryFilter, setCategoryFilter] = React.useState<Set<string>>(new Set());
   const [search, setSearch] = React.useState("");
   const [sortView, setSortView] = React.useState<SortView>("next");
-  const [domain, setDomain] = React.useState<[number, number]>(() => {
-    const now = Date.now();
-    return [now - DEFAULT_WINDOW_DAYS * DAY_MS, now + DAY_MS * 0.2];
-  });
-  const [fullDomain, setFullDomain] = React.useState<[number, number]>(domain);
-  const [defaultDomain, setDefaultDomain] = React.useState<[number, number]>(domain);
+  const [domain, setDomain] = React.useState<[number, number] | null>(null);
+  const [fullDomain, setFullDomain] = React.useState<[number, number] | null>(null);
+  const [defaultDomain, setDefaultDomain] = React.useState<[number, number] | null>(null);
+  const [rangeWarning, setRangeWarning] = React.useState<string | null>(null);
+  const [rangeHint, setRangeHint] = React.useState<string | null>(null);
+  const [hasStudyActivity, setHasStudyActivity] = React.useState(true);
+  const [showExamMarkers, setShowExamMarkers] = React.useState(true);
   const svgRef = React.useRef<SVGSVGElement | null>(null);
+
+  const domainMeta = React.useMemo(
+    () => computeTimelineDomain(topics, subjects, resolvedTimezone),
+    [topics, subjects, resolvedTimezone]
+  );
 
   React.useEffect(() => {
     setVisibility((prev) => ensureVisibilityState(topics, prev));
   }, [topics]);
 
   React.useEffect(() => {
-    if (topics.length === 0) return;
-    const timestamps = topics.map((topic) => new Date(topic.nextReviewDate).getTime());
-    const min = Math.min(...timestamps);
-    const max = Math.max(...timestamps);
-    const padding = DAY_MS * 2;
-    setFullDomain([min - padding, max + padding]);
-    setDefaultDomain([Date.now() - DEFAULT_WINDOW_DAYS * DAY_MS, Date.now() + DAY_MS * 0.2]);
-  }, [topics]);
+    setHasStudyActivity(domainMeta.hasActivity);
+    setRangeWarning(domainMeta.warning ?? null);
+    setRangeHint(domainMeta.hint ?? null);
+
+    if (!domainMeta.domain) {
+      setDomain(null);
+      setFullDomain(null);
+      setDefaultDomain(null);
+      return;
+    }
+
+    setFullDomain(domainMeta.domain);
+    setDefaultDomain((prev) => {
+      if (!prev) return domainMeta.domain!;
+      if (prev[0] === domainMeta.domain![0] && prev[1] === domainMeta.domain![1]) {
+        return prev;
+      }
+      return domainMeta.domain!;
+    });
+    setDomain((prev) => {
+      if (!prev) return domainMeta.domain!;
+      const clamped = clampRangeToBounds(prev, domainMeta.domain!);
+      if (clamped[0] === prev[0] && clamped[1] === prev[1]) {
+        return prev;
+      }
+      return clamped;
+    });
+  }, [domainMeta]);
 
   const filteredTopics = React.useMemo(() => {
     const lower = search.trim().toLowerCase();
@@ -182,6 +330,33 @@ export function TimelinePanel({ variant = "default" }: TimelinePanelProps): JSX.
   }, [topics, categoryFilter, search, sortView]);
 
   const series = React.useMemo(() => deriveSeries(filteredTopics, visibility), [filteredTopics, visibility]);
+
+  const examMarkers = React.useMemo<ExamMarker[]>(() => {
+    if (!showExamMarkers) return [];
+    const zonedToday = nowInTimeZone(resolvedTimezone);
+    return subjects
+      .map<ExamMarker | null>((subject) => {
+        if (!subject.examDate) return null;
+        const examDate = new Date(subject.examDate);
+        if (Number.isNaN(examDate.getTime())) return null;
+        const hasVisibleTopic = filteredTopics.some(
+          (topic) =>
+            topic.subjectId === subject.id && (visibility[topic.id] ?? true)
+        );
+        if (!hasVisibleTopic) return null;
+        const daysRemaining = Math.max(0, daysBetween(zonedToday, examDate));
+        return {
+          id: `exam-marker-${subject.id}`,
+          time: examDate.getTime(),
+          color: subject.color ?? "#38bdf8",
+          subjectName: subject.name,
+          daysRemaining,
+          dateISO: examDate.toISOString()
+        };
+      })
+      .filter((marker): marker is ExamMarker => marker !== null)
+      .sort((a, b) => a.time - b.time);
+  }, [subjects, filteredTopics, visibility, resolvedTimezone, showExamMarkers]);
 
   const upcomingSchedule = React.useMemo(() => {
     return filteredTopics
@@ -264,7 +439,15 @@ export function TimelinePanel({ variant = "default" }: TimelinePanelProps): JSX.
               </Button>
             </>
           ) : null}
-          <Button size="sm" variant="outline" onClick={() => setDomain(defaultDomain)}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              if (!defaultDomain) return;
+              setDomain([...defaultDomain] as [number, number]);
+            }}
+            disabled={!defaultDomain}
+          >
             Reset view
           </Button>
         </div>
@@ -279,12 +462,19 @@ export function TimelinePanel({ variant = "default" }: TimelinePanelProps): JSX.
             min={7}
             max={365}
             className="h-8 w-20 border-none bg-transparent text-xs text-white focus-visible:ring-0"
-            value={Math.max(7, Math.round((domain[1] - domain[0]) / DAY_MS))}
+            value={domain ? Math.max(7, Math.round((domain[1] - domain[0]) / DAY_MS)) : ""}
             onChange={(event) => {
+              if (!domain) return;
               const days = Math.max(7, Number(event.target.value) || DEFAULT_WINDOW_DAYS);
-              const center = domain[1];
-              setDomain([center - days * DAY_MS, center]);
+              const end = domain[1];
+              const candidate: [number, number] = [end - days * DAY_MS, end];
+              if (fullDomain) {
+                setDomain(clampRangeToBounds(candidate, fullDomain));
+              } else {
+                setDomain(candidate);
+              }
             }}
+            disabled={!domain}
           />
         </div>
         <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-slate-900/60 px-3 py-2">
@@ -305,6 +495,17 @@ export function TimelinePanel({ variant = "default" }: TimelinePanelProps): JSX.
             <SelectItem value="title">Topic name</SelectItem>
           </SelectContent>
         </Select>
+        <button
+          type="button"
+          onClick={() => setShowExamMarkers((prev) => !prev)}
+          className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs transition ${
+            showExamMarkers
+              ? "border-accent/40 bg-accent/20 text-white"
+              : "border-white/10 bg-transparent text-zinc-400 hover:text-white"
+          }`}
+        >
+          <CalendarClock className="h-3.5 w-3.5" /> Exam markers {showExamMarkers ? "on" : "off"}
+        </button>
         {categoryFilter.size > 0 ? (
           <Button size="sm" variant="ghost" onClick={() => setCategoryFilter(new Set())}>
             Clear categories
@@ -336,15 +537,35 @@ export function TimelinePanel({ variant = "default" }: TimelinePanelProps): JSX.
         ) : null}
       </div>
 
-      <TimelineChart
-        ref={svgRef}
-        series={series}
-        xDomain={domain}
-        onDomainChange={setDomain}
-        height={variant === "compact" ? 260 : 360}
-        showGrid
-        fullDomain={fullDomain}
-      />
+      {rangeWarning ? (
+        <div className="flex items-center gap-2 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+          <AlertTriangle className="h-3.5 w-3.5" />
+          <span>{rangeWarning}</span>
+        </div>
+      ) : null}
+      {rangeHint ? (
+        <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-slate-900/60 px-3 py-2 text-xs text-zinc-300">
+          <Info className="h-3.5 w-3.5 text-accent" />
+          <span>{rangeHint}</span>
+        </div>
+      ) : null}
+
+      {hasStudyActivity && domain ? (
+        <TimelineChart
+          ref={svgRef}
+          series={series}
+          xDomain={domain}
+          onDomainChange={(next) => setDomain(next)}
+          height={variant === "compact" ? 260 : 360}
+          showGrid
+          fullDomain={fullDomain ?? undefined}
+          examMarkers={showExamMarkers ? examMarkers : []}
+        />
+      ) : (
+        <div className="flex h-60 items-center justify-center rounded-3xl border border-dashed border-white/10 bg-slate-900/40 text-sm text-zinc-400">
+          No study activity yet. Add a topic to see your timeline.
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">

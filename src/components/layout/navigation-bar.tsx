@@ -3,7 +3,15 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, Bell, CalendarCheck2, LayoutDashboard, LineChart, NotebookPen } from "lucide-react";
+import {
+  Menu,
+  Bell,
+  CalendarCheck2,
+  LayoutDashboard,
+  LineChart,
+  NotebookPen,
+  Settings
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTopicStore } from "@/stores/topics";
 import { Topic } from "@/types/topic";
@@ -13,7 +21,8 @@ const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/reviews", label: "Reviews", icon: CalendarCheck2 },
   { href: "/timeline", label: "Timeline", icon: LineChart },
-  { href: "/subjects", label: "Subjects", icon: NotebookPen }
+  { href: "/subjects", label: "Subjects", icon: NotebookPen },
+  { href: "/settings", label: "Settings", icon: Settings }
 ];
 
 const computeDueCounts = (topics: Topic[]) => {
@@ -58,7 +67,9 @@ export const NavigationBar: React.FC = () => {
               <Link
                 key={item.href}
                 href={item.href}
-                className={inline-flex items-center gap-2 rounded-xl px-3 py-2 transition-colors }
+                className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 transition-colors ${
+                  isActive ? "bg-white/10 text-white" : "hover:bg-white/10 hover:text-white"
+                }`}
               >
                 <Icon className="h-4 w-4" />
                 {item.label}
