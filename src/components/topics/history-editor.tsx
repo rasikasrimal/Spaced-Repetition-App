@@ -33,15 +33,12 @@ import {
   Check,
   ClipboardList,
   Clock,
-  Info,
   Plus,
   Trash2
 } from "lucide-react";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 
 const DEFAULT_REVIEW_TIME = "12:00";
-const MAX_HISTORY_ENTRIES = 50;
-
 const FOCUSABLE_SELECTOR =
   'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
@@ -123,8 +120,6 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
   const [error, setError] = React.useState<string | null>(null);
   const [isSaving, setIsSaving] = React.useState(false);
   const [mergePrompt, setMergePrompt] = React.useState<MergePromptState | null>(null);
-  const [overflowCount, setOverflowCount] = React.useState(0);
-
   const overlayRef = React.useRef<HTMLDivElement | null>(null);
   const panelRef = React.useRef<HTMLDivElement | null>(null);
   const previouslyFocused = React.useRef<HTMLElement | null>(null);
@@ -205,12 +200,6 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
       .filter((event) => event.type === "reviewed")
       .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
 
-    if (events.length === 0) {
-      setOverflowCount(0);
-      setDrafts([]);
-      return;
-    }
-
     const mapped: HistoryDraft[] = events.map((event) => ({
       localId: event.id,
       id: event.id,
@@ -221,15 +210,10 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
     }));
 
     const sorted = sortDrafts(mapped, timezone);
-    setOverflowCount(Math.max(0, sorted.length - MAX_HISTORY_ENTRIES));
-    setDrafts(sorted.slice(-MAX_HISTORY_ENTRIES));
+    setDrafts(sorted);
   }, [open, topic, timezone]);
 
   const addDraft = React.useCallback(() => {
-    if (drafts.length >= MAX_HISTORY_ENTRIES) {
-      toast.error(`History editor allows up to ${MAX_HISTORY_ENTRIES} entries per topic.`);
-      return;
-    }
     const now = nowInTimeZone(timezone);
     const draft: HistoryDraft = {
       localId: nanoid(),
@@ -277,20 +261,7 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
       };
     });
 
-    const freeSlots = MAX_HISTORY_ENTRIES - drafts.length;
-    if (freeSlots <= 0) {
-      toast.error(`History editor already has ${MAX_HISTORY_ENTRIES} entries. Remove one before adding more.`);
-      return;
-    }
-
-    const limitedAdditions = additions.slice(0, freeSlots);
-    if (limitedAdditions.length < additions.length) {
-      toast.info(
-        `Only the first ${freeSlots} entr${freeSlots === 1 ? "y" : "ies"} were added (maximum ${MAX_HISTORY_ENTRIES}).`
-      );
-    }
-
-    setDrafts(sortDrafts([...drafts, ...limitedAdditions], timezone));
+    setDrafts(sortDrafts([...drafts, ...additions], timezone));
     setBulkInput("");
   }, [bulkInput, bulkQuality, drafts, timezone]);
 
@@ -300,7 +271,6 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
     setBulkQuality(0.5);
     setError(null);
     setMergePrompt(null);
-    setOverflowCount(0);
   }, []);
 
   const handleClose = React.useCallback(() => {
@@ -392,8 +362,6 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
     return null;
   }
 
-  const remainingSlots = Math.max(0, MAX_HISTORY_ENTRIES - drafts.length);
-
   const content = (
     <AnimatePresence>
       {open ? (
@@ -421,7 +389,7 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
             transition={{ type: "spring", stiffness: 260, damping: 26 }}
-            className="flex max-h-[85vh] w-full max-w-3xl flex-col gap-6 rounded-3xl border border-white/10 bg-slate-900/95 p-6 shadow-2xl"
+            className="flex max-h-[90vh] w-full max-w-4xl flex-col gap-6 rounded-3xl border border-white/10 bg-slate-900/95 p-6 shadow-2xl"
           >
             <header className="space-y-2">
               <div className="inline-flex items-center gap-2 rounded-full bg-accent/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-accent">
@@ -442,17 +410,8 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
               </div>
             ) : null}
 
-            {overflowCount > 0 ? (
-              <div className="flex items-start gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-100">
-                <Info className="mt-0.5 h-4 w-4" />
-                <span>
-                  Showing the latest {MAX_HISTORY_ENTRIES} reviews. {overflowCount} older entr{overflowCount === 1 ? "y is" : "ies are"} hidden from editing.
-                </span>
-              </div>
-            ) : null}
-
-            <ScrollArea className="flex-1 rounded-2xl border border-white/5 bg-slate-900/60 p-4">
-              <div className="space-y-4">
+            <ScrollArea className="flex-1 min-h-[320px] max-h-[65vh] rounded-2xl border border-white/5 bg-slate-900/60 p-4">
+              <div className="space-y-4 pr-4">
                 {drafts.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/50 p-6 text-center text-sm text-zinc-400">
                     No past reviews yet.
@@ -524,69 +483,70 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
                     );
                   })
                 )}
+              </div>
+            </ScrollArea>
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={addDraft}
-                    className="inline-flex items-center gap-2"
-                    disabled={remainingSlots === 0}
-                  >
-                    <Plus className="h-4 w-4" /> Add entry
-                  </Button>
-                  <span className="text-xs text-zinc-400">
-                    Entries are sorted chronologically and merged on the same day using the highest quality. Up to {MAX_HISTORY_ENTRIES} entries per topic ({remainingSlots} slot{remainingSlots === 1 ? "" : "s"} remaining).
-                  </span>
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={addDraft}
+                  className="inline-flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" /> Add entry
+                </Button>
+                <span className="text-xs text-zinc-400">
+                  Entries are sorted chronologically and merged on the same day using the highest quality.
+                </span>
+              </div>
+
+              <div className="space-y-3 rounded-2xl border border-white/10 bg-slate-900/70 p-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                  <ClipboardList className="h-4 w-4" /> Bulk add from pasted dates
                 </div>
-
-                <div className="space-y-3 rounded-2xl border border-white/10 bg-slate-900/70 p-4">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-white">
-                    <ClipboardList className="h-4 w-4" /> Bulk add from pasted dates
+                <p className="text-xs text-zinc-400">
+                  Paste one date per line (YYYY-MM-DD). Optionally include a quality token (easy, hard, forgot). Missing tokens use the selected default quality.
+                </p>
+                <div className="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto]">
+                  <textarea
+                    value={bulkInput}
+                    onChange={(event) => setBulkInput(event.target.value)}
+                    rows={3}
+                    className="min-h-[96px] resize-y rounded-2xl border border-white/10 bg-slate-950/50 p-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-accent/50"
+                    placeholder="2024-03-01 easy\n2024-03-05 hard\n2024-03-12"
+                  />
+                  <div className="space-y-1">
+                    <Label htmlFor="bulk-quality">Default quality</Label>
+                    <Select
+                      value={String(bulkQuality)}
+                      onValueChange={(value) => setBulkQuality(Number.parseFloat(value) as ReviewQuality)}
+                    >
+                      <SelectTrigger id="bulk-quality">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {QUALITY_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={String(option.value)}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <p className="text-xs text-zinc-400">
-                    Paste one date per line (YYYY-MM-DD). Optionally include a quality token (easy, hard, forgot). Missing tokens use the selected default quality.
-                  </p>
-                  <div className="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto]">
-                    <textarea
-                      value={bulkInput}
-                      onChange={(event) => setBulkInput(event.target.value)}
-                      rows={3}
-                      className="min-h-[96px] resize-y rounded-2xl border border-white/10 bg-slate-950/50 p-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-accent/50"
-                      placeholder="2024-03-01 easy\n2024-03-05 hard\n2024-03-12"
-                    />
-                    <div className="space-y-1">
-                      <Label htmlFor="bulk-quality">Default quality</Label>
-                      <Select
-                        value={String(bulkQuality)}
-                        onValueChange={(value) => setBulkQuality(Number.parseFloat(value) as ReviewQuality)}
-                      >
-                        <SelectTrigger id="bulk-quality">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {QUALITY_OPTIONS.map((option) => (
-                            <SelectItem key={option.value} value={String(option.value)}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex items-end">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={applyBulkInput}
-                        disabled={bulkInput.trim().length === 0 || remainingSlots === 0}
-                      >
-                        <Check className="mr-2 h-4 w-4" /> Apply
-                      </Button>
-                    </div>
+                  <div className="flex items-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={applyBulkInput}
+                      disabled={bulkInput.trim().length === 0}
+                    >
+                      <Check className="mr-2 h-4 w-4" /> Apply
+                    </Button>
                   </div>
                 </div>
               </div>
-            </ScrollArea>
+            </div>
 
             <footer className="flex flex-col gap-3 border-t border-white/5 pt-4 md:flex-row md:items-center md:justify-between">
               <div className="text-xs text-zinc-400">
