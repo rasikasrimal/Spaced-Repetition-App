@@ -45,7 +45,6 @@ import {
   computeRetrievability
 } from "@/lib/forgetting-curve";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_WINDOW_DAYS = 30;
 const MIN_ZOOM_SPAN = DAY_MS;
 const MIN_Y_SPAN = 0.05;
