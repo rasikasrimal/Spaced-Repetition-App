@@ -2,12 +2,15 @@
 
 import * as React from "react";
 import { NavigationBar } from "@/components/layout/navigation-bar";
+import { useAutoSkipOverdue } from "@/hooks/use-auto-skip";
 
 interface AppShellProps {
   children: React.ReactNode;
 }
 
 export const AppShell: React.FC<AppShellProps> = ({ children }) => {
+  useAutoSkipOverdue();
+
   return (
     <div className="flex min-h-screen flex-col bg-surface text-surface-foreground">
       <NavigationBar />

@@ -1,7 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { TimelineChart, type TimelineSeries } from "@/components/visualizations/timeline-chart";
+import {
+  TimelineChart,
+  type TimelineSeries
+} from "@/components/visualizations/timeline-chart";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,7 +32,18 @@ import {
   Hand,
   SquareDashedMousePointer
 } from "lucide-react";
-import { daysBetween, formatDateWithWeekday, formatRelativeToNow, isDueToday, nowInTimeZone } from "@/lib/date";
+import {
+  daysBetween,
+  formatDateWithWeekday,
+  formatRelativeToNow,
+  isDueToday,
+  nowInTimeZone
+} from "@/lib/date";
+import {
+  DAY_MS,
+  STABILITY_MIN_DAYS,
+  computeRetrievability
+} from "@/lib/forgetting-curve";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_WINDOW_DAYS = 30;
@@ -56,95 +70,152 @@ const ensureVisibilityState = (topics: Topic[], prev: TopicVisibility): TopicVis
 const deriveSeries = (
   topics: Topic[],
   visibility: TopicVisibility,
-  resolveColor: (topic: Topic) => string
+  resolveColor: (topic: Topic) => string,
+  nowMs: number
 ): TimelineSeries[] => {
   const visibleTopics = topics.filter((topic) => visibility[topic.id] ?? true);
   const segments = buildCurveSegments(visibleTopics);
-  const byTopic = new Map<string, TimelineSeries>();
+  const segmentsByTopic = new Map<string, typeof segments>();
 
   for (const segment of segments) {
-    const topic = visibleTopics.find((item) => item.id === segment.topicId);
-    if (!topic) continue;
-    const seriesColor = resolveColor(topic);
-    if (!byTopic.has(segment.topicId)) {
-      byTopic.set(segment.topicId, {
-        topicId: topic.id,
-        topicTitle: topic.title,
-        color: seriesColor,
-        points: [],
-        events: []
-      });
-    }
-    const bucket = byTopic.get(segment.topicId)!;
-    const samples = sampleSegment(segment, 160);
-    bucket.points.push(...samples);
-    const fromTs = new Date(segment.from.at).getTime();
-    if (!bucket.events.some((event) => event.id === segment.from.id)) {
-      bucket.events.push({
-        id: segment.from.id,
-        t: fromTs,
-        type: segment.from.type,
-        intervalDays: segment.from.intervalDays,
-        notes: segment.from.notes
-      });
-    }
-    if (segment.to) {
-      const toTs = new Date(segment.to.at).getTime();
-      if (!bucket.events.some((event) => event.id === segment.to!.id)) {
-        bucket.events.push({
-          id: segment.to.id,
-          t: toTs,
-          type: segment.to.type,
-          intervalDays: segment.to.intervalDays,
-          notes: segment.to.notes
-        });
-      }
+    const bucket = segmentsByTopic.get(segment.topicId);
+    if (bucket) {
+      bucket.push(segment);
+    } else {
+      segmentsByTopic.set(segment.topicId, [segment]);
     }
   }
 
   const series: TimelineSeries[] = [];
   for (const topic of visibleTopics) {
-    const pack = byTopic.get(topic.id);
-    if (!pack) {
-      const startedAt = topic.startedAt
-        ? new Date(topic.startedAt).getTime()
-        : new Date(topic.createdAt).getTime();
-      series.push({
-        topicId: topic.id,
-        topicTitle: topic.title,
-        color: resolveColor(topic),
-        points: [
-          { t: startedAt, r: 1 },
-          { t: Date.now(), r: 0.5 }
-        ],
-        events: [
-          {
-            id: `start-${topic.id}`,
-            t: startedAt,
-            type: "started",
-            intervalDays: topic.intervals?.[0],
-            notes: topic.notes
-          }
-        ]
+    const color = resolveColor(topic);
+    const topicSegments = [...(segmentsByTopic.get(topic.id) ?? [])].sort(
+      (a, b) => new Date(a.start.at).getTime() - new Date(b.start.at).getTime()
+    );
+
+    const startedAt = topic.startedAt
+      ? new Date(topic.startedAt).getTime()
+      : new Date(topic.createdAt).getTime();
+
+    const pack: TimelineSeries = {
+      topicId: topic.id,
+      topicTitle: topic.title,
+      color,
+      points: [],
+      segments: [],
+      stitches: [],
+      events: [
+        {
+          id: `start-${topic.id}`,
+          t: startedAt,
+          type: "started",
+          notes: topic.notes
+        }
+      ],
+      nowPoint: null
+    };
+
+    let previousSegment: (typeof topicSegments)[number] | null = null;
+
+    for (const segment of topicSegments) {
+      const samples = sampleSegment(segment, 160);
+      pack.points.push(...samples);
+      const checkpointTime = new Date(segment.checkpointAt).getTime();
+      pack.segments.push({
+        id: `${segment.topicId}-${segment.start.id}-${segment.displayEndAt}`,
+        points: samples,
+        isHistorical: segment.isHistorical,
+        checkpoint: Number.isFinite(checkpointTime)
+          ? { t: checkpointTime, target: segment.target }
+          : undefined
       });
-      continue;
-    }
-    const skipEvents = (topic.events ?? []).filter((event) => event.type === "skipped");
-    if (skipEvents.length > 0) {
-      for (const event of skipEvents) {
-        if (!pack.events.some((existing) => existing.id === event.id)) {
+
+      const reviewTime = new Date(segment.start.at).getTime();
+      if (Number.isFinite(reviewTime) && !pack.events.some((event) => event.id === segment.start.id)) {
+        const notes: string[] = [];
+        if (typeof segment.start.reviewQuality === "number") {
+          notes.push(`Quality ${(segment.start.reviewQuality * 100).toFixed(0)}%`);
+        }
+        if (typeof segment.start.intervalDays === "number") {
+          notes.push(`Next interval ≈ ${segment.start.intervalDays.toFixed(2)} days`);
+        }
+        pack.events.push({
+          id: segment.start.id,
+          t: reviewTime,
+          type: "reviewed",
+          intervalDays: segment.start.intervalDays,
+          notes: notes.length > 0 ? notes.join(" • ") : undefined
+        });
+      }
+
+      const checkpointId = `${segment.topicId}-checkpoint-${segment.checkpointAt}`;
+      if (Number.isFinite(checkpointTime) && !pack.events.some((event) => event.id === checkpointId)) {
+        const startTime = new Date(segment.start.at).getTime();
+        if (Number.isFinite(startTime)) {
+          const intervalDays = Math.max(0, (checkpointTime - startTime) / DAY_MS);
           pack.events.push({
-            id: event.id,
-            t: new Date(event.at).getTime(),
-            type: "skipped" as const
+            id: checkpointId,
+            t: checkpointTime,
+            type: "checkpoint",
+            intervalDays,
+            notes: `Retention target ≈ ${(segment.target * 100).toFixed(0)}%`
           });
         }
       }
+
+      if (previousSegment && Number.isFinite(reviewTime)) {
+        const prevStart = new Date(previousSegment.start.at).getTime();
+        const elapsed = Math.max(0, reviewTime - prevStart);
+        const priorRetention = computeRetrievability(previousSegment.stabilityDays, elapsed);
+        pack.stitches.push({
+          id: `stitch-${segment.start.id}`,
+          t: reviewTime,
+          from: priorRetention,
+          to: 1,
+          notes:
+            segment.start.intervalDays && segment.start.reviewQuality !== undefined
+              ? `Reviewed → next interval ${(segment.start.intervalDays ?? 0).toFixed(2)} days`
+              : undefined
+        });
+      }
+
+      previousSegment = segment;
     }
+
+    const activeSegment = topicSegments[topicSegments.length - 1];
+    if (activeSegment) {
+      const startTime = new Date(activeSegment.start.at).getTime();
+      if (Number.isFinite(startTime)) {
+        const elapsed = Math.max(0, nowMs - startTime);
+        const stability = Math.max(activeSegment.stabilityDays, STABILITY_MIN_DAYS);
+        const retentionNow = computeRetrievability(stability, elapsed);
+        const zeroHorizon = startTime + Math.max(0, Math.round(stability * Math.log(100) * DAY_MS));
+        pack.nowPoint = {
+          t: nowMs,
+          r: retentionNow,
+          zeroHorizon,
+          notes: `Stability ≈ ${stability.toFixed(2)} days`
+        };
+      }
+    }
+
+    for (const event of topic.events ?? []) {
+      if (event.type !== "skipped") continue;
+      if (pack.events.some((existing) => existing.id === event.id)) continue;
+      pack.events.push({
+        id: event.id,
+        t: new Date(event.at).getTime(),
+        type: "skipped",
+        notes: event.notes
+      });
+    }
+
     pack.points.sort((a, b) => a.t - b.t);
     pack.events.sort((a, b) => a.t - b.t);
+    pack.stitches.sort((a, b) => a.t - b.t);
     series.push(pack);
   }
+
   return series;
 };
 
@@ -655,9 +726,16 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     return sorted;
   }, [topics, categoryFilter, search, sortView]);
 
+  const [nowMs, setNowMs] = React.useState(() => Date.now());
+
+  React.useEffect(() => {
+    const interval = window.setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
+
   const series = React.useMemo(
-    () => deriveSeries(filteredTopics, visibility, resolveTopicColor),
-    [filteredTopics, visibility, resolveTopicColor]
+    () => deriveSeries(filteredTopics, visibility, resolveTopicColor, nowMs),
+    [filteredTopics, visibility, resolveTopicColor, nowMs]
   );
 
   React.useEffect(() => {
@@ -671,10 +749,16 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     let min = Number.POSITIVE_INFINITY;
     let max = Number.NEGATIVE_INFINITY;
     for (const line of series) {
-      for (const point of line.points) {
-        if (!Number.isFinite(point.r)) continue;
-        if (point.r < min) min = point.r;
-        if (point.r > max) max = point.r;
+      for (const segment of line.segments) {
+        for (const point of segment.points) {
+          if (!Number.isFinite(point.r)) continue;
+          if (point.r < min) min = point.r;
+          if (point.r > max) max = point.r;
+        }
+      }
+      if (line.nowPoint && Number.isFinite(line.nowPoint.r)) {
+        if (line.nowPoint.r < min) min = line.nowPoint.r;
+        if (line.nowPoint.r > max) max = line.nowPoint.r;
       }
     }
     if (!Number.isFinite(min) || !Number.isFinite(max)) {

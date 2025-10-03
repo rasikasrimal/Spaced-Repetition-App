@@ -1,89 +1,82 @@
 import { Topic, TopicEvent } from "@/types/topic";
+import { DAY_MS, STABILITY_MIN_DAYS, computeRetrievability } from "@/lib/forgetting-curve";
 
 export interface CurveSegment {
   topicId: string;
-  from: TopicEvent;
-  to?: TopicEvent;
-  tauHours: number;
-  beta: number;
+  start: TopicEvent;
+  /** Timestamp where the retention segment actually ends (next review). */
+  endAt: string;
+  /** Timestamp that should be plotted for the decay (checkpoint for active segment). */
+  displayEndAt: string;
+  /** Scheduled checkpoint where R(t) ≈ target retrievability. */
+  checkpointAt: string;
+  stabilityDays: number;
+  target: number;
+  isHistorical: boolean;
 }
-
-const DEFAULT_CFG = {
-  beta: 1.0,
-  strategy: "reviews" as const,
-  baseHalfLifeHours: 12,
-  growthPerSuccessfulReview: 2.0
-};
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
-const calcTau = (topic: Topic, events: TopicEvent[], startIndex: number): number => {
-  const cfg = { ...DEFAULT_CFG, ...(topic.forgetting ?? {}) };
-  if (cfg.strategy === "interval") {
-    const nextEvent = events[startIndex + 1];
-    const fallbackDays = topic.intervals?.[topic.intervalIndex] ?? topic.intervals?.[0] ?? 1;
-    const intervalDays = nextEvent?.intervalDays ?? fallbackDays;
-    const estimatedHours = 0.5 * intervalDays * 24;
-    return clamp(estimatedHours, 8, 24 * 180);
+const cloneEvent = (topic: Topic, at: string): TopicEvent => ({
+  id: `${topic.id}-synthetic-${at}`,
+  topicId: topic.id,
+  type: "reviewed",
+  at,
+  intervalDays: (new Date(topic.nextReviewDate).getTime() - new Date(at).getTime()) / DAY_MS,
+  reviewKind: "scheduled",
+  reviewQuality: 1,
+  resultingStability: topic.stability,
+  targetRetrievability: topic.retrievabilityTarget,
+  nextReviewAt: topic.nextReviewDate,
+  backfill: true
+});
+
+const ensureSegmentsForTopic = (topic: Topic): CurveSegment[] => {
+  const reviewEvents = [...(topic.events ?? [])]
+    .filter((event) => event.type === "reviewed")
+    .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+
+  if (reviewEvents.length === 0) {
+    const anchor = topic.lastReviewedAt ?? topic.startedAt ?? topic.createdAt;
+    const synthetic = cloneEvent(topic, anchor);
+    return [
+      {
+        topicId: topic.id,
+        start: synthetic,
+        endAt: topic.nextReviewDate,
+        displayEndAt: topic.nextReviewDate,
+        checkpointAt: topic.nextReviewDate,
+        stabilityDays: topic.stability,
+        target: topic.retrievabilityTarget,
+        isHistorical: false
+      }
+    ];
   }
 
-  const cutoff = new Date(events[startIndex].at).getTime();
-  const reviewsSoFar = events.filter(
-    (event) => event.type === "reviewed" && new Date(event.at).getTime() <= cutoff
-  ).length;
-  const base = cfg.baseHalfLifeHours ?? DEFAULT_CFG.baseHalfLifeHours;
-  const growth = cfg.growthPerSuccessfulReview ?? DEFAULT_CFG.growthPerSuccessfulReview;
-  return base * Math.pow(growth, reviewsSoFar);
-};
+  return reviewEvents.map((event, index) => {
+    const nextEvent = reviewEvents[index + 1] ?? null;
+    const checkpointAt = event.nextReviewAt ?? topic.nextReviewDate;
+    const fallbackEnd = checkpointAt ?? topic.nextReviewDate;
+    const endAt = nextEvent ? nextEvent.at : fallbackEnd;
+    const displayEndAt = nextEvent ? nextEvent.at : fallbackEnd;
 
-const topicCache = new Map<string, { hash: string; segments: CurveSegment[] }>();
-
-// Helper function to serialize TopicEvent for hash construction
-function serializeEventForHash(event: TopicEvent): string {
-  return `${event.id}:${event.at}:${event.intervalDays ?? ""}`;
-}
-
-const hashTopic = (topic: Topic): string => {
-  const events = topic.events ?? [];
-  const eventKey = events.map(serializeEventForHash).join("|");
-  const forgettingKey = `${topic.forgetting?.beta ?? DEFAULT_CFG.beta}-${topic.forgetting?.strategy ?? DEFAULT_CFG.strategy}-${topic.forgetting?.baseHalfLifeHours ?? DEFAULT_CFG.baseHalfLifeHours}-${topic.forgetting?.growthPerSuccessfulReview ?? DEFAULT_CFG.growthPerSuccessfulReview}`;
-  const intervalKey = `${topic.intervalIndex}|${(topic.intervals ?? []).join(",")}`;
-  return `${topic.id}-${eventKey}-${forgettingKey}-${intervalKey}`;
-};
-
-const computeSegmentsForTopic = (topic: Topic): CurveSegment[] => {
-  const orderedEvents = [...(topic.events ?? [])].sort(
-    (a, b) => new Date(a.at).getTime() - new Date(b.at).getTime()
-  );
-  if (orderedEvents.length === 0) return [];
-  const segments: CurveSegment[] = [];
-  for (let index = 0; index < orderedEvents.length; index += 1) {
-    const from = orderedEvents[index];
-    const to = orderedEvents[index + 1];
-    const tauHours = calcTau(topic, orderedEvents, index);
-    segments.push({
+    return {
       topicId: topic.id,
-      from,
-      to,
-      tauHours,
-      beta: topic.forgetting?.beta ?? DEFAULT_CFG.beta
-    });
-  }
-  return segments;
+      start: event,
+      endAt,
+      displayEndAt,
+      checkpointAt,
+      stabilityDays: event.resultingStability ?? topic.stability,
+      target: event.targetRetrievability ?? topic.retrievabilityTarget,
+      isHistorical: Boolean(nextEvent)
+    };
+  });
 };
 
 export const buildCurveSegments = (topics: Topic[]): CurveSegment[] => {
   const segments: CurveSegment[] = [];
   for (const topic of topics) {
-    const hash = hashTopic(topic);
-    const cached = topicCache.get(topic.id);
-    if (cached && cached.hash === hash) {
-      segments.push(...cached.segments);
-      continue;
-    }
-    const computed = computeSegmentsForTopic(topic);
-    topicCache.set(topic.id, { hash, segments: computed });
-    segments.push(...computed);
+    segments.push(...ensureSegmentsForTopic(topic));
   }
   return segments;
 };
@@ -92,23 +85,24 @@ export const sampleSegment = (
   segment: CurveSegment,
   maxPoints = 160
 ): { t: number; r: number }[] => {
-  const startTs = new Date(segment.from.at).getTime();
-  const endTs = segment.to ? new Date(segment.to.at).getTime() : Date.now();
+  const startTs = new Date(segment.start.at).getTime();
+  const endTs = new Date(segment.displayEndAt).getTime();
   const durationMs = Math.max(60_000, endTs - startTs);
-  const targetPoints = clamp(maxPoints, 16, 320);
-  const stepMs = durationMs / targetPoints;
+  const pointsCount = clamp(maxPoints, 16, 320);
+  const stepMs = durationMs / pointsCount;
+  const stability = Math.max(segment.stabilityDays, STABILITY_MIN_DAYS);
   const points: { t: number; r: number }[] = [];
+
   for (let ts = startTs; ts <= endTs; ts += stepMs) {
-    const elapsedHours = (ts - startTs) / 3_600_000;
-    const ratio = elapsedHours / Math.max(0.001, segment.tauHours);
-    const retention = Math.exp(-Math.pow(ratio, segment.beta));
+    const elapsedMs = ts - startTs;
+    const retention = computeRetrievability(stability, elapsedMs);
     points.push({ t: ts, r: clamp(retention, 0, 1) });
   }
+
   if (!points.some((point) => point.t === endTs)) {
-    const elapsedHours = (endTs - startTs) / 3_600_000;
-    const ratio = elapsedHours / Math.max(0.001, segment.tauHours);
-    const retention = Math.exp(-Math.pow(ratio, segment.beta));
+    const retention = computeRetrievability(stability, endTs - startTs);
     points.push({ t: endTs, r: clamp(retention, 0, 1) });
   }
+
   return points;
 };

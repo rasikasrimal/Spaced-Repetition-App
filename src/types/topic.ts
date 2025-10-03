@@ -1,5 +1,9 @@
 ﻿export type TopicEventType = "started" | "reviewed" | "skipped";
 
+export type ReviewKind = "scheduled" | "revise_now" | "skip_user" | "skip_auto";
+
+export type ReviewQuality = 0 | 0.5 | 1;
+
 export interface TopicEvent {
   id: string;
   topicId: string;
@@ -8,16 +12,14 @@ export interface TopicEvent {
   intervalDays?: number;
   notes?: string;
   backfill?: boolean;
+  reviewKind?: ReviewKind;
+  reviewQuality?: ReviewQuality;
+  resultingStability?: number;
+  targetRetrievability?: number;
+  nextReviewAt?: string;
 }
 
 export type AutoAdjustPreference = "always" | "never" | "ask";
-
-export interface TopicForgettingConfig {
-  beta?: number;
-  strategy?: "reviews" | "interval";
-  baseHalfLifeHours?: number;
-  growthPerSuccessfulReview?: number;
-}
 
 export type Subject = {
   id: string;
@@ -25,6 +27,7 @@ export type Subject = {
   color: string;
   icon: string;
   examDate?: string | null;
+  difficultyModifier?: number | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -51,11 +54,14 @@ export type Topic = {
   nextReviewDate: string;
   lastReviewedAt: string | null;
   lastReviewedOn?: string | null;
+  stability: number;
+  retrievabilityTarget: number;
+  reviewsCount: number;
+  subjectDifficultyModifier?: number | null;
   autoAdjustPreference?: AutoAdjustPreference;
   createdAt: string;
   startedAt?: string;
   startedOn?: string | null;
   events?: TopicEvent[];
-  forgetting?: TopicForgettingConfig;
   reviseNowLastUsedAt?: string | null;
 };

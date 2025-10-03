@@ -18,6 +18,7 @@ import { useZonedNow } from "@/hooks/use-zoned-now";
 import { usePersistedSubjectFilter } from "@/hooks/use-persisted-subject-filter";
 import { CalendarClock, Flame, LucideIcon, Plus, Trophy, Info } from "lucide-react";
 import { formatDateWithWeekday, formatRelativeToNow, getDayKey, isToday, startOfToday } from "@/lib/date";
+import { computeRiskScore, getAverageQuality } from "@/lib/forgetting-curve";
 import { Subject, Topic } from "@/types/topic";
 
 interface DashboardProps {
@@ -97,13 +98,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
         status = "upcoming";
       }
 
+      const subject = topic.subjectId ? subjectMap.get(topic.subjectId) ?? null : null;
+
       return {
         topic,
-        subject: topic.subjectId ? subjectMap.get(topic.subjectId) ?? null : null,
-        status
+        subject,
+        status,
+        risk: computeRiskScore({
+          now: zonedNow,
+          stabilityDays: topic.stability,
+          targetRetrievability: topic.retrievabilityTarget,
+          lastReviewedAt: topic.lastReviewedAt,
+          nextReviewAt: topic.nextReviewDate,
+          reviewsCount: topic.reviewsCount,
+          averageQuality: getAverageQuality(
+            (topic.events ?? [])
+              .filter((event) => event.type === "reviewed" && typeof event.reviewQuality === "number")
+              .map((event) => event.reviewQuality as number)
+          ),
+          examDate: subject?.examDate ?? null,
+          difficultyModifier: subject?.difficultyModifier ?? topic.subjectDifficultyModifier ?? 1
+        })
       } satisfies TopicListItem;
     });
-  }, [topics, subjects]);
+  }, [topics, subjects, zonedNow]);
 
   const {
     dueCount,

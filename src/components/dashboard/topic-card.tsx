@@ -189,7 +189,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
   }, [topic.reminderTime, topic.id]);
 
   const buildPayload = React.useCallback(
-    (overrides: Partial<Omit<Topic, "id" | "events" | "forgetting">>) => ({
+    (overrides: Partial<Omit<Topic, "id" | "events">>) => ({
       title: overrides.title ?? topic.title,
       notes: overrides.notes ?? topic.notes ?? "",
       subjectId: overrides.subjectId ?? topic.subjectId ?? null,
@@ -476,6 +476,9 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
                 {formatDateWithWeekday(topic.nextReviewDate)}
               </p>
               <p className="text-xs text-zinc-400">{statusStyles[currentStatus].helper}</p>
+              <p className="text-[11px] text-zinc-500">
+                Retention target ≈ {Math.round(topic.retrievabilityTarget * 100)}%
+              </p>
             </div>
           </div>
 
@@ -663,7 +666,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
         open={showAdjustPrompt}
         onClose={dismissAdjustPrompt}
         title="You studied this earlier than planned"
-        description="Adjust future intervals to reflect your progress?"
+        description="You reviewed earlier than planned. Adjust future schedule?"
         confirmLabel="Adjust schedule"
         cancelLabel="Keep original plan"
         onConfirm={() => {
