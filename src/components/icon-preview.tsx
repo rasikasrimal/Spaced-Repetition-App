@@ -8,10 +8,17 @@ type IconPreviewProps = {
   className?: string;
 };
 
-const iconMap = Icons as Record<string, LucideIcon>;
-const fallbackIcon: LucideIcon = Icons.Sparkles;
+const fallbackIcon = Icons.Sparkles as LucideIcon;
+
+const resolveIcon = (name: string): LucideIcon => {
+  const candidate = (Icons as Record<string, unknown>)[name];
+  if (typeof candidate === "function") {
+    return candidate as LucideIcon;
+  }
+  return fallbackIcon;
+};
 
 export const IconPreview: React.FC<IconPreviewProps> = ({ name, className }) => {
-  const Icon = iconMap[name] ?? fallbackIcon;
+  const Icon = resolveIcon(name);
   return <Icon className={cn("h-5 w-5", className)} />;
 };
