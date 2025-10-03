@@ -11,7 +11,7 @@ import { useTopicStore } from "@/stores/topics";
 import { useProfileStore } from "@/stores/profile";
 import { Subject, Topic } from "@/types/topic";
 import { CalendarClock, Check, Eye, EyeOff, Filter, Info, Search, Sparkles, AlertTriangle } from "lucide-react";
-import { formatDateWithWeekday, formatRelativeToNow, isDueToday, nowInTimeZone } from "@/lib/date";
+import { daysBetween, formatDateWithWeekday, formatRelativeToNow, isDueToday, nowInTimeZone } from "@/lib/date";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_WINDOW_DAYS = 30;
@@ -126,6 +126,15 @@ type TimelineDomainMeta = {
   hasActivity: boolean;
   warning?: string | null;
   hint?: string | null;
+};
+
+type ExamMarker = {
+  id: string;
+  time: number;
+  color: string;
+  subjectName: string;
+  daysRemaining: number | null;
+  dateISO: string;
 };
 
 const shiftUtcDays = (timestamp: number, days: number) => {
@@ -251,6 +260,7 @@ export function TimelinePanel({ variant = "default" }: TimelinePanelProps): JSX.
   const [rangeWarning, setRangeWarning] = React.useState<string | null>(null);
   const [rangeHint, setRangeHint] = React.useState<string | null>(null);
   const [hasStudyActivity, setHasStudyActivity] = React.useState(true);
+  const [showExamMarkers, setShowExamMarkers] = React.useState(true);
   const svgRef = React.useRef<SVGSVGElement | null>(null);
 
   const domainMeta = React.useMemo(
@@ -320,6 +330,33 @@ export function TimelinePanel({ variant = "default" }: TimelinePanelProps): JSX.
   }, [topics, categoryFilter, search, sortView]);
 
   const series = React.useMemo(() => deriveSeries(filteredTopics, visibility), [filteredTopics, visibility]);
+
+  const examMarkers = React.useMemo<ExamMarker[]>(() => {
+    if (!showExamMarkers) return [];
+    const zonedToday = nowInTimeZone(resolvedTimezone);
+    return subjects
+      .map<ExamMarker | null>((subject) => {
+        if (!subject.examDate) return null;
+        const examDate = new Date(subject.examDate);
+        if (Number.isNaN(examDate.getTime())) return null;
+        const hasVisibleTopic = filteredTopics.some(
+          (topic) =>
+            topic.subjectId === subject.id && (visibility[topic.id] ?? true)
+        );
+        if (!hasVisibleTopic) return null;
+        const daysRemaining = Math.max(0, daysBetween(zonedToday, examDate));
+        return {
+          id: `exam-marker-${subject.id}`,
+          time: examDate.getTime(),
+          color: subject.color ?? "#38bdf8",
+          subjectName: subject.name,
+          daysRemaining,
+          dateISO: examDate.toISOString()
+        };
+      })
+      .filter((marker): marker is ExamMarker => marker !== null)
+      .sort((a, b) => a.time - b.time);
+  }, [subjects, filteredTopics, visibility, resolvedTimezone, showExamMarkers]);
 
   const upcomingSchedule = React.useMemo(() => {
     return filteredTopics
@@ -458,6 +495,17 @@ export function TimelinePanel({ variant = "default" }: TimelinePanelProps): JSX.
             <SelectItem value="title">Topic name</SelectItem>
           </SelectContent>
         </Select>
+        <button
+          type="button"
+          onClick={() => setShowExamMarkers((prev) => !prev)}
+          className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs transition ${
+            showExamMarkers
+              ? "border-accent/40 bg-accent/20 text-white"
+              : "border-white/10 bg-transparent text-zinc-400 hover:text-white"
+          }`}
+        >
+          <CalendarClock className="h-3.5 w-3.5" /> Exam markers {showExamMarkers ? "on" : "off"}
+        </button>
         {categoryFilter.size > 0 ? (
           <Button size="sm" variant="ghost" onClick={() => setCategoryFilter(new Set())}>
             Clear categories
@@ -511,6 +559,7 @@ export function TimelinePanel({ variant = "default" }: TimelinePanelProps): JSX.
           height={variant === "compact" ? 260 : 360}
           showGrid
           fullDomain={fullDomain ?? undefined}
+          examMarkers={showExamMarkers ? examMarkers : []}
         />
       ) : (
         <div className="flex h-60 items-center justify-center rounded-3xl border border-dashed border-white/10 bg-slate-900/40 text-sm text-zinc-400">
@@ -600,5 +649,3 @@ export function TimelinePanel({ variant = "default" }: TimelinePanelProps): JSX.
     </section>
   );
 }
-
-

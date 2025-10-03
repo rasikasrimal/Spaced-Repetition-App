@@ -10,6 +10,24 @@ export type TimelineSeries = {
   events: { id: string; t: number; type: "started" | "reviewed" | "skipped"; intervalDays?: number; notes?: string }[];
 };
 
+export type TimelineExamMarker = {
+  id: string;
+  time: number;
+  color: string;
+  subjectName: string;
+  daysRemaining: number | null;
+  dateISO: string;
+};
+
+type MarkerItem = TimelineExamMarker & { x: number };
+type MarkerCluster = { items: MarkerItem[]; x: number };
+type MarkerTooltip = {
+  x: number;
+  y: number;
+  title?: string;
+  items: { subjectName: string; dateISO: string; daysRemaining: number | null; color: string }[];
+};
+
 interface TimelineChartProps {
   series: TimelineSeries[];
   xDomain: [number, number];
@@ -17,6 +35,8 @@ interface TimelineChartProps {
   fullDomain?: [number, number];
   height?: number;
   showGrid?: boolean;
+  examMarkers?: TimelineExamMarker[];
+  showTodayLine?: boolean;
 }
 
 const PADDING_X = 48;
@@ -35,9 +55,19 @@ const clampDomain = (domain: [number, number], full?: [number, number]) => {
 };
 
 const formatTimestamp = (value: number) => new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(value);
+const formatExamDate = new Intl.DateTimeFormat("en", { month: "short", day: "numeric", year: "numeric" });
 
 export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>(
-  ({ series, xDomain, onDomainChange, fullDomain, height = 320, showGrid = true }, ref) => {
+  ({
+    series,
+    xDomain,
+    onDomainChange,
+    fullDomain,
+    height = 320,
+    showGrid = true,
+    examMarkers = [],
+    showTodayLine = true
+  }, ref) => {
     const containerRef = React.useRef<HTMLDivElement | null>(null);
     const svgRef = React.useRef<SVGSVGElement | null>(null);
     React.useImperativeHandle(ref, () => svgRef.current as SVGSVGElement);
@@ -113,17 +143,21 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
           notes?: string;
         }
     >(null);
+    const [markerTooltip, setMarkerTooltip] = React.useState<MarkerTooltip | null>(null);
 
     const hideTooltip = () => setTooltip(null);
+    const hideMarkerTooltip = () => setMarkerTooltip(null);
 
     const handlePointerMove: React.PointerEventHandler<SVGRectElement> = (event) => {
       if (isPanningRef.current) {
         hideTooltip();
+        hideMarkerTooltip();
         return;
       }
       const { offsetX } = event.nativeEvent;
       if (offsetX < PADDING_X || offsetX > width - PADDING_X) {
         hideTooltip();
+        hideMarkerTooltip();
         return;
       }
       const ratio = Math.min(1, Math.max(0, (offsetX - PADDING_X) / plotWidth));
@@ -175,6 +209,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       isPanningRef.current = true;
       panStartRef.current = { x: event.clientX, domain: xDomain };
       (event.target as Element).setPointerCapture(event.pointerId);
+      hideMarkerTooltip();
     };
 
     const handlePointerUp: React.PointerEventHandler<SVGRectElement> = (event) => {
@@ -187,6 +222,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       isPanningRef.current = false;
       panStartRef.current = null;
       hideTooltip();
+      hideMarkerTooltip();
     };
 
     const handlePointerMovePan: React.PointerEventHandler<SVGRectElement> = (event) => {
@@ -221,6 +257,10 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
         onDomainChange([nextStart, nextEnd]);
       }
     };
+
+    React.useEffect(() => {
+      setMarkerTooltip(null);
+    }, [examMarkers, xDomain]);
 
     const paths = series.map((line) => (
       <g key={line.topicId}>
@@ -292,6 +332,154 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       </g>
     ));
 
+    const clampX = React.useCallback(
+      (value: number) => Math.max(PADDING_X, Math.min(width - PADDING_X, value)),
+      [width]
+    );
+
+    const markerClusters = React.useMemo<MarkerCluster[]>(() => {
+      if (!examMarkers || examMarkers.length === 0) return [];
+      const filtered = examMarkers.filter((marker) => marker.time >= xDomain[0] && marker.time <= xDomain[1]);
+      if (filtered.length === 0) return [];
+      const items: MarkerItem[] = filtered
+        .map((marker) => ({
+          ...marker,
+          x: clampX(scaleX(marker.time))
+        }))
+        .sort((a, b) => a.x - b.x);
+      const threshold = 12;
+      const clusters: MarkerCluster[] = [];
+      for (const item of items) {
+        const last = clusters[clusters.length - 1];
+        if (last && Math.abs(item.x - last.x) <= threshold) {
+          const nextItems = [...last.items, item];
+          const averageX = nextItems.reduce((total, entry) => total + entry.x, 0) / nextItems.length;
+          clusters[clusters.length - 1] = { items: nextItems, x: averageX };
+        } else {
+          clusters.push({ items: [item], x: item.x });
+        }
+      }
+      return clusters;
+    }, [examMarkers, xDomain, scaleX, clampX]);
+
+    const markerGraphics: JSX.Element[] = [];
+
+    markerClusters.forEach((cluster, clusterIndex) => {
+      if (cluster.items.length <= 3) {
+        cluster.items.forEach((marker, index) => {
+          const horizontalOffset = (index - (cluster.items.length - 1) / 2) * 6;
+          const x = clampX(marker.x + horizontalOffset);
+          const labelY = Math.max(12, PADDING_Y - 18 - index * 16);
+          const tooltipY = Math.max(8, labelY - 24);
+          markerGraphics.push(
+            <line
+              key={`${marker.id}-line`}
+              x1={x}
+              x2={x}
+              y1={PADDING_Y}
+              y2={height - PADDING_Y}
+              stroke={marker.color}
+              strokeWidth={1.5}
+              strokeDasharray="4 4"
+              opacity={0.85}
+            />
+          );
+          const tooltipItems = [
+            {
+              subjectName: marker.subjectName,
+              dateISO: marker.dateISO,
+              daysRemaining: marker.daysRemaining,
+              color: marker.color
+            }
+          ];
+          const handleFocus = () =>
+            setMarkerTooltip({
+              x,
+              y: tooltipY,
+              items: tooltipItems
+            });
+          markerGraphics.push(
+            <g
+              key={`${marker.id}-label`}
+              transform={`translate(${x}, ${labelY})`}
+              tabIndex={0}
+              role="button"
+              aria-label={`Exam date for ${marker.subjectName}, ${formatExamDate.format(new Date(marker.dateISO))}`}
+              onFocus={handleFocus}
+              onBlur={hideMarkerTooltip}
+              onMouseEnter={handleFocus}
+              onMouseLeave={hideMarkerTooltip}
+            >
+              <foreignObject x={-80} y={-18} width={160} height={26}>
+                <div className="pointer-events-none flex items-center gap-1 rounded-full bg-slate-900/90 px-3 py-1 text-[10px] font-medium text-white shadow-lg">
+                  <span className="inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: marker.color }} />
+                  <span className="uppercase text-[9px] tracking-wide text-accent">Exam</span>
+                  <span className="max-w-[90px] truncate">{marker.subjectName}</span>
+                </div>
+              </foreignObject>
+            </g>
+          );
+        });
+        return;
+      }
+
+      cluster.items.forEach((marker, index) => {
+        const offset = (index - (cluster.items.length - 1) / 2) * 4;
+        const lineX = clampX(marker.x + offset);
+        markerGraphics.push(
+          <line
+            key={`${marker.id}-cluster-line`}
+            x1={lineX}
+            x2={lineX}
+            y1={PADDING_Y}
+            y2={height - PADDING_Y}
+            stroke={marker.color}
+            strokeWidth={1.2}
+            strokeDasharray="4 4"
+            opacity={0.7}
+          />
+        );
+      });
+
+      const clusterX = clampX(cluster.x);
+      const labelY = Math.max(12, PADDING_Y - 22);
+      const label = `${cluster.items.length} exams`;
+      const tooltipY = Math.max(8, labelY - 24);
+      const tooltipItems = cluster.items.map((item) => ({
+        subjectName: item.subjectName,
+        dateISO: item.dateISO,
+        daysRemaining: item.daysRemaining,
+        color: item.color
+      }));
+      const handleClusterFocus = () =>
+        setMarkerTooltip({
+          x: clusterX,
+          y: tooltipY,
+          title: "Upcoming exams",
+          items: tooltipItems
+        });
+
+      markerGraphics.push(
+        <g
+          key={`cluster-${clusterIndex}`}
+          transform={`translate(${clusterX}, ${labelY})`}
+          tabIndex={0}
+          role="button"
+          aria-label={`Upcoming exams: ${cluster.items.map((item) => item.subjectName).join(", ")}`}
+          onFocus={handleClusterFocus}
+          onBlur={hideMarkerTooltip}
+          onMouseEnter={handleClusterFocus}
+          onMouseLeave={hideMarkerTooltip}
+        >
+          <foreignObject x={-70} y={-18} width={140} height={26}>
+            <div className="pointer-events-none flex items-center justify-center rounded-full bg-slate-900/90 px-3 py-1 text-[10px] font-semibold text-white shadow-lg">
+              {label}
+            </div>
+          </foreignObject>
+        </g>
+      );
+    });
+
     return (
       <div ref={containerRef} className="w-full overflow-hidden rounded-3xl border border-white/5 bg-white/5 p-4">
         <svg
@@ -317,15 +505,15 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
             }}
           />
           {gridElements}
-          {todayPosition !== null && (
+          {showTodayLine && todayPosition !== null && (
             <g>
               <line
                 x1={todayPosition}
                 x2={todayPosition}
                 y1={PADDING_Y}
                 y2={height - PADDING_Y}
-                className="stroke-red-400/60"
-                strokeDasharray="4 4"
+                className="stroke-red-400/70"
+                strokeWidth={1.5}
               />
               <text
                 x={todayPosition + 4}
@@ -336,6 +524,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
               </text>
             </g>
           )}
+          {markerGraphics}
           {paths}
           <text x={width / 2} y={height - 6} className="fill-white/40 text-[11px]">
             Time
@@ -360,6 +549,31 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                     <div>Interval: {tooltip.intervalDays} day{tooltip.intervalDays === 1 ? "" : "s"}</div>
                   )}
                   {tooltip.notes && <div className="text-[11px] text-zinc-300">Notes: {tooltip.notes}</div>}
+                </div>
+              </foreignObject>
+            </g>
+          )}
+          {markerTooltip && (
+            <g transform={`translate(${markerTooltip.x}, ${markerTooltip.y})`} className="pointer-events-none">
+              <foreignObject x={8} y={-4} width={240} height={Math.max(80, markerTooltip.items.length * 36 + 20)}>
+                <div className="rounded-md bg-zinc-900/95 p-3 text-xs text-white shadow-lg">
+                  {markerTooltip.title ? (
+                    <div className="mb-1 font-semibold text-white">{markerTooltip.title}</div>
+                  ) : null}
+                  {markerTooltip.items.map((item) => {
+                    const days = item.daysRemaining ?? 0;
+                    const dayLabel = days === 0 ? "Exam today" : `${days} day${days === 1 ? "" : "s"} left`;
+                    return (
+                      <div key={`${item.subjectName}-${item.dateISO}`} className="mb-2 last:mb-0">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                          <span className="font-semibold">{item.subjectName}</span>
+                        </div>
+                        <div className="text-[11px] text-zinc-300">{formatExamDate.format(new Date(item.dateISO))}</div>
+                        <div className="text-[11px] text-zinc-400">{dayLabel}</div>
+                      </div>
+                    );
+                  })}
                 </div>
               </foreignObject>
             </g>
