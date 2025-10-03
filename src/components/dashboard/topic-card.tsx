@@ -14,7 +14,6 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { useTopicStore } from "@/stores/topics";
-import { useProfileStore } from "@/stores/profile";
 import { AutoAdjustPreference, Subject, Topic } from "@/types/topic";
 import {
   formatDateWithWeekday,
@@ -61,21 +60,17 @@ const autoAdjustLabels: Record<AutoAdjustPreference, string> = {
 };
 
 export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
-  const { markReviewed, deleteTopic, updateTopic, skipTopic, setAutoAdjustPreference, subjects, trackReviseNowBlocked } =
-    useTopicStore(
+  const { markReviewed, deleteTopic, updateTopic, skipTopic, setAutoAdjustPreference, subjects } = useTopicStore(
+
     (state) => ({
       markReviewed: state.markReviewed,
       deleteTopic: state.deleteTopic,
       updateTopic: state.updateTopic,
       skipTopic: state.skipTopic,
       setAutoAdjustPreference: state.setAutoAdjustPreference,
-      subjects: state.subjects,
-      trackReviseNowBlocked: state.trackReviseNowBlocked
+      subjects: state.subjects
     })
   );
-
-  const timezone = useProfileStore((state) => state.profile.timezone);
-  const resolvedTimezone = timezone || "Asia/Colombo";
 
   const subject: Subject | null = React.useMemo(
     () => subjects.find((item) => item.id === topic.subjectId) ?? null,
@@ -632,7 +627,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
 
       <ConfirmationDialog
         open={showAdjustPrompt}
-        onClose={dismissAdjustPrompt}
+        onClose={() => setShowAdjustPrompt(false)}
         title="You studied this earlier than planned"
         description="Adjust future intervals to reflect your progress?"
         confirmLabel="Adjust schedule"
