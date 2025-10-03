@@ -141,6 +141,12 @@ export function TopicList({
   }, []);
 
   React.useEffect(() => {
+    if (!subjectOpen) {
+      setSubjectSearch("");
+    }
+  }, [subjectOpen]);
+
+  React.useEffect(() => {
     if (typeof window === "undefined") return;
     const stored = window.sessionStorage.getItem(SORT_STORAGE_KEY);
     if (!stored) return;

@@ -77,6 +77,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
 
   const resolvedSubjectFilter = subjectFilter ?? null;
 
+  const resolvedSubjectFilter = subjectFilter ?? null;
+
   const enrichedTopics = React.useMemo<TopicListItem[]>(() => {
     const subjectMap = new Map<string, Subject>();
     for (const subject of subjects) {

@@ -492,7 +492,9 @@ export const useTopicStore = create<TopicStore>()(
             if (topic.subjectId !== id) return topic;
             return {
               ...topic,
-              subjectLabel: updatedName ?? topic.subjectLabel
+              subjectLabel: updatedName ?? topic.subjectLabel,
+              icon: identityIcon ?? topic.icon,
+              color: identityColor ?? topic.color
             };
           })
         }));
@@ -586,6 +588,8 @@ export const useTopicStore = create<TopicStore>()(
         }
 
         const subjectExamDate = resolvedSubject?.examDate ?? null;
+        const subjectColor = resolvedSubject?.color ?? payload.color ?? "#38bdf8";
+        const subjectIcon = resolvedSubject?.icon ?? payload.icon ?? "Sparkles";
         const startedOnIso = payload.startedOn ?? createdAt;
         const startedAtDate = new Date(startedOnIso);
         const lastReviewedAtDate = payload.lastReviewedOn ? new Date(payload.lastReviewedOn) : null;
@@ -663,6 +667,9 @@ export const useTopicStore = create<TopicStore>()(
           });
         }
 
+        const subjectColor = resolvedSubject?.color ?? payload.color ?? "#38bdf8";
+        const subjectIcon = resolvedSubject?.icon ?? payload.icon ?? "Sparkles";
+
         set((state) => ({
           topics: state.topics.map((topic) => {
             if (topic.id !== id) return topic;
@@ -701,6 +708,9 @@ export const useTopicStore = create<TopicStore>()(
 
             const effectiveSubjectId = effectiveSubject.id ?? topic.subjectId ?? DEFAULT_SUBJECT_ID;
             const effectiveSubjectLabel = effectiveSubject.name ?? requestedLabel;
+
+            const effectiveColor = effectiveSubject.color ?? subjectColor;
+            const effectiveIcon = effectiveSubject.icon ?? subjectIcon;
 
             return {
               ...topic,
