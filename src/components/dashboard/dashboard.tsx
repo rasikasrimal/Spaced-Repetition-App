@@ -26,6 +26,8 @@ interface DashboardProps {
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const SUBJECT_FILTER_STORAGE_KEY = "dashboard-subject-filter";
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? React.useLayoutEffect : React.useEffect;
 
 const computeStreak = (topics: Topic[]) => {
   const reviewDays = new Set<string>();
@@ -56,30 +58,40 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
 
   const [hideSubjectNudge, setHideSubjectNudge] = React.useState(false);
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all");
-  const [subjectFilter, setSubjectFilter] = React.useState<SubjectFilterValue>(null);
+  const [subjectFilter, setSubjectFilter] = React.useState<SubjectFilterValue | undefined>(
+    undefined
+  );
 
-  React.useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (typeof window === "undefined") return;
     const stored = window.localStorage.getItem(SUBJECT_FILTER_STORAGE_KEY);
-    if (!stored) return;
+    if (!stored) {
+      setSubjectFilter(null);
+      return;
+    }
     try {
       const parsed = JSON.parse(stored);
       if (Array.isArray(parsed) && parsed.every((value) => typeof value === "string")) {
         setSubjectFilter(parsed.length === 0 ? new Set<string>() : new Set<string>(parsed));
+      } else {
+        setSubjectFilter(null);
       }
     } catch {
-      // ignore malformed storage values
+      setSubjectFilter(null);
     }
   }, []);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
+    if (typeof subjectFilter === "undefined") return;
     if (subjectFilter === null) {
       window.localStorage.removeItem(SUBJECT_FILTER_STORAGE_KEY);
     } else {
       window.localStorage.setItem(SUBJECT_FILTER_STORAGE_KEY, JSON.stringify(Array.from(subjectFilter)));
     }
   }, [subjectFilter]);
+
+  const resolvedSubjectFilter = subjectFilter ?? null;
 
   const enrichedTopics = React.useMemo<TopicListItem[]>(() => {
     const subjectMap = new Map<string, Subject>();
@@ -181,10 +193,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
   const filteredTopicsForPlan = React.useMemo(() => {
     return enrichedTopics.filter((item) => {
       const matchesStatus = statusFilter === "all" ? true : item.status === statusFilter;
-      const matchesSubject = subjectFilter === null ? true : subjectFilter.has(item.subject?.id ?? NO_SUBJECT_KEY);
+      const matchesSubject =
+        resolvedSubjectFilter === null
+          ? true
+          : resolvedSubjectFilter.has(item.subject?.id ?? NO_SUBJECT_KEY);
       return matchesStatus && matchesSubject;
     });
-  }, [enrichedTopics, statusFilter, subjectFilter]);
+  }, [enrichedTopics, statusFilter, resolvedSubjectFilter]);
 
   const filteredDueCount = React.useMemo(
     () => filteredTopicsForPlan.filter((item) => item.status !== "upcoming").length,
@@ -217,7 +232,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
   }, []);
 
   const handleSubjectFilterChange = React.useCallback((value: SubjectFilterValue) => {
-    setSubjectFilter(value === null ? null : new Set(value));
+    setSubjectFilter(value === null ? null : new Set<string>(value));
   }, []);
 
   const handleStatusFilterChange = React.useCallback((value: StatusFilter) => {
@@ -324,7 +339,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
               zonedNow={zonedNow}
               statusFilter={statusFilter}
               onStatusFilterChange={handleStatusFilterChange}
-              subjectFilter={subjectFilter}
+              subjectFilter={resolvedSubjectFilter}
               onSubjectFilterChange={handleSubjectFilterChange}
             />
           </div>
@@ -342,7 +357,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
           </div>
         </div>
 
-        <TimelinePanel subjectFilter={subjectFilter} />
+        <TimelinePanel subjectFilter={resolvedSubjectFilter} />
       </div>
     </section>
   );
