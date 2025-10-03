@@ -15,7 +15,7 @@ import {
   NO_SUBJECT_KEY
 } from "@/components/dashboard/topic-list";
 import { useZonedNow } from "@/hooks/use-zoned-now";
-import { CalendarClock, Flame, LucideIcon, Plus, Sparkles, Trophy, Info } from "lucide-react";
+import { CalendarClock, Flame, LucideIcon, Plus, Trophy, Info } from "lucide-react";
 import { formatDateWithWeekday, formatRelativeToNow, getDayKey, isToday, startOfToday } from "@/lib/date";
 import { Subject, Topic } from "@/types/topic";
 
@@ -26,6 +26,8 @@ interface DashboardProps {
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const SUBJECT_FILTER_STORAGE_KEY = "dashboard-subject-filter";
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? React.useLayoutEffect : React.useEffect;
 
 const computeStreak = (topics: Topic[]) => {
   const reviewDays = new Set<string>();
@@ -56,30 +58,40 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
 
   const [hideSubjectNudge, setHideSubjectNudge] = React.useState(false);
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all");
-  const [subjectFilter, setSubjectFilter] = React.useState<SubjectFilterValue>(null);
+  const [subjectFilter, setSubjectFilter] = React.useState<SubjectFilterValue | undefined>(
+    undefined
+  );
 
-  React.useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (typeof window === "undefined") return;
     const stored = window.localStorage.getItem(SUBJECT_FILTER_STORAGE_KEY);
-    if (!stored) return;
+    if (!stored) {
+      setSubjectFilter(null);
+      return;
+    }
     try {
       const parsed = JSON.parse(stored);
       if (Array.isArray(parsed) && parsed.every((value) => typeof value === "string")) {
         setSubjectFilter(parsed.length === 0 ? new Set<string>() : new Set<string>(parsed));
+      } else {
+        setSubjectFilter(null);
       }
     } catch {
-      // ignore malformed storage values
+      setSubjectFilter(null);
     }
   }, []);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
+    if (typeof subjectFilter === "undefined") return;
     if (subjectFilter === null) {
       window.localStorage.removeItem(SUBJECT_FILTER_STORAGE_KEY);
     } else {
       window.localStorage.setItem(SUBJECT_FILTER_STORAGE_KEY, JSON.stringify(Array.from(subjectFilter)));
     }
   }, [subjectFilter]);
+
+  const resolvedSubjectFilter = subjectFilter ?? null;
 
   const enrichedTopics = React.useMemo<TopicListItem[]>(() => {
     const subjectMap = new Map<string, Subject>();
@@ -181,10 +193,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
   const filteredTopicsForPlan = React.useMemo(() => {
     return enrichedTopics.filter((item) => {
       const matchesStatus = statusFilter === "all" ? true : item.status === statusFilter;
-      const matchesSubject = subjectFilter === null ? true : subjectFilter.has(item.subject?.id ?? NO_SUBJECT_KEY);
+      const matchesSubject =
+        resolvedSubjectFilter === null
+          ? true
+          : resolvedSubjectFilter.has(item.subject?.id ?? NO_SUBJECT_KEY);
       return matchesStatus && matchesSubject;
     });
-  }, [enrichedTopics, statusFilter, subjectFilter]);
+  }, [enrichedTopics, statusFilter, resolvedSubjectFilter]);
 
   const filteredDueCount = React.useMemo(
     () => filteredTopicsForPlan.filter((item) => item.status !== "upcoming").length,
@@ -217,7 +232,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
   }, []);
 
   const handleSubjectFilterChange = React.useCallback((value: SubjectFilterValue) => {
-    setSubjectFilter(value === null ? null : new Set(value));
+    setSubjectFilter(value === null ? null : new Set<string>(value));
   }, []);
 
   const handleStatusFilterChange = React.useCallback((value: StatusFilter) => {
@@ -225,62 +240,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
   }, []);
 
   return (
-    <section className="flex flex-col gap-6">
-      <header className="relative overflow-hidden rounded-3xl border border-white/5 bg-slate-900/60 p-6 shadow-2xl shadow-slate-900/40 backdrop-blur-xl md:p-8">
-        <div className="absolute inset-y-0 right-0 hidden w-1/2 rounded-l-[3rem] bg-gradient-to-l from-accent/15 to-transparent md:block" aria-hidden="true" />
-        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full bg-accent/15 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-accent">
-              <Sparkles className="h-3.5 w-3.5" /> Personalized review plan
-            </div>
-            <div className="space-y-2">
-              <h1 className="text-3xl font-semibold text-white md:text-4xl">Your next five minutes matter</h1>
-              {dueCount === 0 ? (
-                <p className="text-sm text-zinc-300">
-                  Great work! You’ve completed today’s reviews. Here’s what’s coming next.
-                </p>
-              ) : (
-                <p className="text-sm text-zinc-300">
-                  You have <span className="font-semibold text-white">{dueCount}</span> topic
-                  {dueCount === 1 ? "" : "s"} ready for review. Tackle them now to keep your streak alive.
-                </p>
-              )}
-              {nextTopic ? (
-                <p className="text-xs text-zinc-400">
-                  Next up: <span className="font-semibold text-zinc-100">{nextTopic.title}</span> • {formatRelativeToNow(nextTopic.nextReviewDate)} ({formatDateWithWeekday(nextTopic.nextReviewDate)})
-                </p>
-              ) : null}
-            </div>
-            {overloadWarning ? (
-              <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-4 py-2 text-sm text-amber-100">
-                {overloadWarning}
-              </div>
-            ) : null}
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <StatPill label="Due today" value={dueCount} icon={Flame} tone="text-rose-200" />
-              <StatPill label="Upcoming" value={upcomingCount} icon={CalendarClock} tone="text-amber-200" />
-              <StatPill label="Streak" value={`${streak} day${streak === 1 ? "" : "s"}`} icon={Trophy} tone="text-emerald-200" />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-            <Button onClick={onCreateTopic} size="lg" className="gap-2 rounded-2xl">
-              <Plus className="h-4 w-4" /> Add topic
-            </Button>
-            <Button
-              onClick={() => {
-                setStatusFilter("due-today");
-                handleFocusDue();
-              }}
-              variant="outline"
-              size="lg"
-              className="gap-2 rounded-2xl border-white/20 text-white"
-            >
-              <Flame className="h-4 w-4" /> Due reviews ({filteredDueCount})
-            </Button>
-          </div>
-        </div>
-      </header>
+    <section className="flex flex-col gap-8">
+      <PersonalizedReviewPlanModule
+        dueCount={filteredDueCount}
+        upcomingCount={filteredUpcomingCount}
+        streak={streak}
+        nextTopic={filteredNextTopic}
+        overloadWarning={overloadWarning}
+        onAddTopic={onCreateTopic}
+        onFocusDue={handleFocusDue}
+        onSelectDue={() => setStatusFilter("due-today")}
+      />
 
       {!hideSubjectNudge && subjects.length === 0 ? (
         <div className="flex items-center justify-between gap-3 rounded-3xl border border-white/5 bg-slate-900/40 p-4 text-sm text-zinc-200 shadow-lg shadow-slate-900/30">
@@ -311,39 +281,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,2.4fr)_minmax(0,1.2fr)] lg:items-start lg:gap-6">
-          <div className="order-2 flex flex-col gap-6 lg:order-1">
-            <TopicList
-              id="dashboard-topic-list"
-              items={enrichedTopics}
-              subjects={subjects}
-              onEditTopic={onEditTopic}
-              onCreateTopic={onCreateTopic}
-              timezone={resolvedTimezone}
-              zonedNow={zonedNow}
-              statusFilter={statusFilter}
-              onStatusFilterChange={handleStatusFilterChange}
-              subjectFilter={subjectFilter}
-              onSubjectFilterChange={handleSubjectFilterChange}
-            />
-          </div>
-          <div className="order-1 flex flex-col gap-6 lg:order-2">
-            <ProgressTodayModule completed={completedCount} total={totalToday} completionPercent={completionPercent} />
-            <PersonalizedReviewPlanModule
-              dueCount={filteredDueCount}
-              upcomingCount={filteredUpcomingCount}
-              streak={streak}
-              nextTopic={filteredNextTopic}
-              onAddTopic={onCreateTopic}
-              onFocusDue={handleFocusDue}
-              onSelectDue={() => setStatusFilter("due-today")}
-            />
-          </div>
-        </div>
+      <TopicList
+        id="dashboard-topic-list"
+        items={enrichedTopics}
+        subjects={subjects}
+        onEditTopic={onEditTopic}
+        onCreateTopic={onCreateTopic}
+        timezone={resolvedTimezone}
+        zonedNow={zonedNow}
+        statusFilter={statusFilter}
+        onStatusFilterChange={handleStatusFilterChange}
+        subjectFilter={resolvedSubjectFilter}
+        onSubjectFilterChange={handleSubjectFilterChange}
+      />
 
-        <TimelinePanel subjectFilter={subjectFilter} />
-      </div>
+      <ProgressTodayModule completed={completedCount} total={totalToday} completionPercent={completionPercent} />
+
+      <TimelinePanel subjectFilter={resolvedSubjectFilter} />
     </section>
   );
 };
@@ -384,26 +338,47 @@ const ProgressTodayModule = ({
   const isComplete = safePercent >= 100;
 
   return (
-    <section className="rounded-3xl border border-white/5 bg-slate-900/50 p-6 shadow-lg shadow-slate-900/30">
-      <div className="flex flex-col gap-4">
-        <div className="space-y-2">
-          <h2 className="text-lg font-semibold text-white">Progress today</h2>
-          <p className="text-sm text-zinc-300">
-            {completed}/{safeTotal} reviews completed
-          </p>
-          <p className="text-xs text-zinc-400">Keep up the rhythm — every checkmark keeps your memory sharp.</p>
-        </div>
-        <div className="space-y-3">
-          <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
-            <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${safePercent}%` }} />
+    <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-accent/25 via-accent/20 to-transparent px-6 py-8 text-white shadow-xl shadow-slate-950/30 md:px-8">
+      <div className="absolute inset-y-0 right-0 h-full w-1/2 bg-[radial-gradient(circle_at_top,_rgba(15,23,42,0.35),_transparent_65%)]" aria-hidden="true" />
+      <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+        <div className="space-y-4 md:max-w-xl">
+          <div className="space-y-1">
+            <p className="text-sm font-medium uppercase tracking-wide text-accent-foreground/80">Progress today</p>
+            <h2 className="text-3xl font-semibold">
+              {completed}/{safeTotal} reviews completed
+            </h2>
+            <p className="text-sm text-white/70">Keep up the rhythm — every checkmark keeps your memory sharp.</p>
           </div>
-          <div className="flex flex-wrap items-center justify-between text-xs text-zinc-300">
-            <span className="font-semibold text-white">{safePercent}% complete</span>
-            <span className={isComplete ? "text-emerald-300" : "text-sky-300"}>
-              {isComplete ? "Great work! You’ve completed today’s reviews." : "Finish today to extend your streak."}
-            </span>
+          <div className="space-y-3 text-sm text-white/80">
+            <div className="h-2 w-full overflow-hidden rounded-full bg-white/20">
+              <div
+                className="h-full rounded-full bg-white/90 transition-all"
+                style={{ width: `${safePercent}%` }}
+                aria-hidden="true"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-3 font-medium">
+              <span className="rounded-full bg-white/15 px-3 py-1 text-xs uppercase tracking-wide text-white/80">
+                {safePercent}% complete
+              </span>
+              <span className={isComplete ? "text-emerald-200" : "text-sky-100"}>
+                {isComplete
+                  ? "Great work! You’ve completed today’s reviews."
+                  : "Finish today to extend your streak."}
+              </span>
+            </div>
           </div>
         </div>
+        <dl className="grid gap-3 text-sm text-white/80 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2">
+          <div className="rounded-2xl border border-white/15 bg-slate-950/30 px-4 py-3 backdrop-blur">
+            <dt className="text-xs uppercase tracking-wide text-white/50">Completed</dt>
+            <dd className="text-lg font-semibold text-white">{completed}</dd>
+          </div>
+          <div className="rounded-2xl border border-white/15 bg-slate-950/30 px-4 py-3 backdrop-blur">
+            <dt className="text-xs uppercase tracking-wide text-white/50">Remaining</dt>
+            <dd className="text-lg font-semibold text-white">{Math.max(safeTotal - completed, 0)}</dd>
+          </div>
+        </dl>
       </div>
     </section>
   );
@@ -414,6 +389,7 @@ const PersonalizedReviewPlanModule = ({
   upcomingCount,
   streak,
   nextTopic,
+  overloadWarning,
   onAddTopic,
   onFocusDue,
   onSelectDue
@@ -422,6 +398,7 @@ const PersonalizedReviewPlanModule = ({
   upcomingCount: number;
   streak: number;
   nextTopic: Topic | null;
+  overloadWarning: string | null;
   onAddTopic: () => void;
   onFocusDue: () => void;
   onSelectDue: () => void;
@@ -430,58 +407,57 @@ const PersonalizedReviewPlanModule = ({
   const nextDateLabel = nextTopic ? formatDateWithWeekday(nextTopic.nextReviewDate) : null;
 
   return (
-    <section className="rounded-3xl border border-white/5 bg-slate-900/50 p-6 shadow-lg shadow-slate-900/30">
-      <div className="space-y-4">
-        <div>
-          <h2 className="text-lg font-semibold text-white">Personalized review plan</h2>
-          <p className="text-sm text-zinc-300">Your next five minutes matter</p>
+    <section className="rounded-3xl border border-white/10 bg-slate-950/60 px-6 py-6 shadow-lg shadow-slate-950/30 backdrop-blur md:px-8">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-4 lg:flex-1">
+          <div className="space-y-3">
+            <span className="inline-flex items-center gap-2 rounded-full bg-accent/20 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-accent">
+              Personalized review plan
+            </span>
+            <div className="space-y-2">
+              <h2 className="text-2xl font-semibold text-white">Your next five minutes matter.</h2>
+              <p className="text-sm text-zinc-300">
+                {dueCount === 0
+                  ? "Great work! You’ve completed today’s reviews. Here’s what’s coming next."
+                  : `You have ${dueCount} topic${dueCount === 1 ? "" : "s"} ready for review. Finish them to extend your streak.`}
+              </p>
+              {nextTopic ? (
+                <p className="text-xs text-zinc-400">
+                  Next up: <span className="font-semibold text-zinc-100">{nextTopic.title}</span> • {nextRelative} ({nextDateLabel})
+                </p>
+              ) : (
+                <p className="text-xs text-zinc-400">You’re all caught up. Check back tomorrow or add a topic.</p>
+              )}
+            </div>
+          </div>
+          {overloadWarning ? (
+            <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-4 py-2 text-sm text-amber-100">
+              {overloadWarning}
+            </div>
+          ) : null}
         </div>
-        <div className="space-y-2 text-sm text-zinc-300">
-          {dueCount === 0 ? (
-            <p>Great work! You’ve completed today’s reviews. Here’s what’s coming next.</p>
-          ) : (
-            <p>Stay in rhythm — log today’s reviews to keep your streak alive.</p>
-          )}
-          {nextTopic ? (
-            <p className="text-sm text-white">
-              <span className="font-semibold">Next up:</span> {nextTopic.title} • {nextRelative} ({nextDateLabel})
-            </p>
-          ) : (
-            <p className="text-sm text-zinc-400">You’re all caught up. Check back tomorrow or add a topic.</p>
-          )}
-        </div>
-        <dl className="grid gap-3 text-xs text-zinc-300 sm:grid-cols-3">
-          <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-center">
-            <dt className="font-medium text-zinc-400">Due today</dt>
-            <dd className="text-base font-semibold text-white">{dueCount}</dd>
+
+        <div className="grid flex-1 gap-3 text-white/90 sm:grid-cols-2 lg:grid-cols-[repeat(3,minmax(0,1fr))_auto] lg:gap-4">
+          <StatPill label="Due today" value={dueCount} icon={Flame} tone="text-rose-200" />
+          <StatPill label="Upcoming" value={upcomingCount} icon={CalendarClock} tone="text-amber-200" />
+          <StatPill label="Streak" value={`${streak} day${streak === 1 ? "" : "s"}`} icon={Trophy} tone="text-emerald-200" />
+          <div className="flex min-w-[14rem] flex-col gap-2 rounded-2xl border border-white/10 bg-slate-900/80 p-4">
+            <Button onClick={onAddTopic} size="sm" className="gap-2 rounded-full">
+              <Plus className="h-4 w-4" /> Add topic
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                onSelectDue();
+                onFocusDue();
+              }}
+              disabled={dueCount === 0}
+              className="gap-2 rounded-full border-white/20 text-white disabled:opacity-40"
+            >
+              <Flame className="h-4 w-4" /> Due reviews ({dueCount})
+            </Button>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-center">
-            <dt className="font-medium text-zinc-400">Upcoming</dt>
-            <dd className="text-base font-semibold text-white">{upcomingCount}</dd>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-center">
-            <dt className="font-medium text-zinc-400">Streak</dt>
-            <dd className="text-base font-semibold text-white">
-              {streak} day{streak === 1 ? "" : "s"}
-            </dd>
-          </div>
-        </dl>
-        <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={onAddTopic} className="gap-2 rounded-full">
-            <Plus className="h-4 w-4" /> Add topic
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              onSelectDue();
-              onFocusDue();
-            }}
-            disabled={dueCount === 0}
-            className="rounded-full border-white/30 px-4 py-2 text-sm text-white disabled:opacity-40"
-          >
-            Due reviews ({dueCount})
-          </Button>
         </div>
       </div>
     </section>

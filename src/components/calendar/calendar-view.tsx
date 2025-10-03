@@ -10,6 +10,7 @@ import { useProfileStore } from "@/stores/profile";
 import { useZonedNow } from "@/hooks/use-zoned-now";
 import {
   CalendarDayData,
+  CalendarDaySubjectEntry,
   CalendarMonthData,
   CalendarSubjectAggregate,
   buildCalendarMonthData
@@ -23,13 +24,17 @@ import {
 } from "@/lib/date";
 import { Topic } from "@/types/topic";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { REVISE_LOCKED_MESSAGE } from "@/lib/constants";
 import { toast } from "sonner";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MAX_VISIBLE_DOTS = 5;
 
-const getSubjectTooltip = (subject: CalendarSubjectAggregate) =>
-  `${subject.name} - ${subject.count === 1 ? "1 topic due" : `${subject.count} topics due`}`;
+const formatSubjectTooltip = (subject: { name: string; count: number }) =>
+  `${subject.name} — ${subject.count === 1 ? "1 topic due" : `${subject.count} topics due`}`;
+
+const formatExamTooltip = (subjectName: string, dateLabel: string) =>
+  `Exam: ${subjectName} — ${dateLabel}`;
 
 export function CalendarView() {
   const { topics, subjects, markReviewed, trackReviseNowBlocked } = useTopicStore(
@@ -147,9 +152,9 @@ export function CalendarView() {
   }, []);
 
   const subjectFilterLabel = React.useMemo(() => {
-    if (selectedSubjectIds === null) return "All subjects";
-    if (selectedSubjectIds.size === 0) return "No subjects";
-    return `${selectedSubjectIds.size} selected`;
+    if (selectedSubjectIds === null) return "Subjects: All";
+    if (selectedSubjectIds.size === 0) return "Subjects: 0 selected";
+    return `Subjects: ${selectedSubjectIds.size} selected`;
   }, [selectedSubjectIds]);
 
   const canReviseTopic = React.useCallback(
@@ -162,7 +167,7 @@ export function CalendarView() {
       }
       const lastKey = getDayKeyInTimeZone(topic.reviseNowLastUsedAt, timezone);
       if (lastKey === todayKey) {
-        return { allowed: false, message: "Available after midnight" };
+        return { allowed: false, message: REVISE_LOCKED_MESSAGE };
       }
       return { allowed: true };
     },
@@ -180,9 +185,10 @@ export function CalendarView() {
         return;
       }
       revisionTriggerRef.current = trigger ?? null;
+      setActiveDayKey(null);
       setRevisionTopic(topic);
     },
-    [canReviseTopic, trackReviseNowBlocked]
+    [canReviseTopic, setActiveDayKey, trackReviseNowBlocked]
   );
 
   const handleConfirmRevision = React.useCallback(() => {
@@ -200,7 +206,7 @@ export function CalendarView() {
         setRevisionTopic(null);
       } else {
         trackReviseNowBlocked();
-        toast.error("Already used today. Try again after midnight.");
+        toast.error(REVISE_LOCKED_MESSAGE);
       }
     } catch (error) {
       console.error(error);
@@ -313,9 +319,15 @@ export function CalendarView() {
     setActiveDayKey(null);
   }, []);
 
-  const overflowTooltip = React.useCallback((entries: { subject: { name: string } }[]) => {
-    return entries.map((entry) => entry.subject.name).join(", ");
-  }, []);
+  const overflowTooltip = React.useCallback(
+    (entries: CalendarDaySubjectEntry[]) =>
+      entries
+        .map((entry) =>
+          `${entry.subject.name} — ${entry.count} ${entry.count === 1 ? "topic" : "topics"}`
+        )
+        .join("\n"),
+    []
+  );
 
   const dotAriaLabel = React.useCallback(
     (subjectName: string, fullDate: string, topicCount: number) =>
@@ -467,7 +479,7 @@ export function CalendarView() {
               <span
                 key={subject.id}
                 className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1"
-                title={getSubjectTooltip(subject)}
+                title={formatSubjectTooltip(subject)}
               >
                 <span className="inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: subject.color }} />
                 <span className="text-[11px] text-zinc-200">{subject.name}</span>
@@ -504,8 +516,16 @@ export function CalendarView() {
                     const fullDate = fullDateLabel(day);
                     const overflowCount = day.overflowSubjects.length;
                     const overflowSubjects = overflowCount > 0 ? day.overflowSubjects : [];
+                    const examDateLabel = formatInTimeZone(day.date, timezone, {
+                      weekday: "long",
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric"
+                    });
                     const examDescription = day.hasExam
-                      ? day.examSubjects.map((entry) => `Exam: ${entry.name}`).join(", ")
+                      ? day.examSubjects
+                          .map((entry) => formatExamTooltip(entry.name, examDateLabel))
+                          .join(", ")
                       : null;
                     const topicsLabel = `${day.totalTopics} ${day.totalTopics === 1 ? "topic" : "topics"}`;
                     const ariaLabel = `${fullDate}. ${topicsLabel} scheduled.` +
@@ -541,7 +561,10 @@ export function CalendarView() {
                                 key={entry.subject.id}
                                 className="inline-flex h-2.5 w-2.5 items-center justify-center rounded-full border border-white/20"
                                 style={{ backgroundColor: entry.subject.color }}
-                                title={`${entry.subject.name} - ${entry.count === 1 ? "1 topic due" : `${entry.count} topics due`}`}
+                                title={formatSubjectTooltip({
+                                  name: entry.subject.name,
+                                  count: entry.count
+                                })}
                                 role="img"
                                 aria-label={dotAriaLabel(entry.subject.name, fullDate, entry.count)}
                               />
@@ -550,13 +573,26 @@ export function CalendarView() {
                               <span
                                 className="inline-flex items-center rounded-full bg-white/10 px-1.5 py-0.5 text-[11px] text-white"
                                 title={overflowTooltip(overflowSubjects)}
+                                role="img"
+                                aria-label={`+${overflowCount} more subjects with reviews on ${fullDate}: ${overflowTooltip(
+                                  overflowSubjects
+                                ).replace(/\n/g, ", ")}`}
                               >
                                 +{overflowCount}
                               </span>
                             ) : null}
                           </div>
                           {day.hasExam ? (
-                            <span className="w-fit rounded-full border border-dashed border-white/20 px-2 py-0.5 text-[10px] uppercase tracking-wide text-white" title={day.examSubjects.map((entry) => `Exam: ${entry.name}`).join("\n")}>
+                            <span
+                              className="w-fit rounded-full border border-dashed border-white/20 px-2 py-0.5 text-[10px] uppercase tracking-wide text-white"
+                              title={day.examSubjects
+                                .map((entry) => formatExamTooltip(entry.name, examDateLabel))
+                                .join("\n")}
+                              role="img"
+                              aria-label={day.examSubjects
+                                .map((entry) => formatExamTooltip(entry.name, examDateLabel))
+                                .join(", ")}
+                            >
                               Exam
                             </span>
                           ) : null}

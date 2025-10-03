@@ -120,6 +120,13 @@ export function CalendarDaySheet({
     year: "numeric"
   });
 
+  const fullExamDate = formatInTimeZone(day.date, timeZone, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric"
+  });
+
   const subjectsForDay: CalendarDaySubjectEntry[] = [...day.subjects, ...day.overflowSubjects];
 
   const totalTopics = subjectsForDay.reduce((sum, entry) => sum + entry.count, 0);
@@ -163,21 +170,27 @@ export function CalendarDaySheet({
             ) : null}
             {day.hasExam && day.examSubjects.length > 0 ? (
               <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-200" aria-label="Exam markers">
-                {day.examSubjects.map((entry) => (
-                  <span
-                    key={entry.id}
-                    className="inline-flex items-center gap-2 rounded-full border px-3 py-1"
-                    style={{ borderColor: `${entry.color}80`, color: entry.color }}
-                    title={`Exam: ${entry.name}`}
-                  >
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} aria-hidden="true" />
-                    Exam: {entry.name}
-                  </span>
-                ))}
+                {day.examSubjects.map((entry) => {
+                  const examLabel = `Exam: ${entry.name} — ${fullExamDate}`;
+                  return (
+                    <span
+                      key={entry.id}
+                      className="inline-flex items-center gap-2 rounded-full border px-3 py-1"
+                      style={{ borderColor: `${entry.color}80`, color: entry.color }}
+                      title={examLabel}
+                      aria-label={examLabel}
+                    >
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} aria-hidden="true" />
+                      Exam: {entry.name}
+                    </span>
+                  );
+                })}
               </div>
             ) : null}
             {showCapacityHint ? (
-              <p className="text-xs font-medium text-amber-200">Busy day ahead-consider reviewing some items earlier.</p>
+              <p className="text-xs font-medium text-amber-200">
+                Busy day ahead — consider reviewing some items earlier.
+              </p>
             ) : null}
           </div>
           <Button

@@ -1,5 +1,19 @@
 ﻿# Home Page UI Token Audit
 
+## Layout Shell Overview
+
+```mermaid
+graph TD
+  A[Top navigation shell<br/>max width 90rem] --> B[Responsive main container<br/>px-4 → px-10]
+  B --> C[Personalized review plan header]
+  B --> D[Topics toolbar • single row ≥1200px]
+  D --> E[Topics list/table\ncolumns: Topic • Subject • Next review • Status • Actions]
+  B --> F[Progress today band • full width]
+  B --> G[Retention & timeline modules]
+```
+
+Breakpoints keep the toolbar on a single line at ≥1280px, allow one wrap on tablets, and collapse to stacked filters on mobile while search remains first and full-width.
+
 ## Typography
 - Primary page title (`Stay ahead of your reviews`): `text-3xl font-semibold text-white`
 - Section titles (e.g. `Scheduled Reviews`, empty state heading): `text-2xl`/`text-xl` with `font-semibold text-white`
@@ -14,8 +28,8 @@
 - Text contrast: titles `text-white`, supporting copy `text-zinc-300`, meta text `text-zinc-400`
 
 ## Spacing & Layout
-- Page container: `max-w-6xl` with `px-4 md:px-6 lg:px-8`, vertical rhythm via `py-10` and `gap-8`
-- Section padding: hero card `p-8`, dashboard/timeline tiles `p-6`
+- Page container: `max-w-[90rem]` with `px-4 md:px-6 lg:px-8 xl:px-10`, vertical rhythm via `gap-8`
+- Section padding: compact hero band `px-6 py-6`, dashboard tiles `p-6`, progress band `px-8 py-8`
 - Grid rhythm: `gap-6` as the baseline, responsive columns like `lg:grid-cols-[minmax(0,360px)_1fr]`, `md:grid-cols-2`, `xl:grid-cols-3`
 
 ## Buttons & Controls

@@ -20,8 +20,8 @@ import { AutoAdjustPreference, Subject, Topic } from "@/types/topic";
 import {
   formatDateWithWeekday,
   formatFullDate,
-  formatRelativeToNow,
   formatInTimeZone,
+  formatRelativeToNow,
   formatTime,
   getDayKeyInTimeZone,
   isDueToday,
@@ -30,7 +30,7 @@ import {
   nowInTimeZone
 } from "@/lib/date";
 import { cn } from "@/lib/utils";
-import { REMINDER_TIME_OPTIONS } from "@/lib/constants";
+import { REMINDER_TIME_OPTIONS, REVISE_LOCKED_MESSAGE } from "@/lib/constants";
 import {
   AlertTriangle,
   Bell,
@@ -83,6 +83,11 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
     [subjects, topic.subjectId]
   );
 
+  const fallbackIcon = topic.icon ?? "Sparkles";
+  const fallbackColor = topic.color ?? "#38bdf8";
+  const identityIcon = subject?.icon ?? fallbackIcon;
+  const identityColor = subject?.color ?? fallbackColor;
+
   const [notesValue, setNotesValue] = React.useState(topic.notes ?? "");
   const [reminderValue, setReminderValue] = React.useState<ReminderValue>(() => {
     if (!topic.reminderTime) return "none";
@@ -125,20 +130,14 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
     () => (hasUsedReviseToday ? nextStartOfDayInTimeZone(resolvedTimezone, zonedNow) : null),
     [hasUsedReviseToday, resolvedTimezone, zonedNow]
   );
-  const nextAvailabilityDateLabel = React.useMemo(
-    () =>
-      nextAvailability
-        ? formatInTimeZone(nextAvailability, resolvedTimezone, {
-            weekday: "short",
-            month: "short",
-            day: "numeric"
-          })
-        : null,
-    [nextAvailability, resolvedTimezone]
-  );
-  const nextAvailabilityMessage = nextAvailabilityDateLabel
-    ? `You already revised this topic today. Available again after midnight on ${nextAvailabilityDateLabel}.`
-    : "You already revised this topic today. Available again after midnight.";
+  const nextAvailabilityMessage = REVISE_LOCKED_MESSAGE;
+  const nextAvailabilitySubtext = nextAvailability
+    ? `Available again after midnight (${formatInTimeZone(nextAvailability, resolvedTimezone, {
+        month: "short",
+        day: "numeric",
+        timeZoneName: "short"
+      })})`
+    : null;
 
   React.useEffect(() => {
     setNotesValue(topic.notes ?? "");
@@ -195,10 +194,10 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
     (overrides: Partial<Omit<Topic, "id" | "events" | "forgetting">>) => ({
       title: overrides.title ?? topic.title,
       notes: overrides.notes ?? topic.notes ?? "",
+      subjectId: overrides.subjectId ?? topic.subjectId ?? null,
+      subjectLabel: overrides.subjectLabel ?? topic.subjectLabel,
       categoryId: overrides.categoryId ?? topic.categoryId,
       categoryLabel: overrides.categoryLabel ?? topic.categoryLabel,
-      icon: overrides.icon ?? topic.icon,
-      color: overrides.color ?? topic.color,
       reminderTime: overrides.reminderTime ?? topic.reminderTime,
       intervals: overrides.intervals ?? topic.intervals,
       autoAdjustPreference: overrides.autoAdjustPreference ?? topic.autoAdjustPreference ?? autoAdjustPreference,
@@ -269,7 +268,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
         toast.success(source === "revise-now" ? "Logged today’s revision" : "Review recorded early");
         return true;
       } else if (source === "revise-now") {
-        toast.error("Already used today. Try again after midnight.");
+        toast.error(REVISE_LOCKED_MESSAGE);
       }
       return false;
     }
@@ -283,7 +282,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
 
     if (!success) {
       if (source === "revise-now") {
-        toast.error("Already used today. Try again after midnight.");
+        toast.error(REVISE_LOCKED_MESSAGE);
       }
       return false;
     }
@@ -302,9 +301,12 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
   const handleReviseNow = (event?: React.MouseEvent<HTMLButtonElement>) => {
     if (hasUsedReviseToday) {
       trackReviseNowBlocked();
-      toast.error("Already used today. Try again after midnight.");
+      toast.error(REVISE_LOCKED_MESSAGE);
       return;
     }
+    setShowDeleteConfirm(false);
+    setShowSkipConfirm(false);
+    setShowAdjustPrompt(false);
     revisionTriggerRef.current = event?.currentTarget ?? null;
     setShowQuickRevision(true);
   };
@@ -442,15 +444,15 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
             <div className="flex items-start gap-3">
               <span
                 className="flex h-12 w-12 items-center justify-center rounded-2xl shadow-inner"
-                style={{ backgroundColor: `${topic.color}1f` }}
+                style={{ backgroundColor: `${identityColor}1f` }}
               >
-                <IconPreview name={topic.icon} className="h-5 w-5" />
+                <IconPreview name={identityIcon} className="h-5 w-5" />
               </span>
               <div className="space-y-1.5">
                 <h3 className="text-lg font-semibold text-white">{topic.title}</h3>
                 {topic.categoryLabel ? (
                   <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-zinc-100">
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: topic.color }} />
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: identityColor }} />
                     {topic.categoryLabel}
                   </span>
                 ) : null}
@@ -579,6 +581,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
               )}
               onClick={(event) => (due ? handleMarkReviewed() : handleReviseNow(event))}
               aria-disabled={!due && hasUsedReviseToday}
+              title={!due && hasUsedReviseToday ? nextAvailabilityMessage : undefined}
             >
               <CheckCircle2 className="h-4 w-4" />
               {due ? "Mark review complete" : "Revise now"}
@@ -596,6 +599,9 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
             <div className="space-y-1 text-right text-xs sm:text-left">
               <p className="font-medium text-emerald-300">Logged today’s revision.</p>
               <p className="text-zinc-400">{nextAvailabilityMessage}</p>
+              {nextAvailabilitySubtext ? (
+                <p className="text-[11px] text-zinc-500">{nextAvailabilitySubtext}</p>
+              ) : null}
             </div>
           ) : null}
           <div className="flex items-center gap-2">
