@@ -125,19 +125,20 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
     () => (hasUsedReviseToday ? nextStartOfDayInTimeZone(resolvedTimezone, zonedNow) : null),
     [hasUsedReviseToday, resolvedTimezone, zonedNow]
   );
-  const nextAvailabilityLabel = React.useMemo(
+  const nextAvailabilityDateLabel = React.useMemo(
     () =>
       nextAvailability
         ? formatInTimeZone(nextAvailability, resolvedTimezone, {
             weekday: "short",
             month: "short",
-            day: "numeric",
-            hour: "numeric",
-            minute: "2-digit"
+            day: "numeric"
           })
         : null,
     [nextAvailability, resolvedTimezone]
   );
+  const nextAvailabilityMessage = nextAvailabilityDateLabel
+    ? `You already revised this topic today. Available again after midnight on ${nextAvailabilityDateLabel}.`
+    : "You already revised this topic today. Available again after midnight.";
 
   React.useEffect(() => {
     setNotesValue(topic.notes ?? "");
@@ -594,11 +595,8 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
           {!due && hasUsedReviseToday ? (
             <div className="space-y-1 text-right text-xs sm:text-left">
               <p className="font-medium text-emerald-300">Logged today’s revision.</p>
-              {nextAvailabilityLabel ? (
-                <p className="text-zinc-400">
-                  You already revised this topic today. Available again at {nextAvailabilityLabel}.
-                </p>
-              ) : null}
+              <p className="text-zinc-400">{nextAvailabilityMessage}</p>
+
             </div>
           ) : null}
           <div className="flex items-center gap-2">
