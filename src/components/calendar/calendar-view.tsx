@@ -23,6 +23,7 @@ import {
 } from "@/lib/date";
 import { Topic } from "@/types/topic";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { REVISE_LOCKED_MESSAGE } from "@/lib/constants";
 import { toast } from "sonner";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -162,7 +163,7 @@ export function CalendarView() {
       }
       const lastKey = getDayKeyInTimeZone(topic.reviseNowLastUsedAt, timezone);
       if (lastKey === todayKey) {
-        return { allowed: false, message: "Available again after local midnight." };
+        return { allowed: false, message: REVISE_LOCKED_MESSAGE };
       }
       return { allowed: true };
     },
@@ -201,7 +202,7 @@ export function CalendarView() {
         setRevisionTopic(null);
       } else {
         trackReviseNowBlocked();
-        toast.error("Already used today. Try again after local midnight.");
+        toast.error(REVISE_LOCKED_MESSAGE);
       }
     } catch (error) {
       console.error(error);

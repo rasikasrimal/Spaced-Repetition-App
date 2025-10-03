@@ -34,6 +34,7 @@ import {
   nextStartOfDayInTimeZone
 } from "@/lib/date";
 import { cn } from "@/lib/utils";
+import { REVISE_LOCKED_MESSAGE } from "@/lib/constants";
 import { toast } from "sonner";
 
 export type TopicStatus = "overdue" | "due-today" | "upcoming";
@@ -662,14 +663,14 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
     () => (hasUsedReviseToday ? nextStartOfDayInTimeZone(timezone, zonedNow) : null),
     [hasUsedReviseToday, timezone, zonedNow]
   );
-  const nextAvailabilityMessage = "You’ve already revised this today. Available again after midnight.";
+  const nextAvailabilityMessage = REVISE_LOCKED_MESSAGE;
   const nextAvailabilitySubtext = nextAvailability
-    ? `Resets after midnight (${formatInTimeZone(nextAvailability, timezone, {
+    ? `Available again after midnight (${formatInTimeZone(nextAvailability, timezone, {
         month: "short",
         day: "numeric",
         timeZoneName: "short"
       })})`
-    : "Resets after midnight";
+    : "Available again after midnight";
 
   const statusMeta = STATUS_META[item.status];
   const intervalsLabel = item.topic.intervals.map((day) => `${day}d`).join(" • ");
@@ -705,7 +706,7 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
         window.setTimeout(() => setRecentlyRevised(false), 1500);
         return true;
       } else if (source === "revise-now") {
-        toast.error("Already used today. Try again after local midnight.");
+        toast.error(REVISE_LOCKED_MESSAGE);
       }
       return false;
     }
@@ -719,7 +720,7 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
 
     if (!success) {
       if (source === "revise-now") {
-        toast.error("Already used today. Try again after local midnight.");
+        toast.error(REVISE_LOCKED_MESSAGE);
       }
       return false;
     }
@@ -741,7 +742,7 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
   const handleReviseNow = (event: React.MouseEvent<HTMLButtonElement>) => {
     if (hasUsedReviseToday) {
       trackReviseNowBlocked();
-      toast.error("Already used today. Try again after local midnight.");
+      toast.error(REVISE_LOCKED_MESSAGE);
       return;
     }
     setShowDeleteConfirm(false);

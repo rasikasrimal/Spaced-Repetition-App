@@ -20,6 +20,7 @@ import { AutoAdjustPreference, Subject, Topic } from "@/types/topic";
 import {
   formatDateWithWeekday,
   formatFullDate,
+  formatInTimeZone,
   formatRelativeToNow,
   formatTime,
   getDayKeyInTimeZone,
@@ -29,7 +30,7 @@ import {
   nowInTimeZone
 } from "@/lib/date";
 import { cn } from "@/lib/utils";
-import { REMINDER_TIME_OPTIONS } from "@/lib/constants";
+import { REMINDER_TIME_OPTIONS, REVISE_LOCKED_MESSAGE } from "@/lib/constants";
 import {
   AlertTriangle,
   Bell,
@@ -124,7 +125,14 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
     () => (hasUsedReviseToday ? nextStartOfDayInTimeZone(resolvedTimezone, zonedNow) : null),
     [hasUsedReviseToday, resolvedTimezone, zonedNow]
   );
-  const nextAvailabilityMessage = "You already revised this topic today. Available again after midnight.";
+  const nextAvailabilityMessage = REVISE_LOCKED_MESSAGE;
+  const nextAvailabilitySubtext = nextAvailability
+    ? `Available again after midnight (${formatInTimeZone(nextAvailability, resolvedTimezone, {
+        month: "short",
+        day: "numeric",
+        timeZoneName: "short"
+      })})`
+    : null;
 
   React.useEffect(() => {
     setNotesValue(topic.notes ?? "");
@@ -255,7 +263,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
         toast.success(source === "revise-now" ? "Logged today’s revision" : "Review recorded early");
         return true;
       } else if (source === "revise-now") {
-        toast.error("Already used today. Try again after local midnight.");
+        toast.error(REVISE_LOCKED_MESSAGE);
       }
       return false;
     }
@@ -269,7 +277,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
 
     if (!success) {
       if (source === "revise-now") {
-        toast.error("Already used today. Try again after local midnight.");
+        toast.error(REVISE_LOCKED_MESSAGE);
       }
       return false;
     }
@@ -288,7 +296,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
   const handleReviseNow = (event?: React.MouseEvent<HTMLButtonElement>) => {
     if (hasUsedReviseToday) {
       trackReviseNowBlocked();
-      toast.error("Already used today. Try again after local midnight.");
+      toast.error(REVISE_LOCKED_MESSAGE);
       return;
     }
     setShowDeleteConfirm(false);
@@ -568,6 +576,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
               )}
               onClick={(event) => (due ? handleMarkReviewed() : handleReviseNow(event))}
               aria-disabled={!due && hasUsedReviseToday}
+              title={!due && hasUsedReviseToday ? nextAvailabilityMessage : undefined}
             >
               <CheckCircle2 className="h-4 w-4" />
               {due ? "Mark review complete" : "Revise now"}
@@ -585,6 +594,9 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
             <div className="space-y-1 text-right text-xs sm:text-left">
               <p className="font-medium text-emerald-300">Logged today’s revision.</p>
               <p className="text-zinc-400">{nextAvailabilityMessage}</p>
+              {nextAvailabilitySubtext ? (
+                <p className="text-[11px] text-zinc-500">{nextAvailabilitySubtext}</p>
+              ) : null}
             </div>
           ) : null}
           <div className="flex items-center gap-2">
