@@ -4,6 +4,7 @@ import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { IconPreview } from "@/components/icon-preview";
 import { Button } from "@/components/ui/button";
+import { QuickRevisionDialog } from "@/components/dashboard/quick-revision-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import {
@@ -94,6 +95,9 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [showSkipConfirm, setShowSkipConfirm] = React.useState(false);
   const [showAdjustPrompt, setShowAdjustPrompt] = React.useState(false);
+  const [showQuickRevision, setShowQuickRevision] = React.useState(false);
+  const revisionTriggerRef = React.useRef<HTMLButtonElement | null>(null);
+  const [isLoggingRevision, setIsLoggingRevision] = React.useState(false);
 
   const due = isDueToday(topic.nextReviewDate);
   const reviewedToday = topic.lastReviewedAt ? isToday(topic.lastReviewedAt) : false;
@@ -121,19 +125,20 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
     () => (hasUsedReviseToday ? nextStartOfDayInTimeZone(resolvedTimezone, zonedNow) : null),
     [hasUsedReviseToday, resolvedTimezone, zonedNow]
   );
-  const nextAvailabilityLabel = React.useMemo(
+  const nextAvailabilityDateLabel = React.useMemo(
     () =>
       nextAvailability
         ? formatInTimeZone(nextAvailability, resolvedTimezone, {
             weekday: "short",
             month: "short",
-            day: "numeric",
-            hour: "numeric",
-            minute: "2-digit"
+            day: "numeric"
           })
         : null,
     [nextAvailability, resolvedTimezone]
   );
+  const nextAvailabilityMessage = nextAvailabilityDateLabel
+    ? `You already revised this topic today. Available again after midnight on ${nextAvailabilityDateLabel}.`
+    : "You already revised this topic today. Available again after midnight.";
 
   React.useEffect(() => {
     setNotesValue(topic.notes ?? "");
@@ -241,7 +246,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
     endSavingState(setIsSavingReminder);
   };
 
-  const handleMarkReviewed = (adjustFuture?: boolean, source?: "revise-now") => {
+  const handleMarkReviewed = (adjustFuture?: boolean, source?: "revise-now"): boolean => {
     const nowIso = new Date().toISOString();
     const scheduledTime = new Date(topic.nextReviewDate).getTime();
     const nowTime = Date.now();
@@ -251,7 +256,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
       if (autoAdjustPreference === "ask") {
         pendingReviewSource.current = source;
         setShowAdjustPrompt(true);
-        return;
+        return false;
       }
       const shouldAdjust = autoAdjustPreference === "always";
       const success = markReviewed(topic.id, {
@@ -261,13 +266,12 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
         timeZone: resolvedTimezone
       });
       if (success) {
-        toast.success(
-          source === "revise-now" ? "Great job—logged today’s quick revision." : "Review recorded early"
-        );
+        toast.success(source === "revise-now" ? "Logged today’s revision" : "Review recorded early");
+        return true;
       } else if (source === "revise-now") {
         toast.error("Already used today. Try again after midnight.");
       }
-      return;
+      return false;
     }
 
     const success = markReviewed(topic.id, {
@@ -281,31 +285,47 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
       if (source === "revise-now") {
         toast.error("Already used today. Try again after midnight.");
       }
-      return;
+      return false;
     }
 
     if (source === "revise-now") {
-      toast.success("Great job—logged today’s quick revision.");
+      toast.success("Logged today’s revision");
     } else if (isEarly) {
       toast.success("Review recorded early");
     } else {
       toast.success("Great job! Schedule updated.");
     }
+
+    return true;
   };
 
-  const handleReviseNow = () => {
+  const handleReviseNow = (event?: React.MouseEvent<HTMLButtonElement>) => {
     if (hasUsedReviseToday) {
       trackReviseNowBlocked();
       toast.error("Already used today. Try again after midnight.");
       return;
     }
+    revisionTriggerRef.current = event?.currentTarget ?? null;
+    setShowQuickRevision(true);
+  };
 
+  const handleConfirmQuickRevision = () => {
+    setIsLoggingRevision(true);
     try {
-      handleMarkReviewed(undefined, "revise-now");
+      const success = handleMarkReviewed(false, "revise-now");
+      if (success) {
+        setShowQuickRevision(false);
+      }
     } catch (error) {
       console.error(error);
       toast.error("Could not record that revision. Please try again once you're back online.");
+    } finally {
+      setIsLoggingRevision(false);
     }
+  };
+
+  const handleCloseQuickRevision = () => {
+    setShowQuickRevision(false);
   };
 
   const dismissAdjustPrompt = () => {
@@ -557,7 +577,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
                 "flex-1 min-w-[180px] gap-2 rounded-2xl bg-gradient-to-r from-accent to-accent/80 text-sm font-semibold",
                 !due && hasUsedReviseToday ? "cursor-not-allowed opacity-60" : ""
               )}
-              onClick={() => (due ? handleMarkReviewed() : handleReviseNow())}
+              onClick={(event) => (due ? handleMarkReviewed() : handleReviseNow(event))}
               aria-disabled={!due && hasUsedReviseToday}
             >
               <CheckCircle2 className="h-4 w-4" />
@@ -574,12 +594,8 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
           </div>
           {!due && hasUsedReviseToday ? (
             <div className="space-y-1 text-right text-xs sm:text-left">
-              <p className="font-medium text-emerald-300">Great job—logged today’s quick revision.</p>
-              {nextAvailabilityLabel ? (
-                <p className="text-zinc-400">
-                  You already revised this topic today. Available again at {nextAvailabilityLabel}.
-                </p>
-              ) : null}
+              <p className="font-medium text-emerald-300">Logged today’s revision.</p>
+              <p className="text-zinc-400">{nextAvailabilityMessage}</p>
             </div>
           ) : null}
           <div className="flex items-center gap-2">
@@ -616,6 +632,15 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
         confirmTone="danger"
         onConfirm={confirmDelete}
         icon={<Trash2 className="h-5 w-5" />}
+      />
+
+      <QuickRevisionDialog
+        open={showQuickRevision}
+        onConfirm={handleConfirmQuickRevision}
+        onClose={handleCloseQuickRevision}
+        topicTitle={topic.title}
+        isConfirming={isLoggingRevision}
+        returnFocusRef={revisionTriggerRef}
       />
 
       <ConfirmationDialog
