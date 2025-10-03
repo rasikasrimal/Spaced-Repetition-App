@@ -13,8 +13,6 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import { ColorPicker } from "@/components/forms/color-picker";
-import { IconPicker } from "@/components/forms/icon-picker";
 import { IntervalEditor } from "@/components/forms/interval-editor";
 import { DEFAULT_INTERVALS, REMINDER_TIME_OPTIONS } from "@/lib/constants";
 import { toast } from "sonner";
@@ -38,7 +36,7 @@ const AUTO_ADJUST_LABELS: Record<AutoAdjustPreference, string> = {
 
 type TopicFormMode = "create" | "edit";
 
-type StepId = "basics" | "identity" | "details" | "review";
+type StepId = "basics" | "details" | "review";
 
 interface TopicFormProps {
   topicId?: string | null;
@@ -47,7 +45,6 @@ interface TopicFormProps {
 
 const wizardSteps: { id: StepId; title: string; description: string }[] = [
   { id: "basics", title: "Basics", description: "Give your topic a clear name and subject." },
-  { id: "identity", title: "Identity", description: "Choose an icon and colour for quick recognition." },
   { id: "details", title: "Details", description: "Decide how reviews behave and add helpful context." },
   { id: "review", title: "Review & create", description: "Double-check everything before launching." }
 ];
@@ -155,8 +152,6 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
   const [categoryId, setCategoryId] = React.useState<string | null>("general");
   const [categoryLabel, setCategoryLabel] = React.useState("General");
   const [newCategory, setNewCategory] = React.useState("");
-  const [icon, setIcon] = React.useState("Sparkles");
-  const [color, setColor] = React.useState("#38bdf8");
   const [reminderTime, setReminderTime] = React.useState<string | null>("09:00");
   const [timeOption, setTimeOption] = React.useState<string>("09:00");
   const [customTime, setCustomTime] = React.useState("09:00");
@@ -170,8 +165,6 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
     setNotes("");
     setCategoryId("general");
     setCategoryLabel("General");
-    setIcon("Sparkles");
-    setColor("#38bdf8");
     setReminderTime("09:00");
     setTimeOption("09:00");
     setCustomTime("09:00");
@@ -206,8 +199,6 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
 
     setCategoryId(resolvedCategoryId);
     setCategoryLabel(resolvedCategoryLabel);
-    setIcon(topic.icon);
-    setColor(topic.color);
     setIntervals([...topic.intervals]);
     setNewCategory("");
     setAutoAdjustPreference(topic.autoAdjustPreference ?? DEFAULT_AUTO_ADJUST);
@@ -268,7 +259,7 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
   const handleCreateCategory = () => {
     const trimmed = newCategory.trim();
     if (!trimmed) return;
-    const category = addCategory({ label: trimmed, color, icon });
+    const category = addCategory({ label: trimmed });
     setCategoryId(category.id);
     setCategoryLabel(category.label);
     setNewCategory("");
@@ -336,10 +327,10 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
     const payload = {
       title: title.trim(),
       notes,
+      subjectId: categoryId === "create" ? null : categoryId,
+      subjectLabel: categoryId === "create" ? newCategory.trim() : categoryLabel,
       categoryId: categoryId === "create" ? null : categoryId,
       categoryLabel: categoryId === "create" ? newCategory.trim() : categoryLabel,
-      icon,
-      color,
       reminderTime,
       intervals: intervals.length > 0 ? intervals : [...defaultIntervals],
       autoAdjustPreference
@@ -347,9 +338,11 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
 
     try {
       if (categoryId === "create" && newCategory.trim()) {
-        const category = addCategory({ label: newCategory.trim(), color, icon });
+        const category = addCategory({ label: newCategory.trim() });
         payload.categoryId = category.id;
         payload.categoryLabel = category.label;
+        payload.subjectId = category.id;
+        payload.subjectLabel = category.label;
       }
 
       if (isEditing && topic) {
@@ -403,10 +396,6 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
           onNewCategoryKeyDown={handleNewCategoryKeyDown}
           onCreateCategory={handleCreateCategory}
           selectedSubject={selectedSubject}
-          icon={icon}
-          onIconChange={setIcon}
-          color={color}
-          onColorChange={setColor}
           notes={notes}
           onNotesChange={setNotes}
           reminderTime={reminderTime}
@@ -473,10 +462,6 @@ interface WizardStepContentProps {
   onNewCategoryKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
   onCreateCategory: () => void;
   selectedSubject: Subject | null;
-  icon: string;
-  onIconChange: (value: string) => void;
-  color: string;
-  onColorChange: (value: string) => void;
   notes: string;
   onNotesChange: (value: string) => void;
   reminderTime: string | null;
@@ -506,10 +491,6 @@ const WizardStepContent: React.FC<WizardStepContentProps> = ({
   onNewCategoryKeyDown,
   onCreateCategory,
   selectedSubject,
-  icon,
-  onIconChange,
-  color,
-  onColorChange,
   notes,
   onNotesChange,
   reminderTime,
@@ -525,6 +506,10 @@ const WizardStepContent: React.FC<WizardStepContentProps> = ({
   autoAdjustPreference,
   onAutoAdjustPreferenceChange
 }) => {
+  const previewIcon = selectedSubject?.icon ?? "Sparkles";
+  const previewColor = selectedSubject?.color ?? "#38bdf8";
+  const fallbackLabel = categoryLabel || "General";
+  const previewLabel = selectedSubject?.name ?? fallbackLabel;
   if (step === "basics") {
     return (
       <div className="space-y-6">
@@ -581,29 +566,6 @@ const WizardStepContent: React.FC<WizardStepContentProps> = ({
           <p className="text-xs text-zinc-400">
             Subjects help you group related topics and power the dashboard filters.
           </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (step === "identity") {
-    return (
-      <div className="space-y-6">
-        <div className="rounded-2xl border border-white/10 bg-white/10 p-5 shadow-lg">
-          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Visual identity</p>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Icon</Label>
-              <IconPicker value={icon} onChange={onIconChange} />
-            </div>
-            <div className="space-y-2">
-              <Label>Colour</Label>
-              <ColorPicker value={color} onChange={onColorChange} />
-            </div>
-          </div>
-        </div>
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-zinc-300">
-          Pair the icon and colour with the subject “{categoryLabel || "General"}” so you can spot this topic instantly in the dashboard.
         </div>
       </div>
     );
@@ -762,14 +724,29 @@ const WizardStepContent: React.FC<WizardStepContentProps> = ({
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-          <h3 className="text-base font-semibold text-white">Visual identity</h3>
-          <p className="text-xs text-zinc-400">Icon and colour picked for quick recognition.</p>
+          <h3 className="text-base font-semibold text-white">Subject identity</h3>
+          <p className="text-xs text-zinc-400">Topics inherit their look from the assigned subject.</p>
           <div className="mt-3 flex items-center gap-3">
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl" style={{ backgroundColor: `${color}22` }}>
-              <IconPreview name={icon} className="h-5 w-5" />
+            <span
+              className="flex h-12 w-12 items-center justify-center rounded-2xl"
+              style={{ backgroundColor: `${previewColor}22` }}
+              aria-hidden="true"
+            >
+              <IconPreview name={previewIcon} className="h-5 w-5" />
             </span>
-            <div className="text-xs text-zinc-400">
-              Current colour: <span className="text-white">{color}</span>
+            <div className="text-xs text-zinc-400 space-y-1">
+              <p>
+                Subject: <span className="text-white">{previewLabel}</span>
+              </p>
+              <p>
+                Icon: <span className="text-white">{previewIcon}</span>
+              </p>
+              <p>
+                Colour: <span className="text-white">{previewColor}</span>
+              </p>
+              <p className="mt-1 text-[11px] text-zinc-500">
+                Change identity from the Subjects page to update every topic in this subject instantly.
+              </p>
             </div>
           </div>
         </div>
