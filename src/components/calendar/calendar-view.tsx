@@ -162,7 +162,7 @@ export function CalendarView() {
       }
       const lastKey = getDayKeyInTimeZone(topic.reviseNowLastUsedAt, timezone);
       if (lastKey === todayKey) {
-        return { allowed: false, message: "Available after midnight" };
+        return { allowed: false, message: "Available again after local midnight." };
       }
       return { allowed: true };
     },
@@ -180,9 +180,10 @@ export function CalendarView() {
         return;
       }
       revisionTriggerRef.current = trigger ?? null;
+      setActiveDayKey(null);
       setRevisionTopic(topic);
     },
-    [canReviseTopic, trackReviseNowBlocked]
+    [canReviseTopic, setActiveDayKey, trackReviseNowBlocked]
   );
 
   const handleConfirmRevision = React.useCallback(() => {
@@ -200,7 +201,7 @@ export function CalendarView() {
         setRevisionTopic(null);
       } else {
         trackReviseNowBlocked();
-        toast.error("Already used today. Try again after midnight.");
+        toast.error("Already used today. Try again after local midnight.");
       }
     } catch (error) {
       console.error(error);

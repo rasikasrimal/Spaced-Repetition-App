@@ -21,7 +21,6 @@ import {
   formatDateWithWeekday,
   formatFullDate,
   formatRelativeToNow,
-  formatInTimeZone,
   formatTime,
   getDayKeyInTimeZone,
   isDueToday,
@@ -125,20 +124,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
     () => (hasUsedReviseToday ? nextStartOfDayInTimeZone(resolvedTimezone, zonedNow) : null),
     [hasUsedReviseToday, resolvedTimezone, zonedNow]
   );
-  const nextAvailabilityDateLabel = React.useMemo(
-    () =>
-      nextAvailability
-        ? formatInTimeZone(nextAvailability, resolvedTimezone, {
-            weekday: "short",
-            month: "short",
-            day: "numeric"
-          })
-        : null,
-    [nextAvailability, resolvedTimezone]
-  );
-  const nextAvailabilityMessage = nextAvailabilityDateLabel
-    ? `You already revised this topic today. Available again after midnight on ${nextAvailabilityDateLabel}.`
-    : "You already revised this topic today. Available again after midnight.";
+  const nextAvailabilityMessage = "You already revised this topic today. Available again after midnight.";
 
   React.useEffect(() => {
     setNotesValue(topic.notes ?? "");
@@ -269,7 +255,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
         toast.success(source === "revise-now" ? "Logged today’s revision" : "Review recorded early");
         return true;
       } else if (source === "revise-now") {
-        toast.error("Already used today. Try again after midnight.");
+        toast.error("Already used today. Try again after local midnight.");
       }
       return false;
     }
@@ -283,7 +269,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
 
     if (!success) {
       if (source === "revise-now") {
-        toast.error("Already used today. Try again after midnight.");
+        toast.error("Already used today. Try again after local midnight.");
       }
       return false;
     }
@@ -302,9 +288,12 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
   const handleReviseNow = (event?: React.MouseEvent<HTMLButtonElement>) => {
     if (hasUsedReviseToday) {
       trackReviseNowBlocked();
-      toast.error("Already used today. Try again after midnight.");
+      toast.error("Already used today. Try again after local midnight.");
       return;
     }
+    setShowDeleteConfirm(false);
+    setShowSkipConfirm(false);
+    setShowAdjustPrompt(false);
     revisionTriggerRef.current = event?.currentTarget ?? null;
     setShowQuickRevision(true);
   };
