@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { QuickRevisionDialog } from "@/components/dashboard/quick-revision-dialog";
 import { useTopicStore } from "@/stores/topics";
 import { Subject, Topic } from "@/types/topic";
 import {
@@ -21,7 +21,8 @@ import {
   Search,
   SlidersHorizontal,
   Sparkles,
-  Trash2
+  Trash2,
+  X
 } from "lucide-react";
 import {
   formatDateWithWeekday,
@@ -46,6 +47,7 @@ export interface TopicListItem {
 }
 
 const DENSITY_STORAGE_KEY = "dashboard-topic-density";
+const SEARCH_STORAGE_KEY = "dashboard-topic-search";
 
 type Density = "comfortable" | "compact" | "ultra";
 
@@ -98,16 +100,13 @@ const densityOptions: { id: Density; label: string }[] = [
 ];
 
 export function TopicList({ id, items, subjects, onEditTopic, onCreateTopic, timezone, zonedNow }: TopicListProps) {
-  const [search, setSearch] = React.useState("");
+  const [searchInput, setSearchInput] = React.useState("");
+  const [searchQuery, setSearchQuery] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all");
   const [subjectFilter, setSubjectFilter] = React.useState<Set<string>>(new Set());
   const [sortOption, setSortOption] = React.useState<SortOption>("next");
   const [expandedId, setExpandedId] = React.useState<string | null>(null);
-  const [density, setDensity] = React.useState<Density>(() => {
-    if (typeof window === "undefined") return "comfortable";
-    const stored = window.localStorage.getItem(DENSITY_STORAGE_KEY) as Density | null;
-    return stored ?? "comfortable";
-  });
+  const [density, setDensity] = React.useState<Density>("comfortable");
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [rowHeights, setRowHeights] = React.useState<Map<string, number>>(() => new Map());
   const containerRef = React.useRef<HTMLDivElement | null>(null);
@@ -116,6 +115,77 @@ export function TopicList({ id, items, subjects, onEditTopic, onCreateTopic, tim
   const [densityOpen, setDensityOpen] = React.useState(false);
   const [subjectOpen, setSubjectOpen] = React.useState(false);
   const [sortOpen, setSortOpen] = React.useState(false);
+  const searchFieldRef = React.useRef<HTMLInputElement | null>(null);
+  const appliedFiltersDescriptionId = React.useId();
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.sessionStorage.getItem(SEARCH_STORAGE_KEY);
+    if (stored) {
+      setSearchInput(stored);
+      setSearchQuery(stored);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.sessionStorage.setItem(SEARCH_STORAGE_KEY, searchInput);
+  }, [searchInput]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handle = window.setTimeout(() => {
+      setSearchQuery((current) => (current === searchInput ? current : searchInput));
+    }, 150);
+    return () => window.clearTimeout(handle);
+  }, [searchInput]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
+      if (event.key !== "/") return;
+      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      const tagName = target.tagName?.toLowerCase();
+      if (tagName === "input" || tagName === "textarea" || target.isContentEditable) {
+        return;
+      }
+      event.preventDefault();
+      window.requestAnimationFrame(() => {
+        searchFieldRef.current?.focus({ preventScroll: true });
+      });
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  const focusSearchField = React.useCallback(() => {
+    window.requestAnimationFrame(() => {
+      searchFieldRef.current?.focus({ preventScroll: true });
+    });
+  }, []);
+
+  const handleClearSearch = React.useCallback(() => {
+    setSearchInput("");
+    setSearchQuery("");
+    focusSearchField();
+  }, [focusSearchField]);
+
+  const handleResetFilters = React.useCallback(() => {
+    setStatusFilter("all");
+    setSubjectFilter(new Set());
+    setSubjectOpen(false);
+  }, []);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem(DENSITY_STORAGE_KEY) as Density | null;
+    if (stored && densityOptions.some((option) => option.id === stored)) {
+      setDensity(stored);
+    }
+  }, []);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -184,14 +254,52 @@ export function TopicList({ id, items, subjects, onEditTopic, onCreateTopic, tim
     recent: "Recently reviewed"
   };
 
+  const subjectChipLookup = React.useMemo(() => {
+    const map = new Map<string, SubjectChip>();
+    for (const chip of subjectChips) {
+      map.set(chip.id, chip);
+    }
+    return map;
+  }, [subjectChips]);
+
+  const appliedFilters = React.useMemo(
+    () => {
+      const filters: { key: string; label: string; announce: string; onRemove: () => void }[] = [];
+      if (statusFilter !== "all") {
+        const label = STATUS_LABELS[statusFilter].label;
+        filters.push({
+          key: `status-${statusFilter}`,
+          label,
+          announce: `Status ${label}`,
+          onRemove: () => setStatusFilter("all")
+        });
+      }
+      subjectFilter.forEach((value) => {
+        const chip = subjectChipLookup.get(value);
+        const label = chip?.label ?? (value === "__none" ? "No subject" : "Subject");
+        filters.push({
+          key: `subject-${value}`,
+          label,
+          announce: `Subject ${label}`,
+          onRemove: () =>
+            setSubjectFilter((prev) => {
+              const next = new Set(prev);
+              next.delete(value);
+              return next;
+            })
+        });
+      });
+      return filters;
+    },
+    [statusFilter, subjectFilter, subjectChipLookup]
+  );
+
   const filteredItems = React.useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
-    const matchesSearch = (topic: Topic) => {
+    const normalizedSearch = searchQuery.trim().toLowerCase();
+    const matchesSearch = (item: TopicListItem) => {
       if (!normalizedSearch) return true;
-      return (
-        topic.title.toLowerCase().includes(normalizedSearch) ||
-        topic.notes.toLowerCase().includes(normalizedSearch)
-      );
+      const haystacks = [item.topic.title, item.topic.notes ?? "", item.subject?.name ?? ""];
+      return haystacks.some((value) => value.toLowerCase().includes(normalizedSearch));
     };
 
     const matchesStatus = (status: TopicStatus) => (statusFilter === "all" ? true : status === statusFilter);
@@ -203,7 +311,7 @@ export function TopicList({ id, items, subjects, onEditTopic, onCreateTopic, tim
     };
 
     const sorted = [...items]
-      .filter((item) => matchesSearch(item.topic) && matchesStatus(item.status) && matchesSubject(item.subject?.id ?? null))
+      .filter((item) => matchesSearch(item) && matchesStatus(item.status) && matchesSubject(item.subject?.id ?? null))
       .sort((a, b) => {
         switch (sortOption) {
           case "title":
@@ -219,7 +327,7 @@ export function TopicList({ id, items, subjects, onEditTopic, onCreateTopic, tim
       });
 
     return sorted;
-  }, [items, search, statusFilter, subjectFilter, sortOption]);
+  }, [items, searchQuery, statusFilter, subjectFilter, sortOption]);
 
   const defaultHeight = DENSITY_HEIGHT[density];
   const heights = React.useMemo(() => {
@@ -317,16 +425,85 @@ export function TopicList({ id, items, subjects, onEditTopic, onCreateTopic, tim
     >
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:gap-4">
-          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-2">
-            <Search className="h-4 w-4 text-zinc-500" />
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search topics…"
-              className="h-10 flex-1 border-none bg-transparent text-sm text-white placeholder:text-zinc-500 focus-visible:ring-0"
-            />
+          <div role="search" className="xl:flex-1">
+            <label htmlFor="dashboard-topic-search" className="sr-only">
+              Search topics
+            </label>
+            <div
+              className={cn(
+                "group relative flex h-11 w-full min-w-0 items-center gap-2 rounded-xl border border-white/15 bg-slate-900/70 px-3 text-sm text-white shadow-sm transition",
+                "hover:border-white/25 hover:shadow-lg hover:shadow-slate-950/40",
+                "focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/50 focus-within:ring-offset-2 focus-within:ring-offset-slate-950"
+              )}
+            >
+              <Search className="h-4 w-4 flex-none text-zinc-400" aria-hidden="true" />
+              {appliedFilters.map((chip) => (
+                <button
+                  key={chip.key}
+                  type="button"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    chip.onRemove();
+                    focusSearchField();
+                  }}
+                  className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+                  aria-label={`Remove filter ${chip.label}`}
+                >
+                  <span>{chip.label}</span>
+                  <X className="h-3 w-3" aria-hidden="true" />
+                </button>
+              ))}
+              <input
+                ref={searchFieldRef}
+                id="dashboard-topic-search"
+                type="search"
+                role="searchbox"
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    if (searchInput) {
+                      event.preventDefault();
+                      handleClearSearch();
+                    } else {
+                      (event.currentTarget as HTMLInputElement).blur();
+                    }
+                  }
+                }}
+                placeholder="Search topics…"
+                className="flex-1 bg-transparent text-sm text-white placeholder:text-zinc-400 focus:outline-none"
+                aria-describedby={appliedFilters.length > 0 ? appliedFiltersDescriptionId : undefined}
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <button
+                type="button"
+                title="Clear search"
+                aria-label="Clear search"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={(event) => {
+                  event.preventDefault();
+                  if (!searchInput) return;
+                  handleClearSearch();
+                }}
+                className={cn(
+                  "ml-1 inline-flex h-7 w-7 flex-none items-center justify-center rounded-full text-zinc-400 transition",
+                  "hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950",
+                  searchInput ? "opacity-100" : "pointer-events-none opacity-0"
+                )}
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+            {appliedFilters.length > 0 ? (
+              <span id={appliedFiltersDescriptionId} className="sr-only">
+                Active filters: {appliedFilters.map((chip) => chip.announce).join("; ")}
+              </span>
+            ) : null}
+            <p className="mt-1 text-xs text-zinc-500">Press / to search</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400 xl:justify-end">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400 xl:flex-nowrap xl:justify-end">
             <Popover open={densityOpen} onOpenChange={setDensityOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -542,8 +719,31 @@ export function TopicList({ id, items, subjects, onEditTopic, onCreateTopic, tim
             </Button>
           </div>
         ) : filteredItems.length === 0 ? (
-          <div className="flex h-60 flex-col items-center justify-center gap-2 p-10 text-center text-sm text-zinc-400">
-            <p>No topics match your filters.</p>
+          <div className="flex h-60 flex-col items-center justify-center gap-4 p-10 text-center">
+            <p className="text-sm text-zinc-300">
+              No topics match {searchQuery ? `‘${searchQuery}’` : "your current filters"}. Try clearing filters or checking
+              another subject.
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleClearSearch}
+                disabled={!searchInput && !searchQuery}
+                className="rounded-full border-white/20 bg-transparent px-4 py-2 text-sm text-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:opacity-40"
+              >
+                Clear search
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleResetFilters}
+                disabled={statusFilter === "all" && subjectFilter.size === 0}
+                className="rounded-full border-white/20 bg-transparent px-4 py-2 text-sm text-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:opacity-40"
+              >
+                Reset filters
+              </Button>
+            </div>
           </div>
         ) : (
           <div style={{ height: `${virtual.totalHeight}px`, position: "relative" }}>
@@ -637,6 +837,9 @@ function TopicListRow({
   const [showAdjustPrompt, setShowAdjustPrompt] = React.useState(false);
   const [recentlyRevised, setRecentlyRevised] = React.useState(false);
   const pendingReviewSource = React.useRef<"revise-now" | undefined>();
+  const [showQuickRevision, setShowQuickRevision] = React.useState(false);
+  const revisionTriggerRef = React.useRef<HTMLButtonElement | null>(null);
+  const [isLoggingRevision, setIsLoggingRevision] = React.useState(false);
 
   const autoAdjustPreference = item.topic.autoAdjustPreference ?? "ask";
 
@@ -671,19 +874,23 @@ function TopicListRow({
     () => (hasUsedReviseToday ? nextStartOfDayInTimeZone(timezone, zonedNow) : null),
     [hasUsedReviseToday, timezone, zonedNow]
   );
-  const nextAvailabilityLabel = React.useMemo(
+  const nextAvailabilityDateLabel = React.useMemo(
     () =>
       nextAvailability
         ? formatInTimeZone(nextAvailability, timezone, {
             weekday: "short",
             month: "short",
-            day: "numeric",
-            hour: "numeric",
-            minute: "2-digit"
+            day: "numeric"
           })
         : null,
     [nextAvailability, timezone]
   );
+  const nextAvailabilityMessage = nextAvailabilityDateLabel
+    ? `You’ve already revised this today. Available again after midnight on ${nextAvailabilityDateLabel}.`
+    : "You’ve already revised this today. Available again after midnight.";
+  const nextAvailabilitySubtext = nextAvailabilityDateLabel
+    ? `Available again after midnight on ${nextAvailabilityDateLabel}`
+    : "Available again after midnight";
 
   const statusMeta = STATUS_LABELS[item.status];
   const intervalsLabel = item.topic.intervals.map((day) => `${day}d`).join(" • ");
@@ -693,7 +900,7 @@ function TopicListRow({
   const examDateLabel = subject?.examDate ? formatFullDate(subject.examDate) : null;
   const daysUntilExam = subject?.examDate ? Math.max(0, daysBetween(zonedNow, subject.examDate)) : null;
 
-  const handleMarkReviewed = (adjustFuture?: boolean, source?: "revise-now") => {
+  const handleMarkReviewed = (adjustFuture?: boolean, source?: "revise-now"): boolean => {
     const nowIso = new Date().toISOString();
     const scheduledTime = new Date(item.topic.nextReviewDate).getTime();
     const nowTime = Date.now();
@@ -704,7 +911,7 @@ function TopicListRow({
       if (autoAdjustPreference === "ask") {
         pendingReviewSource.current = source;
         setShowAdjustPrompt(true);
-        return;
+        return false;
       }
       const shouldAdjust = autoAdjustPreference === "always";
       const success = markReviewed(item.topic.id, {
@@ -714,15 +921,14 @@ function TopicListRow({
         timeZone: timezone
       });
       if (success) {
-        toast.success(
-          source === "revise-now" ? "Great job—logged today’s quick revision." : "Review recorded early"
-        );
+        toast.success(source === "revise-now" ? "Logged today’s revision" : "Review recorded early");
         setRecentlyRevised(true);
         window.setTimeout(() => setRecentlyRevised(false), 1500);
+        return true;
       } else if (source === "revise-now") {
         toast.error("Already used today. Try again after midnight.");
       }
-      return;
+      return false;
     }
 
     const success = markReviewed(item.topic.id, {
@@ -736,34 +942,50 @@ function TopicListRow({
       if (source === "revise-now") {
         toast.error("Already used today. Try again after midnight.");
       }
-      return;
+      return false;
     }
 
     setRecentlyRevised(true);
     window.setTimeout(() => setRecentlyRevised(false), 1500);
 
     if (source === "revise-now") {
-      toast.success("Great job—logged today’s quick revision.");
+      toast.success("Logged today’s revision");
     } else if (isEarly) {
       toast.success("Review recorded early");
     } else {
       toast.success("Great job! Schedule updated.");
     }
+
+    return true;
   };
 
-  const handleReviseNow = () => {
+  const handleReviseNow = (event: React.MouseEvent<HTMLButtonElement>) => {
     if (hasUsedReviseToday) {
       trackReviseNowBlocked();
       toast.error("Already used today. Try again after midnight.");
       return;
     }
+    revisionTriggerRef.current = event.currentTarget;
+    setShowQuickRevision(true);
+  };
 
+  const handleConfirmQuickRevision = () => {
+    setIsLoggingRevision(true);
     try {
-      handleMarkReviewed(undefined, "revise-now");
+      const success = handleMarkReviewed(false, "revise-now");
+      if (success) {
+        setShowQuickRevision(false);
+      }
     } catch (error) {
       console.error(error);
       toast.error("Could not record that revision. Please try again once you're back online.");
+    } finally {
+      setIsLoggingRevision(false);
     }
+  };
+
+  const handleCloseQuickRevision = () => {
+    setShowQuickRevision(false);
   };
 
   const dismissAdjustPrompt = () => {
@@ -850,16 +1072,10 @@ function TopicListRow({
           <div className="flex items-center gap-2">
             <Button
               size="sm"
-              onClick={handleReviseNow}
+              onClick={(event) => handleReviseNow(event)}
               disabled={hasUsedReviseToday}
               className="rounded-2xl"
-              title={
-                hasUsedReviseToday
-                  ? nextAvailabilityLabel
-                    ? `You’ve already revised this today. Available again at ${nextAvailabilityLabel}.`
-                    : "You’ve already revised this today. Available again after midnight."
-                  : "Revise now"
-              }
+              title={hasUsedReviseToday ? nextAvailabilityMessage : "Revise now"}
             >
               Revise
             </Button>
@@ -904,11 +1120,7 @@ function TopicListRow({
             </Popover>
           </div>
           {hasUsedReviseToday && (
-            <span className="text-[11px] text-zinc-500">
-              {nextAvailabilityLabel
-                ? `Available again at ${nextAvailabilityLabel}`
-                : "Available again after midnight"}
-            </span>
+            <span className="text-[11px] text-zinc-500">{nextAvailabilitySubtext}</span>
           )}
         </div>
       </div>
@@ -963,6 +1175,15 @@ function TopicListRow({
         confirmTone="danger"
         onConfirm={confirmDelete}
         icon={<Trash2 className="h-5 w-5" />}
+      />
+
+      <QuickRevisionDialog
+        open={showQuickRevision}
+        onConfirm={handleConfirmQuickRevision}
+        onClose={handleCloseQuickRevision}
+        topicTitle={item.topic.title}
+        isConfirming={isLoggingRevision}
+        returnFocusRef={revisionTriggerRef}
       />
 
       <ConfirmationDialog
