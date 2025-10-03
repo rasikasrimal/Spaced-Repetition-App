@@ -50,10 +50,19 @@ const DEFAULT_WINDOW_DAYS = 30;
 const MIN_ZOOM_SPAN = DAY_MS;
 const MIN_Y_SPAN = 0.05;
 const KEYBOARD_STEP_MS = DAY_MS;
+const DEFAULT_SUBJECT_ID = "subject-general";
 
 type TopicVisibility = Record<string, boolean>;
 type SortView = "next" | "title";
+type TimelineViewMode = "combined" | "per-subject";
 type ViewportEntry = { x: [number, number]; y: [number, number] };
+type SubjectSeriesGroup = {
+  subjectId: string;
+  subject: Subject | null;
+  label: string;
+  color: string;
+  series: TimelineSeries[];
+};
 
 const ensureVisibilityState = (topics: Topic[], prev: TopicVisibility): TopicVisibility => {
   const next: TopicVisibility = { ...prev };
@@ -382,6 +391,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   );
 
   const [visibility, setVisibility] = React.useState<TopicVisibility>({});
+  const [viewMode, setViewMode] = React.useState<TimelineViewMode>("combined");
   const [categoryFilter, setCategoryFilter] = React.useState<Set<string>>(new Set());
   const [search, setSearch] = React.useState("");
   const [sortView, setSortView] = React.useState<SortView>("next");
@@ -400,8 +410,18 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   const [hasStudyActivity, setHasStudyActivity] = React.useState(true);
   const [showExamMarkers, setShowExamMarkers] = React.useState(true);
   const svgRef = React.useRef<SVGSVGElement | null>(null);
+  const perSubjectSvgRefs = React.useRef(new Map<string, SVGSVGElement | null>());
+  const perSubjectContainerRef = React.useRef<HTMLDivElement | null>(null);
   const pointerInstructionId = React.useId();
   const spacePressedRef = React.useRef(false);
+  const setSubjectChartRef = React.useCallback((subjectId: string, element: SVGSVGElement | null) => {
+    const map = perSubjectSvgRefs.current;
+    if (element) {
+      map.set(subjectId, element);
+    } else {
+      map.delete(subjectId);
+    }
+  }, []);
 
   const domainMeta = React.useMemo(
     () => computeTimelineDomain(topics, subjects, resolvedTimezone),
@@ -738,6 +758,35 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     [filteredTopics, visibility, resolveTopicColor, nowMs]
   );
 
+  const perSubjectSeries = React.useMemo<SubjectSeriesGroup[]>(() => {
+    const grouped = new Map<string, Topic[]>();
+    for (const topic of filteredTopics) {
+      const key = topic.subjectId ?? DEFAULT_SUBJECT_ID;
+      const bucket = grouped.get(key);
+      if (bucket) {
+        bucket.push(topic);
+      } else {
+        grouped.set(key, [topic]);
+      }
+    }
+    const items: SubjectSeriesGroup[] = [];
+    for (const [subjectId, list] of grouped) {
+      const subject = subjectLookup.get(subjectId) ?? null;
+      const derived = deriveSeries(list, visibility, resolveTopicColor, nowMs);
+      if (derived.length === 0) continue;
+      const color = subject?.color ?? resolveTopicColor(list[0]);
+      items.push({
+        subjectId,
+        subject,
+        label: subject?.name ?? "Unassigned",
+        color,
+        series: derived
+      });
+    }
+    items.sort((a, b) => a.label.localeCompare(b.label));
+    return items;
+  }, [filteredTopics, subjectLookup, visibility, resolveTopicColor, nowMs]);
+
   React.useEffect(() => {
     if (series.length === 0) {
       const fallback: [number, number] = [0, 1];
@@ -821,6 +870,20 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
       .sort((a, b) => a.time - b.time);
   }, [subjects, filteredTopics, visibility, resolvedTimezone, showExamMarkers]);
 
+  const examMarkersBySubject = React.useMemo(() => {
+    const map = new Map<string, ExamMarker[]>();
+    for (const marker of examMarkers) {
+      const subjectId = marker.id.replace("exam-marker-", "");
+      const bucket = map.get(subjectId);
+      if (bucket) {
+        bucket.push(marker);
+      } else {
+        map.set(subjectId, [marker]);
+      }
+    }
+    return map;
+  }, [examMarkers]);
+
   const upcomingSchedule = React.useMemo(() => {
     return filteredTopics
       .slice()
@@ -828,12 +891,51 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
       .slice(0, variant === "compact" ? 5 : 8);
   }, [filteredTopics, variant]);
 
+  const buildPerSubjectExportSvg = React.useCallback(() => {
+    const container = perSubjectContainerRef.current;
+    if (!container) return null;
+    const containerRect = container.getBoundingClientRect();
+    if (containerRect.width === 0 || containerRect.height === 0) {
+      return null;
+    }
+
+    const root = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    root.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    root.setAttribute("width", String(containerRect.width));
+    root.setAttribute("height", String(containerRect.height));
+    root.setAttribute("viewBox", `0 0 ${containerRect.width} ${containerRect.height}`);
+
+    for (const [, svg] of perSubjectSvgRefs.current.entries()) {
+      if (!svg) continue;
+      const rect = svg.getBoundingClientRect();
+      if (!rect.width || !rect.height) continue;
+      const clone = svg.cloneNode(true) as SVGSVGElement;
+      clone.setAttribute("x", String(rect.left - containerRect.left));
+      clone.setAttribute("y", String(rect.top - containerRect.top));
+      root.appendChild(clone);
+    }
+
+    return root;
+  }, []);
+
   const exportSvg = () => {
+    if (viewMode === "per-subject") {
+      const combined = buildPerSubjectExportSvg();
+      if (!combined) return;
+      downloadSvg(combined, "review-timeline.svg");
+      return;
+    }
     if (!svgRef.current) return;
     downloadSvg(svgRef.current, "review-timeline.svg");
   };
 
   const exportPng = () => {
+    if (viewMode === "per-subject") {
+      const combined = buildPerSubjectExportSvg();
+      if (!combined) return;
+      downloadSvgAsPng(combined, "review-timeline.png");
+      return;
+    }
     if (!svgRef.current) return;
     downloadSvgAsPng(svgRef.current, "review-timeline.png");
   };
@@ -892,6 +994,35 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
           </p>
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
+          <div
+            className="flex items-center gap-1 rounded-2xl border border-white/10 bg-slate-900/60 p-1"
+            role="group"
+            aria-label="Timeline view mode"
+          >
+            <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+              View:
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              variant={viewMode === "combined" ? "default" : "ghost"}
+              className={`rounded-xl px-3 ${viewMode === "combined" ? "bg-accent/20 text-white" : "text-zinc-300"}`}
+              onClick={() => setViewMode("combined")}
+              aria-pressed={viewMode === "combined"}
+            >
+              Combined
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={viewMode === "per-subject" ? "default" : "ghost"}
+              className={`rounded-xl px-3 ${viewMode === "per-subject" ? "bg-accent/20 text-white" : "text-zinc-300"}`}
+              onClick={() => setViewMode("per-subject")}
+              aria-pressed={viewMode === "per-subject"}
+            >
+              Per subject
+            </Button>
+          </div>
           <div
             className="flex items-center gap-1 rounded-2xl border border-white/10 bg-slate-900/60 p-1"
             role="group"
@@ -1116,32 +1247,96 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
         </div>
       ) : null}
 
-      {hasStudyActivity && domain && yDomain ? (
-        <TimelineChart
-          ref={svgRef}
-          series={series}
-          xDomain={domain}
-          yDomain={yDomain}
-          onViewportChange={(next, options) => handleViewportChange(next, { push: options?.push })}
-          height={variant === "compact" ? 260 : 360}
-          showGrid
-          fullDomain={fullDomain ?? undefined}
-          fullYDomain={fullYDomain ?? undefined}
-          examMarkers={showExamMarkers ? examMarkers : []}
-          timeZone={resolvedTimezone}
-          onResetDomain={handleResetDomain}
-          ariaDescribedBy={`timeline-zoom-shortcuts ${pointerInstructionId}`}
-          interactionMode={interactionMode}
-          temporaryPan={spacePanning}
-          onRequestStepBack={handleStepBack}
-          onTooSmallSelection={handleTooSmallSelection}
-          keyboardSelection={keyboardSelection}
-        />
-      ) : (
-        <div className="flex h-60 items-center justify-center rounded-3xl border border-dashed border-white/10 bg-slate-900/40 text-sm text-zinc-400">
-          No study activity yet. Add a topic to see your timeline.
-        </div>
-      )}
+      {viewMode === "combined"
+        ? hasStudyActivity && domain && yDomain
+          ? (
+              <TimelineChart
+                ref={svgRef}
+                series={series}
+                xDomain={domain}
+                yDomain={yDomain}
+                onViewportChange={(next, options) => handleViewportChange(next, { push: options?.push })}
+                height={variant === "compact" ? 260 : 360}
+                showGrid
+                fullDomain={fullDomain ?? undefined}
+                fullYDomain={fullYDomain ?? undefined}
+                examMarkers={showExamMarkers ? examMarkers : []}
+                timeZone={resolvedTimezone}
+                onResetDomain={handleResetDomain}
+                ariaDescribedBy={`timeline-zoom-shortcuts ${pointerInstructionId}`}
+                interactionMode={interactionMode}
+                temporaryPan={spacePanning}
+                onRequestStepBack={handleStepBack}
+                onTooSmallSelection={handleTooSmallSelection}
+                keyboardSelection={keyboardSelection}
+              />
+            )
+          : (
+              <div className="flex h-60 items-center justify-center rounded-3xl border border-dashed border-white/10 bg-slate-900/40 text-sm text-zinc-400">
+                No study activity yet. Add a topic to see your timeline.
+              </div>
+            )
+        : perSubjectSeries.length > 0 && domain && yDomain
+          ? (
+              <div
+                ref={perSubjectContainerRef}
+                className="grid gap-6 md:grid-cols-1 lg:grid-cols-2"
+              >
+                {perSubjectSeries.map((group) => {
+                  const markers = showExamMarkers
+                    ? examMarkersBySubject.get(group.subjectId) ?? []
+                    : [];
+                  const examLabel = group.subject?.examDate
+                    ? formatDateWithWeekday(group.subject.examDate)
+                    : null;
+                  return (
+                    <div
+                      key={group.subjectId}
+                      className="space-y-2 rounded-3xl border border-white/10 bg-slate-900/50 p-4"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="inline-flex h-2 w-2 rounded-full"
+                            style={{ backgroundColor: group.color }}
+                            aria-hidden="true"
+                          />
+                          <h3 className="text-sm font-semibold text-white">{group.label}</h3>
+                        </div>
+                        {examLabel ? (
+                          <span className="text-xs text-zinc-400">Exam {examLabel}</span>
+                        ) : null}
+                      </div>
+                      <TimelineChart
+                        ref={(element) => setSubjectChartRef(group.subjectId, element)}
+                        series={group.series}
+                        xDomain={domain}
+                        yDomain={yDomain}
+                        onViewportChange={(next, options) => handleViewportChange(next, { push: options?.push })}
+                        height={variant === "compact" ? 240 : 300}
+                        showGrid
+                        fullDomain={fullDomain ?? undefined}
+                        fullYDomain={fullYDomain ?? undefined}
+                        examMarkers={markers}
+                        timeZone={resolvedTimezone}
+                        onResetDomain={handleResetDomain}
+                        ariaDescribedBy={`timeline-zoom-shortcuts ${pointerInstructionId}`}
+                        interactionMode={interactionMode}
+                        temporaryPan={spacePanning}
+                        onRequestStepBack={handleStepBack}
+                        onTooSmallSelection={handleTooSmallSelection}
+                        keyboardSelection={keyboardSelection}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          : (
+              <div className="flex h-60 items-center justify-center rounded-3xl border border-dashed border-white/10 bg-slate-900/40 text-sm text-zinc-400">
+                No study activity yet. Add a topic to see your timeline.
+              </div>
+            )}
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">

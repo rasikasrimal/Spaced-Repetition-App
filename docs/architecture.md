@@ -129,6 +129,51 @@ stateDiagram-v2
 3. Persist middleware serialises each store into `localStorage` (`spaced-repetition-store`, `spaced-repetition-profile`).
 4. Components subscribe to slices of state and rerender automatically when the store changes.
 
+### Subjects → Topics → History flow
+
+```mermaid
+flowchart TD
+  S[Subjects page] -->|Expand| T[Topic list for Subject]
+  T -->|Edit history| H[History editor (topic)]
+  H -->|Save| R[Replay events to update S & next date]
+  R --> D[Dashboard/Calendar/Timeline refresh]
+```
+
+### Replay & reschedule algorithm
+
+```mermaid
+sequenceDiagram
+  participant H as History Editor
+  participant M as Memory Model
+  participant S as Scheduler
+  H->>M: Chronological events (date, quality)
+  loop For each event
+    M-->>M: Update S from quality
+  end
+  M-->>S: S_final, last_review_at
+  S-->>S: next = last + (-S_final * ln(R*)), clamp ≤ exam, smooth load
+  S-->>H: Persist & return new next_review_at
+```
+
+### Timeline, stitched segments
+
+```mermaid
+flowchart LR
+  A[Interval i: R_i(t)=exp(-t/S_i)] -->|review at t_{i+1}| B[(Stitch marker)]
+  B --> C[Interval i+1: R_{i+1}(t)=exp(-t/S_{i+1})]
+```
+
+### Timeline view modes
+
+```mermaid
+graph TD
+  V[View switch] --> C[Combined chart]
+  V --> P[Per-subject small multiples]
+  P --> P1[Subject A chart]
+  P --> P2[Subject B chart]
+  P --> P3[Subject C chart]
+```
+
 ## Deployment considerations
 
 - The project targets modern evergreen browsers; no SSR-only APIs are used.
