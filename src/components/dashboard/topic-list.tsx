@@ -3,6 +3,7 @@
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { QuickRevisionDialog } from "@/components/dashboard/quick-revision-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -128,6 +129,7 @@ export function TopicList({
   const [searchFocused, setSearchFocused] = React.useState(false);
   const [subjectOpen, setSubjectOpen] = React.useState(false);
   const [sortOpen, setSortOpen] = React.useState(false);
+  const [subjectSearch, setSubjectSearch] = React.useState("");
   const searchFieldRef = React.useRef<HTMLInputElement | null>(null);
   const appliedFiltersDescriptionId = React.useId();
   const [isHydrated, setIsHydrated] = React.useState(false);
@@ -135,6 +137,12 @@ export function TopicList({
   React.useEffect(() => {
     setIsHydrated(true);
   }, []);
+
+  React.useEffect(() => {
+    if (!subjectOpen) {
+      setSubjectSearch("");
+    }
+  }, [subjectOpen]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -240,6 +248,16 @@ export function TopicList({
 
   const allSubjectIds = React.useMemo(() => subjectOptions.map((option) => option.id), [subjectOptions]);
   const totalSubjectOptions = subjectOptions.length;
+
+  const normalizedSubjectSearch = subjectSearch.trim().toLowerCase();
+  const filteredSubjectOptions = React.useMemo(() => {
+    if (!normalizedSubjectSearch) {
+      return subjectOptions;
+    }
+    return subjectOptions.filter((option) =>
+      option.name.toLowerCase().includes(normalizedSubjectSearch)
+    );
+  }, [subjectOptions, normalizedSubjectSearch]);
 
   const selectedSubjectCount = subjectFilter === null ? totalSubjectOptions : subjectFilter.size;
   const allSubjectsSelected = subjectFilter === null || selectedSubjectCount === totalSubjectOptions;
@@ -473,11 +491,29 @@ export function TopicList({
                     </button>
                   </div>
                 </div>
+                <div className="mt-3">
+                  <label htmlFor="subject-filter-search" className="sr-only">
+                    Search subjects
+                  </label>
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" aria-hidden="true" />
+                    <Input
+                      id="subject-filter-search"
+                      type="search"
+                      value={subjectSearch}
+                      onChange={(event) => setSubjectSearch(event.target.value)}
+                      placeholder="Search subjects"
+                      className="h-9 w-full rounded-xl border-white/10 bg-slate-950/80 pl-9 pr-3 text-xs text-white placeholder:text-zinc-500 focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/40"
+                    />
+                  </div>
+                </div>
                 <div className="mt-3 max-h-64 space-y-1 overflow-y-auto">
                   {subjectOptions.length === 0 ? (
                     <p className="text-xs text-zinc-400">No subjects yet.</p>
+                  ) : filteredSubjectOptions.length === 0 ? (
+                    <p className="text-xs text-zinc-400">No matching subjects.</p>
                   ) : (
-                    subjectOptions.map((option) => {
+                    filteredSubjectOptions.map((option) => {
                       const isChecked = subjectFilter === null ? true : subjectFilter.has(option.id);
                       return (
                         <button
