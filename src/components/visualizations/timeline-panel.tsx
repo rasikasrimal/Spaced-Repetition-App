@@ -10,11 +10,25 @@ import { buildCurveSegments, sampleSegment } from "@/selectors/curves";
 import { useTopicStore } from "@/stores/topics";
 import { useProfileStore } from "@/stores/profile";
 import { Subject, Topic } from "@/types/topic";
-import { CalendarClock, Check, Eye, EyeOff, Filter, Info, Search, Sparkles, AlertTriangle } from "lucide-react";
+import {
+  CalendarClock,
+  Check,
+  Eye,
+  EyeOff,
+  Filter,
+  Info,
+  Search,
+  Sparkles,
+  AlertTriangle,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw
+} from "lucide-react";
 import { daysBetween, formatDateWithWeekday, formatRelativeToNow, isDueToday, nowInTimeZone } from "@/lib/date";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_WINDOW_DAYS = 30;
+const MIN_ZOOM_SPAN = DAY_MS;
 
 type TopicVisibility = Record<string, boolean>;
 type SortView = "next" | "title";
@@ -302,6 +316,93 @@ export function TimelinePanel({ variant = "default" }: TimelinePanelProps): JSX.
     });
   }, [domainMeta]);
 
+  const handleResetDomain = React.useCallback(() => {
+    if (!defaultDomain) return;
+    setDomain([defaultDomain[0], defaultDomain[1]]);
+  }, [defaultDomain]);
+
+  const zoomIn = React.useCallback(() => {
+    setDomain((prev) => {
+      if (!prev) return prev;
+      const span = prev[1] - prev[0];
+      if (span <= MIN_ZOOM_SPAN) {
+        return prev;
+      }
+      const nextSpan = Math.max(MIN_ZOOM_SPAN, span * 0.7);
+      const center = prev[0] + span / 2;
+      const candidate: [number, number] = [center - nextSpan / 2, center + nextSpan / 2];
+      if (fullDomain) {
+        return clampRangeToBounds(candidate, fullDomain);
+      }
+      return candidate;
+    });
+  }, [fullDomain]);
+
+  const zoomOut = React.useCallback(() => {
+    setDomain((prev) => {
+      if (!prev) return prev;
+      const span = prev[1] - prev[0];
+      const maxSpan = fullDomain ? Math.max(fullDomain[1] - fullDomain[0], MIN_ZOOM_SPAN) : span * 2;
+      const nextSpan = Math.min(Math.max(span * 1.3, MIN_ZOOM_SPAN), maxSpan);
+      if (nextSpan === span && fullDomain) {
+        const clamped = clampRangeToBounds(prev, fullDomain);
+        if (clamped[0] === prev[0] && clamped[1] === prev[1]) {
+          return prev;
+        }
+        return clamped;
+      }
+      const center = prev[0] + span / 2;
+      const candidate: [number, number] = [center - nextSpan / 2, center + nextSpan / 2];
+      if (fullDomain) {
+        return clampRangeToBounds(candidate, fullDomain);
+      }
+      return candidate;
+    });
+  }, [fullDomain]);
+
+  const isZoomed = React.useMemo(() => {
+    if (!domain || !defaultDomain) return false;
+    return domain[0] !== defaultDomain[0] || domain[1] !== defaultDomain[1];
+  }, [domain, defaultDomain]);
+
+  const canZoomIn = React.useMemo(() => {
+    if (!domain) return false;
+    return domain[1] - domain[0] > MIN_ZOOM_SPAN + 60 * 1000;
+  }, [domain]);
+
+  const canZoomOut = React.useMemo(() => {
+    if (!domain) return false;
+    if (!fullDomain) return true;
+    return domain[0] > fullDomain[0] || domain[1] < fullDomain[1];
+  }, [domain, fullDomain]);
+
+  React.useEffect(() => {
+    const handleKeydown = (event: KeyboardEvent) => {
+      if (!domain) return;
+      const target = event.target as HTMLElement | null;
+      if (target) {
+        const tag = target.tagName.toLowerCase();
+        if (tag === "input" || tag === "textarea" || target.isContentEditable) {
+          return;
+        }
+      }
+
+      if (event.key === "+" || event.key === "=") {
+        event.preventDefault();
+        zoomIn();
+      } else if (event.key === "-" || event.key === "_") {
+        event.preventDefault();
+        zoomOut();
+      } else if (event.key === "0") {
+        event.preventDefault();
+        handleResetDomain();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeydown);
+    return () => window.removeEventListener("keydown", handleKeydown);
+  }, [domain, zoomIn, zoomOut, handleResetDomain]);
+
   const filteredTopics = React.useMemo(() => {
     const lower = search.trim().toLowerCase();
     const byCategory = categoryFilter.size > 0
@@ -428,7 +529,46 @@ export function TimelinePanel({ variant = "default" }: TimelinePanelProps): JSX.
             Track when each topic is due and how its memory curve evolves.
           </p>
         </div>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <div
+            className="flex items-center gap-1 rounded-2xl border border-white/10 bg-slate-900/60 p-1"
+            role="group"
+            aria-label="Timeline zoom controls"
+            aria-describedby="timeline-zoom-shortcuts"
+          >
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              onClick={zoomOut}
+              disabled={!canZoomOut}
+              aria-label="Zoom out (−)"
+              title="Zoom out (−)"
+            >
+              <ZoomOut className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              onClick={zoomIn}
+              disabled={!canZoomIn}
+              aria-label="Zoom in (+)"
+              title="Zoom in (+)"
+            >
+              <ZoomIn className="h-4 w-4" />
+            </Button>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleResetDomain}
+            disabled={!defaultDomain || !isZoomed}
+            className="inline-flex items-center gap-2"
+          >
+            <RotateCcw className="h-4 w-4" />
+            <span>Reset</span>
+          </Button>
           {variant === "default" ? (
             <>
               <Button size="sm" variant="outline" onClick={exportSvg}>
@@ -439,19 +579,31 @@ export function TimelinePanel({ variant = "default" }: TimelinePanelProps): JSX.
               </Button>
             </>
           ) : null}
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              if (!defaultDomain) return;
-              setDomain([...defaultDomain] as [number, number]);
-            }}
-            disabled={!defaultDomain}
-          >
-            Reset view
-          </Button>
         </div>
       </header>
+
+      <p className="sr-only" aria-live="polite">
+        {isZoomed ? "Timeline zoomed. Activate reset to return to the full schedule." : "Timeline showing the full scheduled range."}
+      </p>
+
+      <p className="sr-only" id="timeline-zoom-shortcuts">
+        Keyboard shortcuts: press plus to zoom in, minus to zoom out, and zero to reset the timeline view.
+      </p>
+
+      {isZoomed ? (
+        <div className="flex items-center gap-2 text-xs text-amber-100" aria-live="polite">
+          <span className="inline-flex items-center gap-2 rounded-full bg-amber-500/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide">
+            Zoomed
+          </span>
+          <button
+            type="button"
+            onClick={handleResetDomain}
+            className="font-semibold text-amber-200 underline-offset-2 hover:underline"
+          >
+            Reset view
+          </button>
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-slate-900/60 px-3 py-2 text-xs text-zinc-300">
@@ -560,6 +712,8 @@ export function TimelinePanel({ variant = "default" }: TimelinePanelProps): JSX.
           showGrid
           fullDomain={fullDomain ?? undefined}
           examMarkers={showExamMarkers ? examMarkers : []}
+          timeZone={resolvedTimezone}
+          onResetDomain={handleResetDomain}
         />
       ) : (
         <div className="flex h-60 items-center justify-center rounded-3xl border border-dashed border-white/10 bg-slate-900/40 text-sm text-zinc-400">
