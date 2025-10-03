@@ -410,7 +410,7 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
               </div>
             ) : null}
 
-            <ScrollArea className="flex-1 min-h-[320px] max-h-[65vh] rounded-2xl border border-white/5 bg-slate-900/60 p-4">
+            <ScrollArea className="flex-1 min-h-[40vh] max-h-[65vh] rounded-2xl border border-white/5 bg-slate-900/60 p-4">
               <div className="space-y-4 pr-4">
                 {drafts.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/50 p-6 text-center text-sm text-zinc-400">
