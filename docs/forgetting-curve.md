@@ -21,13 +21,32 @@ Our scheduler uses an explicit exponential forgetting curve to determine when ea
 - Subject difficulty modifiers scale the stability (`S_eff = S · d`) with `d ∈ [0.5, 1.5]` before interval calculation.
 - All scheduling happens in UTC timestamps but “today” boundaries use the learner’s profile timezone (Asia/Colombo by default).
 
+We persist each review interval as a piecewise exponential segment. Historic segments remain visible (faded) while the active segment renders in full colour. When a review happens we stitch the curve vertically back to ~100% so the timeline shows a continuous story: previous decay → the pre-review retention → the reset and next decay.
+
 ```mermaid
 flowchart TD
-  A[After review with quality q] --> B[Update stability S]
-  B --> C[Compute Δ = -S · ln(R*)]
-  C --> D[Clamp to ≤ exam date]
-  D --> E[Apply load smoothing (±1-2 days if needed)]
-  E --> F[Persist next_review_at and refresh UI]
+  A[After review -> update stability S] --> B[Compute Δ = -S ln(R*)]
+  B --> C{Exam date set?}
+  C -- Yes --> D[Clamp next review ≤ exam]
+  C -- No --> E[Use computed interval]
+  D --> F[Load smoothing (shift ±1–2 days if heavy)]
+  E --> F[Load smoothing (shift ±1–2 days if heavy)]
+  F --> G[Persist next_review_at, redraw timeline]
+```
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant T as Topic
+  participant M as Memory Model
+  U->>T: Review at t0 (quality q0)
+  T->>M: Update S -> S0
+  M-->>T: Next interval Δ0 = -S0*ln(R*)
+  Note over T: Plot R0(t)=exp(-t/S0) for t∈[t0, t1)
+  U->>T: Review at t1 (quality q1)
+  T->>M: Update S -> S1
+  M-->>T: Next interval Δ1 = -S1*ln(R*)
+  Note over T: Draw stitch at t1, then R1(t)=exp(-t/S1) for t≥t1
 ```
 
 ## Stored data
@@ -39,7 +58,7 @@ flowchart TD
 | **Event (skip)** | `at`, `reviewKind`, `nextReviewAt` |
 | **Subject** | `examDate`, `difficultyModifier`, `color`, `icon` |
 
-Events capture the full review history so the timeline can plot the retention curve and show checkpoints.
+Events capture the full review history so the timeline can plot the retention curve and show checkpoints. The live timeline marker re-computes `R(t)` every minute and surfaces the projected “zero-retention” horizon (`t_zero ≈ S · ln(100)`) — i.e. when retrievability would drift below 1% if the learner stopped reviewing entirely.
 
 ## Risk scoring (daily ordering)
 
@@ -55,6 +74,19 @@ score = 0.55·(1 − R_now) + 0.25·overdue + 0.15·exam + 0.05·difficulty
 - `difficulty` adds 0.15 when recent quality scores fall below 0.75 and +0.05 for the first three reviews.
 
 Sorting the home list by this score makes overdue or shaky memories float to the top while safe items drift down.
+
+## Interval growth sanity
+
+Successful recalls increase stability and therefore stretch the next interval (`Δ = -S ln(R*)`). Consecutive correct answers produce a monotone sequence (`t₂ > t₁ > t₀`) unless capped by an exam date or load smoothing. We persist every review’s `intervalDays` so QA can verify this “intervals grow” trend matches classic SRS algorithms such as SM-2 (intervals multiply by an easiness factor after good recalls) and modern FSRS variants.
+
+```mermaid
+graph LR
+  I0[Interval t₁] --> I1[Interval t₂]
+  I1 --> I2[Interval t₃]
+  note right of I2: Correct recalls ⇒ S↑ ⇒ Δ↑ ⇒ t₂ > t₁ > t₀ on average
+```
+
+If a review fails (`q = 0`), stability drops immediately so the next interval shrinks before expanding again with later successes.
 
 ## Daily state machine
 
@@ -77,3 +109,9 @@ stateDiagram-v2
 - Early reviews prompt whether to stretch future intervals or keep the original plan.
 
 These rules ensure the timeline, calendar, and daily plan remain consistent with the forgetting-curve math while keeping the learner’s workload manageable.
+
+## References
+
+- Ebbinghaus-style exponential forgetting curve (retention / stability terminology) — [Wikipedia](https://en.wikipedia.org/wiki/Forgetting_curve)
+- Spaced-repetition algorithms overview, including SM-2 and FSRS — [Wikipedia](https://en.wikipedia.org/wiki/Spaced_repetition)
+- SM-2 classic schedule growth pattern (intervals 1, 6, then ×EF) — [Wikipedia](https://en.wikipedia.org/wiki/SuperMemo#Description)

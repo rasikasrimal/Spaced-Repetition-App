@@ -4,9 +4,15 @@ import { DAY_MS, STABILITY_MIN_DAYS, computeRetrievability } from "@/lib/forgett
 export interface CurveSegment {
   topicId: string;
   start: TopicEvent;
+  /** Timestamp where the retention segment actually ends (next review). */
   endAt: string;
+  /** Timestamp that should be plotted for the decay (checkpoint for active segment). */
+  displayEndAt: string;
+  /** Scheduled checkpoint where R(t) ≈ target retrievability. */
+  checkpointAt: string;
   stabilityDays: number;
   target: number;
+  isHistorical: boolean;
 }
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
@@ -38,19 +44,33 @@ const ensureSegmentsForTopic = (topic: Topic): CurveSegment[] => {
         topicId: topic.id,
         start: synthetic,
         endAt: topic.nextReviewDate,
+        displayEndAt: topic.nextReviewDate,
+        checkpointAt: topic.nextReviewDate,
         stabilityDays: topic.stability,
-        target: topic.retrievabilityTarget
+        target: topic.retrievabilityTarget,
+        isHistorical: false
       }
     ];
   }
 
-  return reviewEvents.map((event) => ({
-    topicId: topic.id,
-    start: event,
-    endAt: event.nextReviewAt ?? topic.nextReviewDate,
-    stabilityDays: event.resultingStability ?? topic.stability,
-    target: event.targetRetrievability ?? topic.retrievabilityTarget
-  }));
+  return reviewEvents.map((event, index) => {
+    const nextEvent = reviewEvents[index + 1] ?? null;
+    const checkpointAt = event.nextReviewAt ?? topic.nextReviewDate;
+    const fallbackEnd = checkpointAt ?? topic.nextReviewDate;
+    const endAt = nextEvent ? nextEvent.at : fallbackEnd;
+    const displayEndAt = nextEvent ? nextEvent.at : fallbackEnd;
+
+    return {
+      topicId: topic.id,
+      start: event,
+      endAt,
+      displayEndAt,
+      checkpointAt,
+      stabilityDays: event.resultingStability ?? topic.stability,
+      target: event.targetRetrievability ?? topic.retrievabilityTarget,
+      isHistorical: Boolean(nextEvent)
+    };
+  });
 };
 
 export const buildCurveSegments = (topics: Topic[]): CurveSegment[] => {
@@ -66,7 +86,7 @@ export const sampleSegment = (
   maxPoints = 160
 ): { t: number; r: number }[] => {
   const startTs = new Date(segment.start.at).getTime();
-  const endTs = new Date(segment.endAt).getTime();
+  const endTs = new Date(segment.displayEndAt).getTime();
   const durationMs = Math.max(60_000, endTs - startTs);
   const pointsCount = clamp(maxPoints, 16, 320);
   const stepMs = durationMs / pointsCount;
