@@ -4,7 +4,6 @@ import * as React from "react";
 import Link from "next/link";
 import { useTopicStore } from "@/stores/topics";
 import { useProfileStore } from "@/stores/profile";
-import { IconPreview } from "@/components/icon-preview";
 import { Button } from "@/components/ui/button";
 import { TimelinePanel } from "@/components/visualizations/timeline-panel";
 import { TopicList, TopicListItem, TopicStatus } from "@/components/dashboard/topic-list";
@@ -18,12 +17,10 @@ import {
   Plus,
   Sparkles,
   Trophy,
-  NotebookPen
+  Info
 } from "lucide-react";
 import {
-  daysBetween,
   formatDateWithWeekday,
-  formatFullDate,
   formatRelativeToNow,
   getDayKey,
   isToday,
@@ -35,13 +32,6 @@ interface DashboardProps {
   onCreateTopic: () => void;
   onEditTopic: (id: string) => void;
 }
-
-type SubjectInsight = {
-  subject: Subject;
-  topicCount: number;
-  daysRemaining: number | null;
-  examDate: Date | null;
-};
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
@@ -72,30 +62,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
   const resolvedTimezone = timezone || "Asia/Colombo";
   const zonedNow = useZonedNow(resolvedTimezone);
 
-  const subjectInsights = React.useMemo<SubjectInsight[]>(() => {
-    const today = startOfToday();
-    return subjects
-      .map((subject) => {
-        const subjectTopics = topics.filter((topic) => topic.subjectId === subject.id);
-        const examDate = subject.examDate ? new Date(subject.examDate) : null;
-        const validExam = examDate && !Number.isNaN(examDate.getTime()) ? examDate : null;
-        const daysRemaining = validExam ? Math.max(0, daysBetween(today, validExam)) : null;
-        return {
-          subject,
-          topicCount: subjectTopics.length,
-          daysRemaining,
-          examDate: validExam
-        };
-      })
-      .sort((a, b) => {
-        if (a.examDate && b.examDate) {
-          return a.examDate.getTime() - b.examDate.getTime();
-        }
-        if (a.examDate) return -1;
-        if (b.examDate) return 1;
-        return a.subject.name.localeCompare(b.subject.name);
-      });
-  }, [subjects, topics]);
+  const [hideSubjectNudge, setHideSubjectNudge] = React.useState(false);
 
   const enrichedTopics = React.useMemo<TopicListItem[]>(() => {
     const subjectMap = new Map<string, Subject>();
@@ -260,91 +227,54 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
         </div>
       </header>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,2.2fr)_minmax(0,1.1fr)] xl:auto-rows-min">
-        <div className="flex flex-col gap-6">
-          <TopicList
-            id="dashboard-topic-list"
-            items={enrichedTopics}
-            subjects={subjects}
-            onEditTopic={onEditTopic}
-            onCreateTopic={onCreateTopic}
-            timezone={resolvedTimezone}
-            zonedNow={zonedNow}
-          />
-          <ProgressCard completionPercent={completionPercent} completed={completedCount} total={totalToday} />
-        </div>
-
-        <aside className="flex flex-col gap-6">
-          <SubjectManagementCard subjects={subjectInsights} />
-          <UpcomingScheduleCard upcoming={upcomingHighlights} />
-        </aside>
-        <div className="xl:col-span-2">
-          <TimelinePanel />
-        </div>
-      </div>
-    </section>
-  );
-};
-
-
-const SubjectManagementCard = ({ subjects }: { subjects: SubjectInsight[] }) => {
-  return (
-    <div className="rounded-3xl border border-white/5 bg-slate-900/50 p-5 shadow-lg shadow-slate-900/30">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3">
-          <span className="hidden h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-accent sm:flex">
-            <NotebookPen className="h-5 w-5" />
-          </span>
-          <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Subject management</p>
-            <h2 className="text-lg font-semibold text-white">Keep subjects exam-ready</h2>
-            <p className="text-xs text-zinc-400">Review exam timelines and topic counts at a glance.</p>
+      {!hideSubjectNudge && subjects.length === 0 ? (
+        <div className="flex items-center justify-between gap-3 rounded-3xl border border-white/5 bg-slate-900/40 p-4 text-sm text-zinc-200 shadow-lg shadow-slate-900/30">
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-accent/15 text-accent">
+              <Info className="h-4 w-4" />
+            </span>
+            <div className="space-y-1">
+              <p className="font-medium text-white">Manage subjects and exam dates in the Subjects tab.</p>
+              <p className="text-xs text-zinc-400">Organise your subjects to align topics with upcoming exams.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button asChild size="sm" className="rounded-full">
+              <Link href="/subjects">Go to Subjects</Link>
+            </Button>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="rounded-full text-zinc-400 hover:text-white"
+              onClick={() => setHideSubjectNudge(true)}
+              aria-label="Dismiss"
+            >
+              <span aria-hidden="true">×</span>
+            </Button>
           </div>
         </div>
-        <Button asChild variant="outline" size="sm" className="rounded-full border-white/20 text-xs text-white">
-          <Link href="/subjects">Manage</Link>
-        </Button>
+      ) : null}
+
+      <div className="flex flex-col gap-6">
+        <TopicList
+          id="dashboard-topic-list"
+          items={enrichedTopics}
+          subjects={subjects}
+          onEditTopic={onEditTopic}
+          onCreateTopic={onCreateTopic}
+          timezone={resolvedTimezone}
+          zonedNow={zonedNow}
+        />
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <ProgressCard completionPercent={completionPercent} completed={completedCount} total={totalToday} />
+          <UpcomingScheduleCard upcoming={upcomingHighlights} />
+        </div>
+
+        <TimelinePanel />
       </div>
-      <div className="mt-4 space-y-3">
-        {subjects.length === 0 ? (
-          <p className="text-xs text-zinc-500">Add a subject to start organising your topics.</p>
-        ) : (
-          subjects.map(({ subject, topicCount, daysRemaining, examDate }) => (
-            <div
-              key={subject.id}
-              className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-3 py-3"
-            >
-              <div className="flex items-center gap-3">
-                <span
-                  className="flex h-9 w-9 items-center justify-center rounded-xl"
-                  style={{ backgroundColor: `${subject.color}1f` }}
-                >
-                  <IconPreview name={subject.icon} className="h-4 w-4" />
-                </span>
-                <div>
-                  <p className="text-sm font-semibold text-white">{subject.name}</p>
-                  <p className="text-xs text-zinc-400">{topicCount} topic{topicCount === 1 ? "" : "s"}</p>
-                </div>
-              </div>
-              <div className="text-right text-xs text-zinc-400">
-                {examDate ? (
-                  <>
-                    <p className="text-amber-100">Exam {formatFullDate(examDate.toISOString())}</p>
-                    <p>
-                      {daysRemaining === 0
-                        ? "Exam today"
-                        : `${daysRemaining} day${daysRemaining === 1 ? "" : "s"} left`}
-                    </p>
-                  </>
-                ) : (
-                  <p>No exam date</p>
-                )}
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
+    </section>
   );
 };
 

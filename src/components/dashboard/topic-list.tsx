@@ -8,16 +8,18 @@ import { useTopicStore } from "@/stores/topics";
 import { Subject, Topic } from "@/types/topic";
 import {
   AlertTriangle,
+  ArrowUpDown,
   CalendarClock,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
   Ellipsis,
   Flame,
-  Filter,
+  ListFilter,
   Pencil,
   RefreshCw,
   Search,
+  SlidersHorizontal,
   Sparkles,
   Trash2
 } from "lucide-react";
@@ -111,6 +113,9 @@ export function TopicList({ id, items, subjects, onEditTopic, onCreateTopic, tim
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const [scrollTop, setScrollTop] = React.useState(0);
   const [viewportHeight, setViewportHeight] = React.useState(480);
+  const [densityOpen, setDensityOpen] = React.useState(false);
+  const [subjectOpen, setSubjectOpen] = React.useState(false);
+  const [sortOpen, setSortOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -167,6 +172,17 @@ export function TopicList({ id, items, subjects, onEditTopic, onCreateTopic, tim
     }
     return chips;
   }, [items, subjects]);
+
+  const inlineSubjectLimit = 4;
+  const showInlineSubjects = subjectChips.length <= inlineSubjectLimit;
+  const selectedSubjectCount = subjectFilter.size;
+  const densityLabel = densityOptions.find((option) => option.id === density)?.label ?? "Comfortable";
+  const sortLabels: Record<SortOption, string> = {
+    next: "Next review",
+    title: "Topic name",
+    subject: "Subject",
+    recent: "Recently reviewed"
+  };
 
   const filteredItems = React.useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -297,117 +313,215 @@ export function TopicList({ id, items, subjects, onEditTopic, onCreateTopic, tim
   return (
     <div
       id={id}
-      className="rounded-3xl border border-white/5 bg-slate-900/40 p-5 shadow-lg shadow-slate-900/40"
+      className="rounded-3xl border border-white/5 bg-slate-900/40 p-6 shadow-lg shadow-slate-900/40"
     >
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-1 items-center gap-2 rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-2">
-          <Search className="h-4 w-4 text-zinc-500" />
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search topics…"
-            className="h-10 border-none bg-transparent text-sm text-white placeholder:text-zinc-500 focus-visible:ring-0"
-          />
-        </div>
-        <div className="flex items-center gap-2 text-xs text-zinc-400">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-slate-900/60 px-3 py-1">
-            <Filter className="h-3.5 w-3.5" /> Density
-          </span>
-          <div className="flex items-center gap-1 rounded-full border border-white/10 bg-slate-900/60 p-1">
-            {densityOptions.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => setDensity(option.id)}
-                className={cn(
-                  "rounded-full px-3 py-1 text-[11px] transition",
-                  density === option.id
-                    ? "bg-accent text-slate-950"
-                    : "text-zinc-400 hover:text-white"
-                )}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:gap-4">
+          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-2">
+            <Search className="h-4 w-4 text-zinc-500" />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search topics…"
+              className="h-10 flex-1 border-none bg-transparent text-sm text-white placeholder:text-zinc-500 focus-visible:ring-0"
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400 xl:justify-end">
+            <Popover open={densityOpen} onOpenChange={setDensityOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="inline-flex items-center gap-2 rounded-full border-white/15 bg-slate-900/60 px-3 py-1 text-xs text-zinc-200 hover:border-white/25 hover:text-white"
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5" /> Density
+                  <span className="hidden text-white sm:inline">{densityLabel}</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="end"
+                className="w-52 rounded-2xl border border-white/10 bg-slate-900/95 p-2 text-xs text-zinc-200 shadow-xl"
               >
-                {option.label}
-              </button>
-            ))}
+                <div className="flex flex-col gap-1">
+                  {densityOptions.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => {
+                        setDensity(option.id);
+                        setDensityOpen(false);
+                      }}
+                      className={cn(
+                        "flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left transition",
+                        density === option.id
+                          ? "bg-accent/20 text-white"
+                          : "hover:bg-white/10 hover:text-white"
+                      )}
+                    >
+                      <span>{option.label}</span>
+                      {density === option.id ? <CheckCircle2 className="h-3.5 w-3.5 text-accent" /> : null}
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <div className="hidden h-6 w-px bg-white/10 xl:block" />
+
+            <div className="flex flex-wrap items-center gap-1 rounded-full border border-white/10 bg-slate-900/40 px-1 py-1">
+              {["all", "overdue", "due-today", "upcoming"].map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setStatusFilter(value as StatusFilter)}
+                  className={cn(
+                    "rounded-full px-3 py-1 text-[11px] font-medium transition",
+                    statusFilter === value
+                      ? "bg-accent/30 text-white"
+                      : "text-zinc-400 hover:text-white"
+                  )}
+                >
+                  {value === "all"
+                    ? "All"
+                    : STATUS_LABELS[value as TopicStatus].label}
+                </button>
+              ))}
+            </div>
+
+            {showInlineSubjects ? (
+              <div className="flex flex-wrap items-center gap-2">
+                {subjectChips.map((chip) => (
+                  <button
+                    key={chip.id}
+                    type="button"
+                    onClick={() => handleToggleSubject(chip.id)}
+                    className={cn(
+                      "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] transition",
+                      subjectFilter.has(chip.id)
+                        ? "border-accent/40 bg-accent/20 text-white"
+                        : "border-white/10 bg-transparent text-zinc-300 hover:text-white"
+                    )}
+                  >
+                    <span
+                      className="inline-flex h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: chip.color }}
+                    />
+                    {chip.label}
+                    <span className="text-[10px] text-zinc-500">{chip.count}</span>
+                  </button>
+                ))}
+                {subjectFilter.size > 0 ? (
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 text-[11px] text-zinc-400 hover:text-white"
+                    onClick={() => setSubjectFilter(new Set())}
+                  >
+                    Clear
+                  </button>
+                ) : null}
+              </div>
+            ) : (
+              <Popover open={subjectOpen} onOpenChange={setSubjectOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="inline-flex items-center gap-2 rounded-full border-white/15 bg-slate-900/60 px-3 py-1 text-xs text-zinc-200 hover:border-white/25 hover:text-white"
+                  >
+                    <ListFilter className="h-3.5 w-3.5" />
+                    {selectedSubjectCount > 0 ? `Subjects (${selectedSubjectCount})` : "Subjects filter"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="end"
+                  className="w-60 rounded-2xl border border-white/10 bg-slate-900/95 p-3 text-xs text-zinc-200 shadow-xl"
+                >
+                  <div className="mb-2 text-[11px] uppercase tracking-wide text-zinc-500">Filter by subject</div>
+                  <div className="flex max-h-64 flex-col gap-1 overflow-auto">
+                    {subjectChips.map((chip) => (
+                      <button
+                        key={chip.id}
+                        type="button"
+                        onClick={() => handleToggleSubject(chip.id)}
+                        className={cn(
+                          "flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left transition",
+                          subjectFilter.has(chip.id)
+                            ? "bg-accent/20 text-white"
+                            : "hover:bg-white/10 hover:text-white"
+                        )}
+                      >
+                        <span className="inline-flex items-center gap-2">
+                          <span
+                            className="inline-flex h-2.5 w-2.5 rounded-full"
+                            style={{ backgroundColor: chip.color }}
+                          />
+                          {chip.label}
+                        </span>
+                        <span className="text-[10px] text-zinc-500">{chip.count}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {subjectFilter.size > 0 ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="mt-3 w-full justify-center rounded-full text-[11px] text-zinc-300 hover:text-white"
+                      onClick={() => {
+                        setSubjectFilter(new Set());
+                        setSubjectOpen(false);
+                      }}
+                    >
+                      Clear subject filters
+                    </Button>
+                  ) : null}
+                </PopoverContent>
+              </Popover>
+            )}
+
+            <Popover open={sortOpen} onOpenChange={setSortOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="inline-flex items-center gap-2 rounded-full border-white/15 bg-slate-900/60 px-3 py-1 text-xs text-zinc-200 hover:border-white/25 hover:text-white"
+                >
+                  <ArrowUpDown className="h-3.5 w-3.5" /> Sort by
+                  <span className="hidden text-white sm:inline">{sortLabels[sortOption]}</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="end"
+                className="w-56 rounded-2xl border border-white/10 bg-slate-900/95 p-3 text-xs text-zinc-200 shadow-xl"
+              >
+                <div className="flex flex-col gap-1">
+                  {(Object.keys(sortLabels) as SortOption[]).map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => {
+                        setSortOption(value);
+                        setSortOpen(false);
+                      }}
+                      className={cn(
+                        "flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left transition",
+                        sortOption === value
+                          ? "bg-accent/20 text-white"
+                          : "hover:bg-white/10 hover:text-white"
+                      )}
+                    >
+                      <span>{sortLabels[value]}</span>
+                      {sortOption === value ? <CheckCircle2 className="h-3.5 w-3.5 text-accent" /> : null}
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
-      </div>
-
-      <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-zinc-400">
-        {["all", "overdue", "due-today", "upcoming"].map((value) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => setStatusFilter(value as StatusFilter)}
-            className={cn(
-              "rounded-full border px-3 py-1 transition",
-              statusFilter === value
-                ? "border-accent/40 bg-accent/20 text-white"
-                : "border-white/10 bg-transparent hover:text-white"
-            )}
-          >
-            {value === "all"
-              ? "All"
-              : STATUS_LABELS[value as TopicStatus].label}
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-zinc-400">
-        {subjectChips.map((chip) => (
-          <button
-            key={chip.id}
-            type="button"
-            onClick={() => handleToggleSubject(chip.id)}
-            className={cn(
-              "inline-flex items-center gap-2 rounded-full border px-3 py-1 transition",
-              subjectFilter.has(chip.id)
-                ? "border-accent/40 bg-accent/20 text-white"
-                : "border-white/10 bg-transparent hover:text-white"
-            )}
-          >
-            <span
-              className="inline-flex h-2.5 w-2.5 rounded-full"
-              style={{ backgroundColor: chip.color }}
-            />
-            {chip.label}
-            <span className="text-[10px] text-zinc-400">{chip.count}</span>
-          </button>
-        ))}
-        {subjectFilter.size > 0 ? (
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 rounded-full border border-transparent px-3 py-1 text-xs text-zinc-400 hover:text-white"
-            onClick={() => setSubjectFilter(new Set())}
-          >
-            Clear filters
-          </button>
-        ) : null}
-      </div>
-
-      <div className="mt-4 flex items-center gap-2 text-xs text-zinc-400">
-        <span>Sort by:</span>
-        {["next", "title", "subject", "recent"].map((value) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => setSortOption(value as SortOption)}
-            className={cn(
-              "rounded-full border px-3 py-1 transition",
-              sortOption === value
-                ? "border-accent/40 bg-accent/20 text-white"
-                : "border-white/10 bg-transparent hover:text-white"
-            )}
-          >
-            {value === "next"
-              ? "Next review"
-              : value === "title"
-              ? "Topic name"
-              : value === "subject"
-              ? "Subject"
-              : "Recently reviewed"}
-          </button>
-        ))}
       </div>
 
       <div
