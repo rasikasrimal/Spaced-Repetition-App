@@ -25,8 +25,6 @@ export type TopicPayload = {
   subjectLabel: string;
   categoryId?: string | null;
   categoryLabel?: string;
-  icon?: string | null;
-  color?: string | null;
   reminderTime: string | null;
   intervals: number[];
   examDate?: string | null;
@@ -361,8 +359,8 @@ const migrate = (persisted: PersistedState, from: number): PersistedState => {
           subject = {
             id: subjectId ?? nanoid(),
             name: legacyLabel,
-            color: topic.color ?? "#38bdf8",
-            icon: topic.icon ?? "Sparkles",
+            color: (topic as any).color ?? "#38bdf8",
+            icon: (topic as any).icon ?? "Sparkles",
             examDate: (topic as any).examDate ?? null,
             createdAt: now,
             updatedAt: now
@@ -564,8 +562,6 @@ export const useTopicStore = create<TopicStore>()(
         if (!resolvedSubject && subjectsWrite) {
           resolvedSubject = get().addSubject({
             name: requestedLabel,
-            color: payload.color,
-            icon: payload.icon,
             examDate: payload.examDate ?? null
           });
         }
@@ -637,8 +633,6 @@ export const useTopicStore = create<TopicStore>()(
           subjectLabel: effectiveSubjectLabel,
           categoryId: payload.categoryId ?? effectiveSubjectId,
           categoryLabel: payload.categoryLabel ?? effectiveSubjectLabel,
-          icon: subjectIcon,
-          color: subjectColor,
           reminderTime: payload.reminderTime,
           intervals: payload.intervals,
           intervalIndex,
@@ -669,8 +663,6 @@ export const useTopicStore = create<TopicStore>()(
         if (!resolvedSubject && featureFlags.subjectsWrite) {
           resolvedSubject = get().addSubject({
             name: requestedLabel,
-            color: payload.color,
-            icon: payload.icon,
             examDate: payload.examDate ?? null
           });
         }
@@ -728,8 +720,6 @@ export const useTopicStore = create<TopicStore>()(
               subjectLabel: effectiveSubjectLabel,
               categoryId: payload.categoryId ?? effectiveSubjectId,
               categoryLabel: payload.categoryLabel ?? effectiveSubjectLabel,
-              icon: effectiveIcon,
-              color: effectiveColor,
               reminderTime: payload.reminderTime,
               intervals: payload.intervals,
               startedAt,

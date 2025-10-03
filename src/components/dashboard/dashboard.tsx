@@ -15,6 +15,7 @@ import {
   NO_SUBJECT_KEY
 } from "@/components/dashboard/topic-list";
 import { useZonedNow } from "@/hooks/use-zoned-now";
+import { usePersistedSubjectFilter } from "@/hooks/use-persisted-subject-filter";
 import { CalendarClock, Flame, LucideIcon, Plus, Trophy, Info } from "lucide-react";
 import { formatDateWithWeekday, formatRelativeToNow, getDayKey, isToday, startOfToday } from "@/lib/date";
 import { Subject, Topic } from "@/types/topic";
@@ -25,7 +26,7 @@ interface DashboardProps {
 }
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
-const SUBJECT_FILTER_STORAGE_KEY = "dashboard-subject-filter";
+const STATUS_FILTER_STORAGE_KEY = "dashboard-status-filter";
 const useIsomorphicLayoutEffect =
   typeof window !== "undefined" ? React.useLayoutEffect : React.useEffect;
 
@@ -58,38 +59,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
 
   const [hideSubjectNudge, setHideSubjectNudge] = React.useState(false);
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all");
-  const [subjectFilter, setSubjectFilter] = React.useState<SubjectFilterValue | undefined>(
-    undefined
-  );
+  const { subjectFilter, setSubjectFilter } = usePersistedSubjectFilter();
 
   useIsomorphicLayoutEffect(() => {
     if (typeof window === "undefined") return;
-    const stored = window.localStorage.getItem(SUBJECT_FILTER_STORAGE_KEY);
-    if (!stored) {
-      setSubjectFilter(null);
-      return;
-    }
-    try {
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed) && parsed.every((value) => typeof value === "string")) {
-        setSubjectFilter(parsed.length === 0 ? new Set<string>() : new Set<string>(parsed));
-      } else {
-        setSubjectFilter(null);
-      }
-    } catch {
-      setSubjectFilter(null);
+    const stored = window.sessionStorage.getItem(STATUS_FILTER_STORAGE_KEY);
+    if (!stored) return;
+    if (stored === "all" || stored === "overdue" || stored === "due-today" || stored === "upcoming") {
+      setStatusFilter(stored);
     }
   }, []);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
-    if (typeof subjectFilter === "undefined") return;
-    if (subjectFilter === null) {
-      window.localStorage.removeItem(SUBJECT_FILTER_STORAGE_KEY);
-    } else {
-      window.localStorage.setItem(SUBJECT_FILTER_STORAGE_KEY, JSON.stringify(Array.from(subjectFilter)));
-    }
-  }, [subjectFilter]);
+    window.sessionStorage.setItem(STATUS_FILTER_STORAGE_KEY, statusFilter);
+  }, [statusFilter]);
+
+  const resolvedSubjectFilter = subjectFilter ?? null;
 
   const resolvedSubjectFilter = subjectFilter ?? null;
 
@@ -233,14 +219,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
 
   const handleSubjectFilterChange = React.useCallback((value: SubjectFilterValue) => {
     setSubjectFilter(value === null ? null : new Set<string>(value));
-  }, []);
+  }, [setSubjectFilter]);
 
   const handleStatusFilterChange = React.useCallback((value: StatusFilter) => {
     setStatusFilter(value);
   }, []);
 
   return (
-    <section className="flex flex-col gap-8">
+    <section className="flex flex-col gap-8 lg:gap-10">
       <PersonalizedReviewPlanModule
         dueCount={filteredDueCount}
         upcomingCount={filteredUpcomingCount}
@@ -336,28 +322,50 @@ const ProgressTodayModule = ({
   const safeTotal = total === 0 ? completed : total;
   const safePercent = Number.isFinite(completionPercent) ? Math.max(0, Math.min(100, completionPercent)) : 0;
   const isComplete = safePercent >= 100;
+  const summaryText = `${completed}/${safeTotal} reviews completed • ${safePercent}% complete. Keep up the rhythm — every checkmark keeps your memory sharp.`;
 
   return (
-    <section className="rounded-3xl border border-white/5 bg-slate-900/50 p-6 shadow-lg shadow-slate-900/30">
-      <div className="flex flex-col gap-4">
-        <div className="space-y-2">
-          <h2 className="text-lg font-semibold text-white">Progress today</h2>
-          <p className="text-sm text-zinc-300">
-            {completed}/{safeTotal} reviews completed
-          </p>
-          <p className="text-xs text-zinc-400">Keep up the rhythm — every checkmark keeps your memory sharp.</p>
-        </div>
-        <div className="space-y-3">
-          <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
-            <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${safePercent}%` }} />
+    <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-accent/25 via-accent/20 to-transparent px-6 py-8 text-white shadow-xl shadow-slate-950/30 md:px-8">
+      <div className="absolute inset-y-0 right-0 h-full w-1/2 bg-[radial-gradient(circle_at_top,_rgba(15,23,42,0.35),_transparent_65%)]" aria-hidden="true" />
+      <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+        <div className="space-y-4 md:max-w-xl">
+          <div className="space-y-1">
+            <p className="text-sm font-medium uppercase tracking-wide text-accent-foreground/80">Progress today</p>
+            <h2 className="text-3xl font-semibold">
+              {completed}/{safeTotal} reviews completed
+            </h2>
+            <p className="text-sm text-white/70">{summaryText}</p>
           </div>
-          <div className="flex flex-wrap items-center justify-between text-xs text-zinc-300">
-            <span className="font-semibold text-white">{safePercent}% complete</span>
-            <span className={isComplete ? "text-emerald-300" : "text-sky-300"}>
-              {isComplete ? "Great work! You’ve completed today’s reviews." : "Finish today to extend your streak."}
-            </span>
+          <div className="space-y-3 text-sm text-white/80">
+            <div className="h-2 w-full overflow-hidden rounded-full bg-white/20">
+              <div
+                className="h-full rounded-full bg-white/90 transition-all"
+                style={{ width: `${safePercent}%` }}
+                aria-hidden="true"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-3 font-medium">
+              <span className="rounded-full bg-white/15 px-3 py-1 text-xs uppercase tracking-wide text-white/80">
+                {safePercent}% complete
+              </span>
+              <span className={isComplete ? "text-emerald-200" : "text-sky-100"}>
+                {isComplete
+                  ? "Great work! You’ve completed today’s reviews."
+                  : "Finish today to extend your streak."}
+              </span>
+            </div>
           </div>
         </div>
+        <dl className="grid gap-3 text-sm text-white/80 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2">
+          <div className="rounded-2xl border border-white/15 bg-slate-950/30 px-4 py-3 backdrop-blur">
+            <dt className="text-xs uppercase tracking-wide text-white/50">Completed</dt>
+            <dd className="text-lg font-semibold text-white">{completed}</dd>
+          </div>
+          <div className="rounded-2xl border border-white/15 bg-slate-950/30 px-4 py-3 backdrop-blur">
+            <dt className="text-xs uppercase tracking-wide text-white/50">Remaining</dt>
+            <dd className="text-lg font-semibold text-white">{Math.max(safeTotal - completed, 0)}</dd>
+          </div>
+        </dl>
       </div>
     </section>
   );
@@ -386,26 +394,20 @@ const PersonalizedReviewPlanModule = ({
   const nextDateLabel = nextTopic ? formatDateWithWeekday(nextTopic.nextReviewDate) : null;
 
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-white/5 bg-slate-900/60 p-6 shadow-2xl shadow-slate-900/40 backdrop-blur-xl md:p-8">
-      <div className="absolute inset-y-0 right-0 hidden w-1/2 rounded-l-[3rem] bg-gradient-to-l from-accent/20 to-transparent lg:block" aria-hidden="true" />
-      <div className="relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-5">
+    <section className="rounded-3xl border border-white/10 bg-slate-950/60 px-6 py-6 shadow-lg shadow-slate-950/30 backdrop-blur md:px-8">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-4 lg:flex-1">
           <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full bg-accent/15 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-accent">
+            <span className="inline-flex items-center gap-2 rounded-full bg-accent/20 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-accent">
               Personalized review plan
-            </div>
+            </span>
             <div className="space-y-2">
-              <h2 className="text-2xl font-semibold text-white md:text-3xl">Your next five minutes matter.</h2>
-              {dueCount === 0 ? (
-                <p className="text-sm text-zinc-300">
-                  Great work! You’ve completed today’s reviews. Here’s what’s coming next.
-                </p>
-              ) : (
-                <p className="text-sm text-zinc-300">
-                  You have <span className="font-semibold text-white">{dueCount}</span> topic
-                  {dueCount === 1 ? "" : "s"} ready for review. Finish them to extend your streak.
-                </p>
-              )}
+              <h2 className="text-2xl font-semibold text-white">Your next five minutes matter.</h2>
+              <p className="text-sm text-zinc-300">
+                {dueCount === 0
+                  ? "Great work! You’ve completed today’s reviews. Here’s what’s coming next."
+                  : `You have ${dueCount} topic${dueCount === 1 ? "" : "s"} ready for review. Finish them to extend your streak.`}
+              </p>
               {nextTopic ? (
                 <p className="text-xs text-zinc-400">
                   Next up: <span className="font-semibold text-zinc-100">{nextTopic.title}</span> • {nextRelative} ({nextDateLabel})
@@ -420,29 +422,29 @@ const PersonalizedReviewPlanModule = ({
               {overloadWarning}
             </div>
           ) : null}
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <StatPill label="Due today" value={dueCount} icon={Flame} tone="text-rose-200" />
-            <StatPill label="Upcoming" value={upcomingCount} icon={CalendarClock} tone="text-amber-200" />
-            <StatPill label="Streak" value={`${streak} day${streak === 1 ? "" : "s"}`} icon={Trophy} tone="text-emerald-200" />
-          </div>
         </div>
 
-        <div className="flex flex-col gap-3 lg:items-end lg:pt-2">
-          <Button onClick={onAddTopic} size="lg" className="gap-2 rounded-2xl">
-            <Plus className="h-4 w-4" /> Add topic
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              onSelectDue();
-              onFocusDue();
-            }}
-            disabled={dueCount === 0}
-            className="gap-2 rounded-2xl border-white/25 text-white disabled:opacity-40"
-          >
-            <Flame className="h-4 w-4" /> Due reviews ({dueCount})
-          </Button>
+        <div className="grid flex-1 gap-3 text-white/90 sm:grid-cols-2 lg:grid-cols-[repeat(3,minmax(0,1fr))_auto] lg:gap-4">
+          <StatPill label="Due today" value={dueCount} icon={Flame} tone="text-rose-200" />
+          <StatPill label="Upcoming" value={upcomingCount} icon={CalendarClock} tone="text-amber-200" />
+          <StatPill label="Streak" value={`${streak} day${streak === 1 ? "" : "s"}`} icon={Trophy} tone="text-emerald-200" />
+          <div className="flex min-w-[14rem] flex-col gap-2 rounded-2xl border border-white/10 bg-slate-900/80 p-4">
+            <Button onClick={onAddTopic} size="sm" className="gap-2 rounded-full">
+              <Plus className="h-4 w-4" /> Add topic
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                onSelectDue();
+                onFocusDue();
+              }}
+              disabled={dueCount === 0}
+              className="gap-2 rounded-full border-white/20 text-white disabled:opacity-40"
+            >
+              <Flame className="h-4 w-4" /> Due reviews ({dueCount})
+            </Button>
+          </div>
         </div>
       </div>
     </section>

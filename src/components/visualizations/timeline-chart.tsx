@@ -40,6 +40,7 @@ interface TimelineChartProps {
   showTodayLine?: boolean;
   timeZone?: string;
   onResetDomain?: () => void;
+  ariaDescribedBy?: string;
 }
 
 const PADDING_X = 48;
@@ -72,7 +73,8 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
     examMarkers = [],
     showTodayLine = true,
     timeZone = "UTC",
-    onResetDomain
+    onResetDomain,
+    ariaDescribedBy
   }, ref) => {
     const containerRef = React.useRef<HTMLDivElement | null>(null);
     const svgRef = React.useRef<SVGSVGElement | null>(null);
@@ -603,6 +605,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
           height={height}
           role="img"
           aria-label="Retention timeline"
+          aria-describedby={ariaDescribedBy}
           onWheel={handleWheel}
         >
           <rect

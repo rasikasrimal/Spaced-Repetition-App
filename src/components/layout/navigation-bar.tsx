@@ -50,7 +50,7 @@ export const NavigationBar: React.FC = () => {
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/5 bg-slate-950/80 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-4 md:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-[90rem] items-center justify-between gap-4 px-4 py-4 md:px-6 lg:px-8 xl:px-10">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open navigation">
             <Menu className="h-5 w-5" />
