@@ -1,13 +1,30 @@
 # Spaced Repetition App
 
-A local-first spaced repetition dashboard built with Next.js, Tailwind CSS, and Zustand. Capture learning topics, assign categories, customize review intervals, and keep track of what needs attention each day.
+The Spaced Repetition App is a local-first study companion built with Next.js, Tailwind CSS, and Zustand. It helps learners capture topics, organise them by subject, and keep a personalised review cadence that respects exam cut-offs and daily revise limits.
 
-## Features
+## Quick links
 
-- Topic composer with notes, icon, color, category, reminder time, and flexible intervals
-- Dashboard showing all items due for review today
-- Local persistence using Zustand + `localStorage`
-- Tailwind-based UI using shadcn-inspired primitives and Lucide icons
+- [Architecture](docs/architecture.md)
+- [Runbook](docs/runbook.md)
+- [Test plan](docs/test-plan.md)
+- [Security notes](docs/security.md)
+- [OpenAPI stewardship](docs/openapi.yaml)
+- [UI style audit](docs/ui-style-audit.md)
+
+## What changed recently
+
+- Centralised subject identity management so topics inherit icon and colour directly from their subject badges across dashboard, calendar dots, and exam markers.
+- Refreshed the Reviews page with clearer caught-up messaging, timezone-aware due ordering, and a direct link back to the schedule view.
+- Made timezone selection in Settings the source of truth for local-midnight resets and all relative dates.
+
+## Key concepts
+
+- **Subject** – The canonical home for icon, colour, and optional exam date. Editing a subject updates every topic, calendar dot, and timeline marker instantly.
+- **Topic** – A single study card with notes, reminder preferences, and spaced intervals. Topics inherit identity from their subject and can be reviewed once per local day.
+- **Review** – A logged study event that advances the interval schedule. Early reviews honour the learner’s auto-adjust preference.
+- **Calendar dots** – One dot per subject per day in the calendar view, tinted by subject colour with overflow summarised as `+N`.
+- **Timeline markers** – Dotted vertical exam indicators in the subject’s colour, visible in exports and toggleable from the toolbar.
+- **Revise daily rule** – Each topic can be revised once per local calendar day based on the profile timezone; locked attempts surface “You’ve already revised this today. Available again after midnight.”
 
 ## Getting started
 
@@ -33,7 +50,7 @@ npm run test:visual
 
 ## Deployment
 
-Build a production bundle and start the optimized server:
+Build a production bundle and start the optimised server:
 
 ```bash
 npm run build

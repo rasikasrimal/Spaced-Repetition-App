@@ -1,0 +1,52 @@
+openapi: 3.1.0
+info:
+  title: Spaced Repetition App API Stewardship
+  version: 0.0.0
+  description: |
+    The Spaced Repetition App is currently a local-first experience. This document captures
+    stewardship rules for any future HTTP APIs to ensure consistency with subject/topic/review
+    terminology.
+  contact:
+    name: Maintainers
+    email: dev-team@example.com
+servers: []
+paths: {}
+components: {}
+
+x-guidelines:
+  versioning:
+    policy: >-
+      Use semantic versioning once endpoints exist. Breaking changes require a major version and
+      must be communicated in the change log at least one release in advance.
+  changeLog:
+    expectations: >-
+      Record every endpoint addition, modification, or deprecation with date, author, and rationale.
+      Reference related product milestones and include acceptance criteria for QA.
+  examples:
+    subject: |
+      {
+        "id": "subject-123",
+        "name": "Organic Chemistry",
+        "color": "#38bdf8",
+        "icon": "FlaskConical",
+        "examDate": "2024-09-21T00:00:00.000Z"
+      }
+    topic: |
+      {
+        "id": "topic-456",
+        "title": "SN1 reaction steps",
+        "subjectId": "subject-123",
+        "nextReviewDate": "2024-05-03T09:00:00.000Z"
+      }
+    reviewEvent: |
+      {
+        "id": "review-789",
+        "topicId": "topic-456",
+        "type": "completed",
+        "scheduledFor": "2024-05-03T09:00:00.000Z",
+        "completedAt": "2024-05-03T09:05:00.000Z"
+      }
+  terminology:
+    - Subjects own identity (icon, colour, exam date).
+    - Topics inherit identity and may only be revised once per local calendar day.
+    - Reviews/Review events describe scheduled, revise-now, or completed actions.

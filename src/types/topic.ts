@@ -45,8 +45,6 @@ export type Topic = {
   subjectLabel: string;
   categoryId?: string | null;
   categoryLabel?: string;
-  icon: string;
-  color: string;
   reminderTime: string | null;
   intervals: number[];
   intervalIndex: number;

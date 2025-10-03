@@ -15,6 +15,7 @@ import {
   NO_SUBJECT_KEY
 } from "@/components/dashboard/topic-list";
 import { useZonedNow } from "@/hooks/use-zoned-now";
+import { usePersistedSubjectFilter } from "@/hooks/use-persisted-subject-filter";
 import { CalendarClock, Flame, LucideIcon, Plus, Trophy, Info } from "lucide-react";
 import { formatDateWithWeekday, formatRelativeToNow, getDayKey, isToday, startOfToday } from "@/lib/date";
 import { Subject, Topic } from "@/types/topic";
@@ -25,7 +26,7 @@ interface DashboardProps {
 }
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
-const SUBJECT_FILTER_STORAGE_KEY = "dashboard-subject-filter";
+const STATUS_FILTER_STORAGE_KEY = "dashboard-status-filter";
 const useIsomorphicLayoutEffect =
   typeof window !== "undefined" ? React.useLayoutEffect : React.useEffect;
 
@@ -58,38 +59,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
 
   const [hideSubjectNudge, setHideSubjectNudge] = React.useState(false);
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all");
-  const [subjectFilter, setSubjectFilter] = React.useState<SubjectFilterValue | undefined>(
-    undefined
-  );
+  const { subjectFilter, setSubjectFilter } = usePersistedSubjectFilter();
 
   useIsomorphicLayoutEffect(() => {
     if (typeof window === "undefined") return;
-    const stored = window.localStorage.getItem(SUBJECT_FILTER_STORAGE_KEY);
-    if (!stored) {
-      setSubjectFilter(null);
-      return;
-    }
-    try {
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed) && parsed.every((value) => typeof value === "string")) {
-        setSubjectFilter(parsed.length === 0 ? new Set<string>() : new Set<string>(parsed));
-      } else {
-        setSubjectFilter(null);
-      }
-    } catch {
-      setSubjectFilter(null);
+    const stored = window.sessionStorage.getItem(STATUS_FILTER_STORAGE_KEY);
+    if (!stored) return;
+    if (stored === "all" || stored === "overdue" || stored === "due-today" || stored === "upcoming") {
+      setStatusFilter(stored);
     }
   }, []);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
-    if (typeof subjectFilter === "undefined") return;
-    if (subjectFilter === null) {
-      window.localStorage.removeItem(SUBJECT_FILTER_STORAGE_KEY);
-    } else {
-      window.localStorage.setItem(SUBJECT_FILTER_STORAGE_KEY, JSON.stringify(Array.from(subjectFilter)));
-    }
-  }, [subjectFilter]);
+    window.sessionStorage.setItem(STATUS_FILTER_STORAGE_KEY, statusFilter);
+  }, [statusFilter]);
 
   const resolvedSubjectFilter = subjectFilter ?? null;
 
@@ -233,14 +217,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
 
   const handleSubjectFilterChange = React.useCallback((value: SubjectFilterValue) => {
     setSubjectFilter(value === null ? null : new Set<string>(value));
-  }, []);
+  }, [setSubjectFilter]);
 
   const handleStatusFilterChange = React.useCallback((value: StatusFilter) => {
     setStatusFilter(value);
   }, []);
 
   return (
-    <section className="flex flex-col gap-8">
+    <section className="flex flex-col gap-8 lg:gap-10">
       <PersonalizedReviewPlanModule
         dueCount={filteredDueCount}
         upcomingCount={filteredUpcomingCount}
@@ -336,6 +320,7 @@ const ProgressTodayModule = ({
   const safeTotal = total === 0 ? completed : total;
   const safePercent = Number.isFinite(completionPercent) ? Math.max(0, Math.min(100, completionPercent)) : 0;
   const isComplete = safePercent >= 100;
+  const summaryText = `${completed}/${safeTotal} reviews completed • ${safePercent}% complete. Keep up the rhythm — every checkmark keeps your memory sharp.`;
 
   return (
     <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-accent/25 via-accent/20 to-transparent px-6 py-8 text-white shadow-xl shadow-slate-950/30 md:px-8">
@@ -347,7 +332,7 @@ const ProgressTodayModule = ({
             <h2 className="text-3xl font-semibold">
               {completed}/{safeTotal} reviews completed
             </h2>
-            <p className="text-sm text-white/70">Keep up the rhythm — every checkmark keeps your memory sharp.</p>
+            <p className="text-sm text-white/70">{summaryText}</p>
           </div>
           <div className="space-y-3 text-sm text-white/80">
             <div className="h-2 w-full overflow-hidden rounded-full bg-white/20">

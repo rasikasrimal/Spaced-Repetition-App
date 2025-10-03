@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { QuickRevisionDialog } from "@/components/dashboard/quick-revision-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { IconPreview } from "@/components/icon-preview";
 import { useTopicStore } from "@/stores/topics";
 import { Subject, Topic } from "@/types/topic";
 import {
@@ -60,6 +61,7 @@ type SubjectOption = {
 export const NO_SUBJECT_KEY = "__none";
 
 const SEARCH_STORAGE_KEY = "dashboard-topic-search";
+const SORT_STORAGE_KEY = "dashboard-topic-sort";
 
 const STATUS_META: Record<TopicStatus, { label: string; tone: string; subtle: string; icon: React.ReactNode }> = {
   overdue: {
@@ -139,6 +141,15 @@ export function TopicList({
   }, []);
 
   React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.sessionStorage.getItem(SORT_STORAGE_KEY);
+    if (!stored) return;
+    if (stored === "next" || stored === "title" || stored === "subject" || stored === "recent") {
+      setSortOption(stored);
+    }
+  }, []);
+
+  React.useEffect(() => {
     if (!subjectOpen) {
       setSubjectSearch("");
     }
@@ -157,6 +168,11 @@ export function TopicList({
     if (typeof window === "undefined") return;
     window.sessionStorage.setItem(SEARCH_STORAGE_KEY, searchInput);
   }, [searchInput]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.sessionStorage.setItem(SORT_STORAGE_KEY, sortOption);
+  }, [sortOption]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -321,6 +337,9 @@ export function TopicList({
 
   const [editingId, setEditingId] = React.useState<string | null>(null);
 
+  const totalFilteredCount = filteredItems.length;
+  const totalHiddenCount = items.length - totalFilteredCount;
+
   const handleEdit = React.useCallback(
     (id: string) => {
       setEditingId(id);
@@ -354,18 +373,18 @@ export function TopicList({
   return (
     <div
       id={id}
-      className="rounded-3xl border border-white/5 bg-slate-900/40 p-6 shadow-lg shadow-slate-900/40"
+      className="rounded-[32px] border border-white/5 bg-slate-900/50 p-5 shadow-xl shadow-slate-950/40 backdrop-blur xl:p-8"
     >
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:gap-6">
-          <div role="search" className="w-full xl:flex-1 xl:min-w-0 xl:pr-8">
+      <div className="flex flex-col gap-5 xl:gap-6">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:gap-8">
+          <div role="search" className="w-full xl:flex-1 xl:min-w-0">
             <label htmlFor="dashboard-topic-search" className="sr-only">
               Search topics
             </label>
             <div
               className={cn(
-                "group relative flex h-12 w-full min-w-0 items-center rounded-2xl border border-white/15 bg-slate-950/75 px-4 text-sm text-white shadow-lg shadow-slate-950/40 transition",
-                "hover:border-white/25 hover:shadow-xl hover:shadow-slate-950/60",
+                "group relative flex h-12 w-full min-w-0 items-center rounded-2xl border border-white/10 bg-slate-950/85 px-4 text-base text-white shadow-lg shadow-slate-950/60 transition",
+                "hover:border-white/20 hover:shadow-xl hover:shadow-slate-950/70",
                 searchFocused
                   ? "border-accent ring-2 ring-accent/45 ring-offset-2 ring-offset-slate-950"
                   : "focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/45 focus-within:ring-offset-2 focus-within:ring-offset-slate-950"
@@ -423,9 +442,19 @@ export function TopicList({
                 Active filters: {filterDescriptions}
               </span>
             ) : null}
-            <div className="mt-1 flex items-center justify-between text-xs text-zinc-500">
-              <p>Press / to search</p>
-              <p className="hidden sm:block">Esc clears the field</p>
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500">
+              <p className="flex items-center gap-1">
+                <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] uppercase tracking-wide text-zinc-400">
+                  /
+                </span>
+                to focus search
+              </p>
+              <p className="flex items-center gap-1">
+                <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] uppercase tracking-wide text-zinc-400">
+                  Esc
+                </span>
+                clears
+              </p>
             </div>
           </div>
 
@@ -585,7 +614,23 @@ export function TopicList({
           </div>
         </div>
 
-        <div className="mt-1">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-400" aria-live="polite">
+          <span>
+            Showing {totalFilteredCount} of {items.length} topics
+            {totalHiddenCount > 0 ? ` • ${totalHiddenCount} hidden by filters` : ""}
+          </span>
+          {(searchInput || statusFilter !== "all" || subjectFilter !== null) && totalHiddenCount > 0 ? (
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="rounded-full border border-white/10 px-3 py-1 text-[11px] uppercase tracking-wide text-zinc-300 transition hover:border-white/30 hover:text-white"
+            >
+              Clear filters
+            </button>
+          ) : null}
+        </div>
+
+        <div className="mt-2">
           {items.length === 0 ? (
             <div className="flex h-72 flex-col items-center justify-center gap-4 rounded-3xl border border-white/5 bg-slate-950/40 p-10 text-center">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/20 text-accent">
@@ -627,7 +672,7 @@ export function TopicList({
             </div>
           ) : (
             <div className="overflow-hidden rounded-3xl border border-white/5 bg-slate-950/40">
-              <div className="hidden border-b border-white/5 px-6 py-3 text-xs font-semibold uppercase tracking-wide text-zinc-400 md:grid md:grid-cols-[minmax(0,2.4fr)_minmax(0,1.3fr)_minmax(0,1.2fr)_minmax(0,1fr)_auto]">
+              <div className="hidden border-b border-white/5 px-6 py-3 text-xs font-semibold uppercase tracking-wide text-zinc-400 md:grid md:grid-cols-[minmax(0,2.5fr)_minmax(0,1.2fr)_minmax(0,1.3fr)_minmax(0,1fr)_auto]">
                 <span>Topic</span>
                 <span>Subject</span>
                 <span>Next review</span>
@@ -684,6 +729,7 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
   const revisionTriggerRef = React.useRef<HTMLButtonElement | null>(null);
   const [isLoggingRevision, setIsLoggingRevision] = React.useState(false);
   const [expanded, setExpanded] = React.useState(false);
+  const lockedDescriptionId = React.useId();
 
   const autoAdjustPreference = item.topic.autoAdjustPreference ?? "ask";
 
@@ -847,13 +893,13 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
   return (
     <div className={cn("transition-colors", recentlyRevised ? "bg-emerald-500/10" : "bg-transparent")}
     >
-      <div className="flex flex-col gap-3 px-4 py-4 md:grid md:grid-cols-[minmax(0,2.4fr)_minmax(0,1.3fr)_minmax(0,1.2fr)_minmax(0,1fr)_auto] md:items-center md:gap-4 md:px-6">
+      <div className="flex flex-col gap-3 px-4 py-4 md:grid md:grid-cols-[minmax(0,2.5fr)_minmax(0,1.2fr)_minmax(0,1.3fr)_minmax(0,1fr)_auto] md:items-center md:gap-4 md:px-6">
         <div className="flex flex-col gap-2">
           <div className="flex items-start gap-3">
             <button
               type="button"
               onClick={() => setExpanded((value) => !value)}
-              className="mt-0.5 inline-flex h-7 w-7 flex-none items-center justify-center rounded-full border border-white/10 bg-white/5 text-white transition hover:bg-white/10"
+              className="mt-0.5 inline-flex h-11 w-11 flex-none items-center justify-center rounded-full border border-white/10 bg-white/5 text-white transition hover:bg-white/10"
               aria-expanded={expanded}
               aria-controls={`topic-details-${item.topic.id}`}
               title={expanded ? "Hide details" : "Show details"}
@@ -865,7 +911,7 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
             </button>
             <div className="min-w-0 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-                <p className="truncate text-sm font-semibold text-white" title={item.topic.title}>
+                <p className="truncate text-base font-semibold text-white" title={item.topic.title}>
                   {item.topic.title}
                 </p>
                 {editing ? (
@@ -876,14 +922,13 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400 md:hidden">
                 <span
-                  className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2.5 py-1"
                   style={{ backgroundColor: `${(subject?.color ?? "#64748b")}1f` }}
                 >
-                  <span
-                    className="h-2 w-2 rounded-full"
-                    style={{ backgroundColor: subject?.color ?? "#64748b" }}
-                  />
-                  {subject ? subject.name : "No subject"}
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/15 text-white">
+                    <IconPreview name={subject?.icon ?? "Sparkles"} className="h-3.5 w-3.5" />
+                  </span>
+                  <span>{subject ? subject.name : "No subject"}</span>
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <CalendarClock className="h-3 w-3" aria-hidden="true" /> {nextReviewRelativeLabel}
@@ -901,7 +946,9 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
             className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium"
             style={{ backgroundColor: `${(subject?.color ?? "#64748b")}1f` }}
           >
-            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: subject?.color ?? "#64748b" }} />
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/15 text-white">
+              <IconPreview name={subject?.icon ?? "Sparkles"} className="h-3.5 w-3.5" />
+            </span>
             {subject ? subject.name : "No subject"}
           </span>
         </div>
@@ -915,13 +962,15 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
             {statusMeta.label}
           </span>
         </div>
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center justify-end gap-3">
           <Button
-            size="sm"
+            size="lg"
             onClick={(event) => handleReviseNow(event)}
             disabled={hasUsedReviseToday || isLoggingRevision}
-            className="rounded-full px-4"
+            className="min-w-[6.5rem] rounded-full px-5"
             title={hasUsedReviseToday ? nextAvailabilityMessage : "Log today’s revision"}
+            aria-label={hasUsedReviseToday ? "Revise locked until after midnight" : "Log today’s revision"}
+            aria-describedby={hasUsedReviseToday ? lockedDescriptionId : undefined}
           >
             Revise
           </Button>
@@ -930,7 +979,8 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
             variant="ghost"
             onClick={onEdit}
             title="Edit topic"
-            className="rounded-full text-zinc-300 hover:text-white"
+            aria-label="Edit topic"
+            className="h-11 w-11 rounded-full text-zinc-300 hover:text-white"
           >
             <Pencil className="h-4 w-4" />
           </Button>
@@ -939,8 +989,9 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
               <Button
                 size="icon"
                 variant="ghost"
-                className="rounded-full text-zinc-300 hover:text-white"
+                className="h-11 w-11 rounded-full text-zinc-300 hover:text-white"
                 title="More actions"
+                aria-label="More topic actions"
               >
                 <Ellipsis className="h-4 w-4" />
               </Button>
@@ -967,7 +1018,12 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
         </div>
       </div>
       {hasUsedReviseToday ? (
-        <p className="px-6 text-[11px] text-zinc-500 md:text-right">{nextAvailabilitySubtext}</p>
+        <>
+          <p className="px-6 text-[11px] text-zinc-500 md:text-right">{nextAvailabilitySubtext}</p>
+          <span id={lockedDescriptionId} className="sr-only">
+            {nextAvailabilityMessage}
+          </span>
+        </>
       ) : null}
       {expanded ? (
         <div

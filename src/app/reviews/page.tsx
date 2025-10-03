@@ -3,18 +3,31 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useTopicStore } from "@/stores/topics";
+import { useProfileStore } from "@/stores/profile";
 import { TopicCard } from "@/components/dashboard/topic-card";
 import { Button } from "@/components/ui/button";
 import { Clock } from "lucide-react";
+import { formatRelativeToNow, nowInTimeZone } from "@/lib/date";
 
 export default function ReviewsPage() {
   const router = useRouter();
   const topics = useTopicStore((state) => state.topics);
-  const dueTopics = React.useMemo(
-    () =>
-      topics.filter((topic) => new Date(topic.nextReviewDate).getTime() <= Date.now()),
-    [topics]
-  );
+  const timezone = useProfileStore((state) => state.profile.timezone) || "Asia/Colombo";
+  const [now, setNow] = React.useState(() => nowInTimeZone(timezone));
+
+  React.useEffect(() => {
+    const interval = window.setInterval(() => {
+      setNow(nowInTimeZone(timezone));
+    }, 60_000);
+    return () => window.clearInterval(interval);
+  }, [timezone]);
+
+  const dueTopics = React.useMemo(() => {
+    const reference = now.getTime();
+    return topics
+      .filter((topic) => new Date(topic.nextReviewDate).getTime() <= reference)
+      .sort((a, b) => new Date(a.nextReviewDate).getTime() - new Date(b.nextReviewDate).getTime());
+  }, [now, topics]);
 
   return (
     <section className="space-y-6">
@@ -36,10 +49,20 @@ export default function ReviewsPage() {
           </div>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {dueTopics.map((topic) => (
-            <TopicCard key={topic.id} topic={topic} onEdit={() => router.push(/topics//edit)} />
-          ))}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-300">
+            <span className="font-medium text-white">{dueTopics.length} topic{dueTopics.length === 1 ? "" : "s"} waiting</span>
+            <span className="text-xs text-zinc-400">Next up {formatRelativeToNow(dueTopics[0]!.nextReviewDate)}</span>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {dueTopics.map((topic) => (
+              <TopicCard
+                key={topic.id}
+                topic={topic}
+                onEdit={() => router.push(`/topics/${topic.id}/edit`)}
+              />
+            ))}
+          </div>
         </div>
       )}
     </section>
