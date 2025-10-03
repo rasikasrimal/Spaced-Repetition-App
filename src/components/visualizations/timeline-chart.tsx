@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import * as React from "react";
+import { startOfDayInTimeZone } from "@/lib/date";
 
 export type TimelineSeries = {
   topicId: string;
@@ -37,11 +38,16 @@ interface TimelineChartProps {
   showGrid?: boolean;
   examMarkers?: TimelineExamMarker[];
   showTodayLine?: boolean;
+  timeZone?: string;
+  onResetDomain?: () => void;
 }
 
 const PADDING_X = 48;
 const PADDING_Y = 32;
-const MIN_SPAN_MS = 6 * 60 * 60 * 1000; // 6 hours
+const DAY_MS = 24 * 60 * 60 * 1000;
+const WEEK_MS = 7 * DAY_MS;
+const MIN_SPAN_MS = DAY_MS;
+const TICK_SPACING_PX = 96;
 
 const clampDomain = (domain: [number, number], full?: [number, number]) => {
   if (!full) return domain;
@@ -54,8 +60,6 @@ const clampDomain = (domain: [number, number], full?: [number, number]) => {
   return [start, end];
 };
 
-const formatTimestamp = (value: number) => new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(value);
-const formatExamDate = new Intl.DateTimeFormat("en", { month: "short", day: "numeric", year: "numeric" });
 
 export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>(
   ({
@@ -66,13 +70,58 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
     height = 320,
     showGrid = true,
     examMarkers = [],
-    showTodayLine = true
+    showTodayLine = true,
+    timeZone = "UTC",
+    onResetDomain
   }, ref) => {
     const containerRef = React.useRef<HTMLDivElement | null>(null);
     const svgRef = React.useRef<SVGSVGElement | null>(null);
     React.useImperativeHandle(ref, () => svgRef.current as SVGSVGElement);
 
     const [width, setWidth] = React.useState(960);
+
+    const tooltipDateFormatter = React.useMemo(
+      () =>
+        new Intl.DateTimeFormat("en", {
+          timeZone,
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+          year: "numeric"
+        }),
+      [timeZone]
+    );
+
+    const axisDayFormatter = React.useMemo(
+      () =>
+        new Intl.DateTimeFormat("en", {
+          timeZone,
+          month: "short",
+          day: "numeric"
+        }),
+      [timeZone]
+    );
+
+    const axisMonthFormatter = React.useMemo(
+      () =>
+        new Intl.DateTimeFormat("en", {
+          timeZone,
+          month: "short",
+          year: "numeric"
+        }),
+      [timeZone]
+    );
+
+    const examDateFormatter = React.useMemo(
+      () =>
+        new Intl.DateTimeFormat("en", {
+          timeZone,
+          month: "short",
+          day: "numeric",
+          year: "numeric"
+        }),
+      [timeZone]
+    );
 
     React.useEffect(() => {
       const element = containerRef.current;
@@ -90,6 +139,65 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
     const plotWidth = React.useMemo(() => Math.max(100, width - PADDING_X * 2), [width]);
     const plotHeight = React.useMemo(() => Math.max(100, height - PADDING_Y * 2), [height]);
     const domainSpan = Math.max(MIN_SPAN_MS, xDomain[1] - xDomain[0]);
+
+    const ticks = React.useMemo(() => {
+      if (!Number.isFinite(xDomain[0]) || !Number.isFinite(xDomain[1]) || xDomain[0] >= xDomain[1]) {
+        return [] as { time: number; label: string }[];
+      }
+      const spanMs = xDomain[1] - xDomain[0];
+      const spanDays = spanMs / DAY_MS;
+      const maxTicks = Math.max(4, Math.floor(plotWidth / TICK_SPACING_PX));
+      if (maxTicks <= 0) return [];
+
+      const dailyThreshold = maxTicks * 2;
+      const weeklyThreshold = maxTicks * 7;
+
+      let mode: "day" | "week" | "month";
+      if (spanDays <= dailyThreshold) {
+        mode = "day";
+      } else if (spanDays <= weeklyThreshold) {
+        mode = "week";
+      } else {
+        mode = "month";
+      }
+
+      const results: { time: number; label: string }[] = [];
+      const rangeStart = startOfDayInTimeZone(new Date(xDomain[0]), timeZone).getTime();
+      const end = xDomain[1];
+
+      if (mode === "month") {
+        const cursor = new Date(rangeStart);
+        cursor.setUTCDate(1);
+        if (cursor.getTime() < xDomain[0]) {
+          cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+        }
+        const totalMonths = Math.max(1, Math.ceil(spanDays / 30));
+        const stepMonths = Math.max(1, Math.ceil(totalMonths / maxTicks));
+        while (cursor.getTime() <= end) {
+          results.push({
+            time: cursor.getTime(),
+            label: axisMonthFormatter.format(cursor)
+          });
+          cursor.setUTCMonth(cursor.getUTCMonth() + stepMonths);
+        }
+      } else {
+        const stepMs = mode === "day" ? DAY_MS : WEEK_MS;
+        let cursor = rangeStart;
+        if (cursor < xDomain[0]) {
+          const delta = Math.ceil((xDomain[0] - cursor) / stepMs);
+          cursor += delta * stepMs;
+        }
+        while (cursor <= end) {
+          results.push({
+            time: cursor,
+            label: axisDayFormatter.format(new Date(cursor))
+          });
+          cursor += stepMs;
+        }
+      }
+
+      return results;
+    }, [xDomain, plotWidth, timeZone, axisDayFormatter, axisMonthFormatter]);
 
     const scaleX = React.useCallback(
       (time: number) => PADDING_X + ((time - xDomain[0]) / domainSpan) * plotWidth,
@@ -239,23 +347,30 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
 
     const handleWheel: React.WheelEventHandler<SVGSVGElement> = (event) => {
       if (!onDomainChange) return;
-      event.preventDefault();
-      const { deltaY, offsetX } = event.nativeEvent;
+      const { deltaY, deltaX, offsetX, shiftKey } = event.nativeEvent;
+
+      if (shiftKey) {
+        event.preventDefault();
+        const delta = deltaX !== 0 ? deltaX : deltaY;
+        if (delta === 0) return;
+        const fraction = delta / plotWidth;
+        const deltaMs = fraction * domainSpan;
+        const next: [number, number] = [xDomain[0] + deltaMs, xDomain[1] + deltaMs];
+        onDomainChange(clampDomain(next, fullDomain));
+        return;
+      }
+
       if (offsetX < PADDING_X || offsetX > width - PADDING_X) return;
+      event.preventDefault();
       const zoomIn = deltaY < 0;
       let newSpan = domainSpan * (zoomIn ? 0.85 : 1.15);
       const fullSpan = fullDomain ? Math.max(MIN_SPAN_MS, fullDomain[1] - fullDomain[0]) : Number.POSITIVE_INFINITY;
       newSpan = Math.max(MIN_SPAN_MS, Math.min(newSpan, fullSpan));
       const ratio = Math.min(1, Math.max(0, (offsetX - PADDING_X) / plotWidth));
       const anchorTime = xDomain[0] + domainSpan * ratio;
-      let nextStart = anchorTime - newSpan * ratio;
-      let nextEnd = nextStart + newSpan;
-      if (fullDomain) {
-        const clamped = clampDomain([nextStart, nextEnd], fullDomain);
-        onDomainChange(clamped);
-      } else {
-        onDomainChange([nextStart, nextEnd]);
-      }
+      const nextStart = anchorTime - newSpan * ratio;
+      const nextEnd = nextStart + newSpan;
+      onDomainChange(clampDomain([nextStart, nextEnd], fullDomain));
     };
 
     React.useEffect(() => {
@@ -297,7 +412,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                   height={10}
                   fill={line.color}
                   tabIndex={0}
-                  aria-label={`${line.topicTitle} started ${formatTimestamp(event.t)}`}
+                  aria-label={`${line.topicTitle} started ${tooltipDateFormatter.format(new Date(event.t))}`}
                   onFocus={handleFocus}
                   onBlur={hideTooltip}
                   onMouseEnter={handleFocus}
@@ -308,7 +423,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                   points="0,-6 6,0 0,6 -6,0"
                   fill={line.color}
                   tabIndex={0}
-                  aria-label={`${line.topicTitle} skipped ${formatTimestamp(event.t)}`}
+                  aria-label={`${line.topicTitle} skipped ${tooltipDateFormatter.format(new Date(event.t))}`}
                   onFocus={handleFocus}
                   onBlur={hideTooltip}
                   onMouseEnter={handleFocus}
@@ -319,7 +434,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                   r={5}
                   fill={line.color}
                   tabIndex={0}
-                  aria-label={`${line.topicTitle} reviewed ${formatTimestamp(event.t)}`}
+                  aria-label={`${line.topicTitle} reviewed ${tooltipDateFormatter.format(new Date(event.t))}`}
                   onFocus={handleFocus}
                   onBlur={hideTooltip}
                   onMouseEnter={handleFocus}
@@ -404,7 +519,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
               transform={`translate(${x}, ${labelY})`}
               tabIndex={0}
               role="button"
-              aria-label={`Exam date for ${marker.subjectName}, ${formatExamDate.format(new Date(marker.dateISO))}`}
+          aria-label={`Exam date for ${marker.subjectName}, ${examDateFormatter.format(new Date(marker.dateISO))}`}
               onFocus={handleFocus}
               onBlur={hideMarkerTooltip}
               onMouseEnter={handleFocus}
@@ -503,8 +618,33 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
               handlePointerMovePan(event);
               handlePointerMove(event);
             }}
+            onDoubleClick={() => onResetDomain?.()}
           />
           {gridElements}
+          <g aria-hidden="true">
+            <line
+              x1={PADDING_X}
+              y1={height - PADDING_Y}
+              x2={width - PADDING_X}
+              y2={height - PADDING_Y}
+              className="stroke-white/15"
+            />
+            {ticks.map((tick) => {
+              const x = scaleX(tick.time);
+              return (
+                <g key={tick.time} transform={`translate(${x}, ${height - PADDING_Y})`}>
+                  <line y1={0} y2={6} className="stroke-white/30" />
+                  <text
+                    y={18}
+                    textAnchor="middle"
+                    className="fill-white/60 text-[10px]"
+                  >
+                    {tick.label}
+                  </text>
+                </g>
+              );
+            })}
+          </g>
           {showTodayLine && todayPosition !== null && (
             <g>
               <line
@@ -526,9 +666,6 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
           )}
           {markerGraphics}
           {paths}
-          <text x={width / 2} y={height - 6} className="fill-white/40 text-[11px]">
-            Time
-          </text>
           <text x={12} y={16} className="fill-white/40 text-[11px]">
             Retention
           </text>
@@ -540,11 +677,15 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                   <div className="font-semibold" style={{ color: tooltip.type ? undefined : "inherit" }}>
                     {tooltip.topic}
                   </div>
-                  <div>{formatTimestamp(tooltip.time)}</div>
+                  <div>{tooltipDateFormatter.format(new Date(tooltip.time))}</div>
                   {typeof tooltip.retention !== "undefined" && (
                     <div>Retention: {Math.round(tooltip.retention * 100)}%</div>
                   )}
-                  {tooltip.type && <div>Event: {tooltip.type === "started" ? "Started" : "Reviewed"}</div>}
+                  {tooltip.type && (
+                    <div>
+                      Event: {tooltip.type === "started" ? "Started" : tooltip.type === "skipped" ? "Skipped" : "Reviewed"}
+                    </div>
+                  )}
                   {typeof tooltip.intervalDays !== "undefined" && (
                     <div>Interval: {tooltip.intervalDays} day{tooltip.intervalDays === 1 ? "" : "s"}</div>
                   )}
@@ -569,7 +710,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                           <span className="inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
                           <span className="font-semibold">{item.subjectName}</span>
                         </div>
-                        <div className="text-[11px] text-zinc-300">{formatExamDate.format(new Date(item.dateISO))}</div>
+                        <div className="text-[11px] text-zinc-300">{examDateFormatter.format(new Date(item.dateISO))}</div>
                         <div className="text-[11px] text-zinc-400">{dayLabel}</div>
                       </div>
                     );
