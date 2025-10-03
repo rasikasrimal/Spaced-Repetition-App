@@ -8,6 +8,7 @@ import { QuickRevisionDialog } from "@/components/dashboard/quick-revision-dialo
 import { useTopicStore } from "@/stores/topics";
 import { useProfileStore } from "@/stores/profile";
 import { useZonedNow } from "@/hooks/use-zoned-now";
+import { usePersistedSubjectFilter } from "@/hooks/use-persisted-subject-filter";
 import {
   CalendarDayData,
   CalendarDaySubjectEntry,
@@ -53,12 +54,14 @@ export function CalendarView() {
   const todayKey = React.useMemo(() => getDayKeyInTimeZone(zonedNow, timezone), [zonedNow, timezone]);
 
   const [monthCursor, setMonthCursor] = React.useState(() => startOfMonthInTimeZone(zonedNow, timezone));
-  const [selectedSubjectIds, setSelectedSubjectIds] = React.useState<Set<string> | null>(null);
   const [focusedDayKey, setFocusedDayKey] = React.useState<string>(todayKey);
   const [activeDayKey, setActiveDayKey] = React.useState<string | null>(null);
   const [isFilterOpen, setIsFilterOpen] = React.useState(false);
   const [revisionTopic, setRevisionTopic] = React.useState<Topic | null>(null);
   const [isLoggingRevision, setIsLoggingRevision] = React.useState(false);
+
+  const { subjectFilter, setSubjectFilter } = usePersistedSubjectFilter();
+  const selectedSubjectIds = subjectFilter ?? null;
 
   const revisionTriggerRef = React.useRef<HTMLElement | null>(null);
   const dayButtonRefs = React.useRef<Map<string, HTMLButtonElement>>(new Map());
@@ -82,6 +85,50 @@ export function CalendarView() {
       }),
     [topics, subjects, timezone, monthCursor, selectedSubjectIds, todayKey]
   );
+
+  const subjectOptions = calendarData.subjectOptions;
+  const allVisibleSubjectIds = React.useMemo(
+    () => subjectOptions.map((subject) => subject.id),
+    [subjectOptions]
+  );
+
+  const toggleSubject = React.useCallback(
+    (subjectId: string) => {
+      if (allVisibleSubjectIds.length === 0) {
+        return;
+      }
+      setSubjectFilter((current) => {
+        const base =
+          current === null
+            ? new Set<string>(allVisibleSubjectIds)
+            : new Set<string>(current);
+        if (base.has(subjectId)) {
+          base.delete(subjectId);
+        } else {
+          base.add(subjectId);
+        }
+        if (base.size === 0) {
+          return new Set<string>();
+        }
+        return base.size === allVisibleSubjectIds.length ? null : base;
+      });
+    },
+    [allVisibleSubjectIds, setSubjectFilter]
+  );
+
+  const handleSelectAllSubjects = React.useCallback(() => {
+    setSubjectFilter(null);
+  }, [setSubjectFilter]);
+
+  const handleClearSubjects = React.useCallback(() => {
+    setSubjectFilter(new Set<string>());
+  }, [setSubjectFilter]);
+
+  const subjectFilterLabel = React.useMemo(() => {
+    if (selectedSubjectIds === null) return "Subjects: All";
+    if (selectedSubjectIds.size === 0) return "Subjects: 0 selected";
+    return `Subjects: ${selectedSubjectIds.size} selected`;
+  }, [selectedSubjectIds]);
 
   React.useEffect(() => {
     if (calendarData.days.length === 0) return;
@@ -125,37 +172,6 @@ export function CalendarView() {
       window.requestAnimationFrame(() => todayButton.focus());
     }
   }, [todayKey, timezone, zonedNow]);
-
-  const toggleSubject = React.useCallback((subjectId: string) => {
-    setSelectedSubjectIds((current) => {
-      if (current === null) {
-        const next = new Set<string>();
-        next.add(subjectId);
-        return next;
-      }
-      const next = new Set(current);
-      if (next.has(subjectId)) {
-        next.delete(subjectId);
-      } else {
-        next.add(subjectId);
-      }
-      return next;
-    });
-  }, []);
-
-  const handleSelectAllSubjects = React.useCallback(() => {
-    setSelectedSubjectIds(null);
-  }, []);
-
-  const handleClearSubjects = React.useCallback(() => {
-    setSelectedSubjectIds(new Set());
-  }, []);
-
-  const subjectFilterLabel = React.useMemo(() => {
-    if (selectedSubjectIds === null) return "Subjects: All";
-    if (selectedSubjectIds.size === 0) return "Subjects: 0 selected";
-    return `Subjects: ${selectedSubjectIds.size} selected`;
-  }, [selectedSubjectIds]);
 
   const canReviseTopic = React.useCallback(
     (topic: Topic): RevisionAllowance => {
@@ -346,7 +362,6 @@ export function CalendarView() {
     [timezone]
   );
 
-  const subjectOptions = calendarData.subjectOptions;
   const hasSubjects = subjectOptions.length > 0;
 
   return (

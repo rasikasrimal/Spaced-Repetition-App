@@ -307,6 +307,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   const [hasStudyActivity, setHasStudyActivity] = React.useState(true);
   const [showExamMarkers, setShowExamMarkers] = React.useState(true);
   const svgRef = React.useRef<SVGSVGElement | null>(null);
+  const pointerInstructionId = React.useId();
 
   const domainMeta = React.useMemo(
     () => computeTimelineDomain(topics, subjects, resolvedTimezone),
@@ -624,6 +625,11 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
         Keyboard shortcuts: press plus to zoom in, minus to zoom out, and zero to reset the timeline view.
       </p>
 
+      <p className="sr-only" id={pointerInstructionId}>
+        Drag across the chart to pan. Scroll to zoom in or out. Hold shift while scrolling to pan horizontally.
+        Double-click the chart to reset to the default window.
+      </p>
+
       {isZoomed ? (
         <div className="flex items-center gap-2 text-xs text-amber-100" aria-live="polite">
           <span className="inline-flex items-center gap-2 rounded-full bg-amber-500/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide">
@@ -748,6 +754,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
           examMarkers={showExamMarkers ? examMarkers : []}
           timeZone={resolvedTimezone}
           onResetDomain={handleResetDomain}
+          ariaDescribedBy={`timeline-zoom-shortcuts ${pointerInstructionId}`}
         />
       ) : (
         <div className="flex h-60 items-center justify-center rounded-3xl border border-dashed border-white/10 bg-slate-900/40 text-sm text-zinc-400">

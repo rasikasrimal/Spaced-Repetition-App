@@ -14,6 +14,50 @@ graph TD
 
 Breakpoints keep the toolbar on a single line at ≥1280px, allow one wrap on tablets, and collapse to stacked filters on mobile while search remains first and full-width.
 
+### Dashboard toolbar interactions
+
+```mermaid
+flowchart LR
+  Search[/Search input<br/>sessionStorage key `dashboard-topic-search`/] -- debounce 150ms --> Filter[Apply text filter]
+  Filter --> Persist{Persist UI state}
+  Status[Status chips<br/>sessionStorage key `dashboard-status-filter`] --> Persist
+  Subjects[Subjects menu<br/>localStorage key `dashboard-subject-filter`] --> Persist
+  Sort[Sort popover<br/>sessionStorage key `dashboard-topic-sort`] --> Persist
+  Persist --> TopicList[Topic table rows<br/>Topic • Subject • Next review • Status • Actions]
+  TopicList --> Summary[Results summary<br/>"Showing n of m topics"]
+  Summary --> ClearFilters[Clear filters pill]
+```
+
+Search, filter, and sort preferences now persist between dashboard sessions using sessionStorage/localStorage, preventing layout shifts when navigating away and back.
+
+### Calendar legend & day sheet
+
+```mermaid
+flowchart LR
+  StoredFilter[Subjects dropdown<br/>localStorage key `dashboard-subject-filter`] --> CalendarGrid[Month grid<br/>subject-colored dots]
+  StoredFilter --> DaySheet[Day sheet<br/>grouped by subject]
+  ExamDates[Subject exam dates] --> CalendarGrid
+  CalendarGrid --> Overflow[+N overflow badge<br/>tooltip lists all subjects]
+  CalendarGrid --> Legend[Inline legend chips]
+  DaySheet --> ReviseGate[Revise today only<br/>locks after local midnight]
+```
+
+Calendar and dashboard now share the same persisted subjects filter, so toggling a subject in either view updates the other. Day sheets group topics by subject, exposing revise actions only for the current day and messaging future or locked entries.
+
+### Timeline zoom, pan, and export
+
+```mermaid
+flowchart LR
+  ZoomControls[Zoom buttons ±<br/>scroll / drag interactions] --> Domain[Active timeline domain]
+  ResetButton[Reset button<br/>double-click canvas] --> Domain
+  Domain --> TimelineChart[Timeline chart<br/>date-only axis]
+  Domain --> ExamMarkers[Exam marker toggle<br/>dotted subject lines]
+  TimelineChart --> Exports[Export SVG/PNG<br/>cloned current viewport]
+  TimelineChart --> Screenreaders[SR hints<br/>pan & zoom instructions]
+```
+
+Zoom controls, drag panning, and shift-scroll translate into domain updates that feed the SVG timeline. Reset returns to the full domain, while exports clone the currently rendered SVG so the downloaded chart matches the on-screen viewport.
+
 ## Typography
 - Primary page title (`Stay ahead of your reviews`): `text-3xl font-semibold text-white`
 - Section titles (e.g. `Scheduled Reviews`, empty state heading): `text-2xl`/`text-xl` with `font-semibold text-white`
@@ -35,8 +79,8 @@ Breakpoints keep the toolbar on a single line at ≥1280px, allow one wrap on ta
 ## Buttons & Controls
 - Primary CTA: `Button` default variant (accent fill) with rounded-lg corners
 - Secondary actions: `variant="outline"` (`border-border bg-surface hover:bg-muted`)
-- Ghost/icon actions: `variant="ghost"` with subtle hover fill
-- Form controls: `rounded-lg border border-border bg-card/60 px-3 py-2 text-sm` and accent focus ring
+- Ghost/icon actions: `variant="ghost"` with subtle hover fill; icon buttons on the dashboard use `h-11 w-11` to keep touch targets ≥44px.
+- Form controls: `rounded-lg border border-border bg-card/60 px-3 py-2 text-sm` and accent focus ring; the dashboard search input is elevated with `border-white/10 bg-slate-950/85` and includes quick-key hints.
 
 ## Card & Panel Treatments
 - Containers use `rounded-3xl`, translucent surfaces (`bg-white/5`), soft borders (`border-white/5`), `shadow-lg`–`shadow-2xl`, and `backdrop-blur`
