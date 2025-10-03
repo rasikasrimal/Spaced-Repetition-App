@@ -662,23 +662,14 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
     () => (hasUsedReviseToday ? nextStartOfDayInTimeZone(timezone, zonedNow) : null),
     [hasUsedReviseToday, timezone, zonedNow]
   );
-  const nextAvailabilityDateLabel = React.useMemo(
-    () =>
-      nextAvailability
-        ? formatInTimeZone(nextAvailability, timezone, {
-            weekday: "short",
-            month: "short",
-            day: "numeric"
-          })
-        : null,
-    [nextAvailability, timezone]
-  );
-  const nextAvailabilityMessage = nextAvailabilityDateLabel
-    ? `You’ve already revised this today. Available again after midnight on ${nextAvailabilityDateLabel}.`
-    : "You’ve already revised this today. Available again after midnight.";
-  const nextAvailabilitySubtext = nextAvailabilityDateLabel
-    ? `Available again after midnight on ${nextAvailabilityDateLabel}`
-    : "Available again after midnight";
+  const nextAvailabilityMessage = "You’ve already revised this today. Available again after midnight.";
+  const nextAvailabilitySubtext = nextAvailability
+    ? `Resets after midnight (${formatInTimeZone(nextAvailability, timezone, {
+        month: "short",
+        day: "numeric",
+        timeZoneName: "short"
+      })})`
+    : "Resets after midnight";
 
   const statusMeta = STATUS_META[item.status];
   const intervalsLabel = item.topic.intervals.map((day) => `${day}d`).join(" • ");
@@ -714,7 +705,7 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
         window.setTimeout(() => setRecentlyRevised(false), 1500);
         return true;
       } else if (source === "revise-now") {
-        toast.error("Already used today. Try again after midnight.");
+        toast.error("Already used today. Try again after local midnight.");
       }
       return false;
     }
@@ -728,7 +719,7 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
 
     if (!success) {
       if (source === "revise-now") {
-        toast.error("Already used today. Try again after midnight.");
+        toast.error("Already used today. Try again after local midnight.");
       }
       return false;
     }
@@ -750,9 +741,13 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
   const handleReviseNow = (event: React.MouseEvent<HTMLButtonElement>) => {
     if (hasUsedReviseToday) {
       trackReviseNowBlocked();
-      toast.error("Already used today. Try again after midnight.");
+      toast.error("Already used today. Try again after local midnight.");
       return;
     }
+    setShowDeleteConfirm(false);
+    setShowSkipConfirm(false);
+    setShowAdjustPrompt(false);
+    pendingReviewSource.current = undefined;
     revisionTriggerRef.current = event.currentTarget;
     setShowQuickRevision(true);
   };
