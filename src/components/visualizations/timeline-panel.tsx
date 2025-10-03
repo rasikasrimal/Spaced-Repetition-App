@@ -46,7 +46,11 @@ const ensureVisibilityState = (topics: Topic[], prev: TopicVisibility): TopicVis
   return changed ? next : prev;
 };
 
-const deriveSeries = (topics: Topic[], visibility: TopicVisibility): TimelineSeries[] => {
+const deriveSeries = (
+  topics: Topic[],
+  visibility: TopicVisibility,
+  resolveColor: (topic: Topic) => string
+): TimelineSeries[] => {
   const visibleTopics = topics.filter((topic) => visibility[topic.id] ?? true);
   const segments = buildCurveSegments(visibleTopics);
   const byTopic = new Map<string, TimelineSeries>();
@@ -54,11 +58,12 @@ const deriveSeries = (topics: Topic[], visibility: TopicVisibility): TimelineSer
   for (const segment of segments) {
     const topic = visibleTopics.find((item) => item.id === segment.topicId);
     if (!topic) continue;
+    const seriesColor = resolveColor(topic);
     if (!byTopic.has(segment.topicId)) {
       byTopic.set(segment.topicId, {
         topicId: topic.id,
         topicTitle: topic.title,
-        color: topic.color ?? "#7c3aed",
+        color: seriesColor,
         points: [],
         events: []
       });
@@ -100,7 +105,7 @@ const deriveSeries = (topics: Topic[], visibility: TopicVisibility): TimelineSer
       series.push({
         topicId: topic.id,
         topicTitle: topic.title,
-        color: topic.color ?? "#7c3aed",
+        color: resolveColor(topic),
         points: [
           { t: startedAt, r: 1 },
           { t: Date.now(), r: 0.5 }
@@ -276,6 +281,20 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     return storeSubjects.filter((subject) => subjectFilter.has(subject.id));
   }, [storeSubjects, subjectFilter]);
 
+  const subjectLookup = React.useMemo(() => {
+    const map = new Map<string, Subject>();
+    storeSubjects.forEach((subject) => map.set(subject.id, subject));
+    return map;
+  }, [storeSubjects]);
+
+  const resolveTopicColor = React.useCallback(
+    (topic: Topic) => {
+      const subject = topic.subjectId ? subjectLookup.get(topic.subjectId) : undefined;
+      return subject?.color ?? topic.color ?? "#7c3aed";
+    },
+    [subjectLookup]
+  );
+
   const [visibility, setVisibility] = React.useState<TopicVisibility>({});
   const [categoryFilter, setCategoryFilter] = React.useState<Set<string>>(new Set());
   const [search, setSearch] = React.useState("");
@@ -442,7 +461,10 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     return sorted;
   }, [topics, categoryFilter, search, sortView]);
 
-  const series = React.useMemo(() => deriveSeries(filteredTopics, visibility), [filteredTopics, visibility]);
+  const series = React.useMemo(
+    () => deriveSeries(filteredTopics, visibility, resolveTopicColor),
+    [filteredTopics, visibility, resolveTopicColor]
+  );
 
   const examMarkers = React.useMemo<ExamMarker[]>(() => {
     if (!showExamMarkers) return [];
@@ -766,7 +788,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                     isVisible ? "border-accent/40 bg-accent/10 text-white" : "border-white/10 bg-transparent text-zinc-400 hover:text-white"
                   }`}
                 >
-                  <span className="inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: topic.color ?? "#7c3aed" }} />
+                  <span className="inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: resolveTopicColor(topic) }} />
                   <span className="flex-1 truncate">{topic.title}</span>
                   <span className="text-[10px] text-zinc-400">
                     {formatDateWithWeekday(topic.nextReviewDate)}
@@ -793,7 +815,10 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                 const due = isDueToday(topic.nextReviewDate);
                 return (
                   <div key={topic.id} className="flex items-start gap-3 rounded-2xl border border-white/10 bg-slate-900/60 px-3 py-2">
-                    <span className="mt-1 inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: due ? "#f97316" : topic.color }} />
+                    <span
+                      className="mt-1 inline-flex h-2 w-2 rounded-full"
+                      style={{ backgroundColor: due ? "#f97316" : resolveTopicColor(topic) }}
+                    />
                     <div className="flex-1">
                       <p className="text-sm font-medium text-white">{topic.title}</p>
                       <p className="text-xs text-zinc-400">

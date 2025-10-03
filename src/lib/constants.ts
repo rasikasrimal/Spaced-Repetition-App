@@ -33,3 +33,5 @@ export const REMINDER_TIME_OPTIONS = [
   { value: "custom", label: "Custom time (set below)" },
   { value: "none", label: "No reminder" }
 ] as const;
+
+export const REVISE_LOCKED_MESSAGE = "You’ve already revised this today. Available again after midnight.";
