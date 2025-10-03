@@ -178,3 +178,29 @@ export const addDays = (value: string | Date, amount: number) => {
 };
 
 
+export const startOfMonthInTimeZone = (value: string | Date, timeZone: string) => {
+  const { year, month } = getZonedParts(value, timeZone);
+  return new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
+};
+
+export const addMonthsInTimeZone = (value: string | Date, amount: number, timeZone: string) => {
+  const { year, month } = getZonedParts(value, timeZone);
+  const targetMonthIndex = month - 1 + amount;
+  const targetYear = year + Math.floor(targetMonthIndex / 12);
+  const normalizedMonth = ((targetMonthIndex % 12) + 12) % 12;
+  return new Date(Date.UTC(targetYear, normalizedMonth, 1, 0, 0, 0, 0));
+};
+
+export const endOfMonthInTimeZone = (value: string | Date, timeZone: string) => {
+  const startOfNextMonth = addMonthsInTimeZone(value, 1, timeZone);
+  const previousDay = new Date(startOfNextMonth.getTime() - DAY_IN_MS);
+  return new Date(Date.UTC(previousDay.getUTCFullYear(), previousDay.getUTCMonth(), previousDay.getUTCDate(), 0, 0, 0, 0));
+};
+
+export const formatMonthYearInTimeZone = (value: string | Date, timeZone: string) => {
+  return new Intl.DateTimeFormat("en", {
+    timeZone,
+    month: "long",
+    year: "numeric"
+  }).format(ensureDate(value));
+};

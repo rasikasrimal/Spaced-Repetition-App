@@ -7,6 +7,7 @@ import {
   Menu,
   Bell,
   CalendarCheck2,
+  CalendarDays,
   LayoutDashboard,
   LineChart,
   NotebookPen,
@@ -19,6 +20,7 @@ import { ProfileMenu } from "@/components/layout/profile-menu";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/reviews", label: "Reviews", icon: CalendarCheck2 },
   { href: "/timeline", label: "Timeline", icon: LineChart },
   { href: "/subjects", label: "Subjects", icon: NotebookPen },
