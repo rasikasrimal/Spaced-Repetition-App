@@ -460,7 +460,7 @@ export function TopicList({
                     <button
                       type="button"
                       className="text-xs font-medium text-zinc-300 hover:underline"
-                      onClick={() => onSubjectFilterChange(new Set())}
+                      onClick={() => onSubjectFilterChange(new Set<string>())}
                     >
                       Clear all
                     </button>
