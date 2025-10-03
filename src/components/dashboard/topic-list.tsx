@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { IconPreview } from "@/components/icon-preview";
 import { useTopicStore } from "@/stores/topics";
 import { Subject, Topic } from "@/types/topic";
+import type { RiskScore } from "@/lib/forgetting-curve";
 import {
   AlertTriangle,
   CalendarClock,
@@ -45,6 +46,7 @@ export interface TopicListItem {
   topic: Topic;
   subject: Subject | null;
   status: TopicStatus;
+  risk: RiskScore;
 }
 
 export type StatusFilter = "all" | TopicStatus;
@@ -336,6 +338,9 @@ export function TopicList({
               (new Date(a.topic.lastReviewedAt ?? 0).getTime() || 0);
           case "next":
           default:
+            if (a.risk.score !== b.risk.score) {
+              return b.risk.score - a.risk.score;
+            }
             return new Date(a.topic.nextReviewDate).getTime() - new Date(b.topic.nextReviewDate).getTime();
         }
       });
