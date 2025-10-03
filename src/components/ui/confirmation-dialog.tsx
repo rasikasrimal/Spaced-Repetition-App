@@ -1,9 +1,13 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+const FOCUSABLE_SELECTOR =
+  'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
 export interface ConfirmationDialogProps {
   open: boolean;
@@ -18,6 +22,7 @@ export interface ConfirmationDialogProps {
   onClose: () => void;
   onCancel?: () => void;
   extraActions?: { label: string; action: () => void }[];
+  returnFocusRef?: React.RefObject<HTMLElement | null>;
 }
 
 export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
@@ -32,18 +37,114 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
   onConfirm,
   onClose,
   onCancel,
-  extraActions
+  extraActions,
+  returnFocusRef
 }) => {
-  return (
+  const [isMounted, setIsMounted] = React.useState(false);
+  const overlayRef = React.useRef<HTMLDivElement | null>(null);
+  const panelRef = React.useRef<HTMLDivElement | null>(null);
+  const previouslyFocused = React.useRef<HTMLElement | null>(null);
+  const titleId = React.useId();
+  const descriptionId = React.useId();
+
+  React.useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  React.useEffect(() => {
+    if (!open) return;
+
+    previouslyFocused.current = document.activeElement as HTMLElement | null;
+
+    const body = document.body;
+    const previousOverflow = body.style.overflow;
+    body.style.overflow = "hidden";
+
+    const focusPanel = panelRef.current;
+    if (focusPanel) {
+      const focusable = focusPanel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+      const first = focusable[0];
+      if (first) {
+        window.requestAnimationFrame(() => first.focus({ preventScroll: true }));
+      }
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+      const element = panelRef.current;
+      if (!element) return;
+
+      const focusable = Array.from(
+        element.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
+      ).filter((node) => !node.hasAttribute("disabled"));
+
+      if (focusable.length === 0) {
+        event.preventDefault();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const current = document.activeElement as HTMLElement | null;
+
+      if (!event.shiftKey && current === last) {
+        event.preventDefault();
+        first.focus({ preventScroll: true });
+      } else if (event.shiftKey && current === first) {
+        event.preventDefault();
+        last.focus({ preventScroll: true });
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open, onClose]);
+
+  React.useEffect(() => {
+    if (open) return;
+    const target = returnFocusRef?.current ?? previouslyFocused.current;
+    if (target) {
+      window.requestAnimationFrame(() => target.focus({ preventScroll: true }));
+    }
+  }, [open, returnFocusRef]);
+
+  if (!isMounted) {
+    return null;
+  }
+
+  const dialog = (
     <AnimatePresence>
       {open ? (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur"
+          key="confirmation-dialog"
+          ref={overlayRef}
+          className="fixed inset-0 z-[1100] flex items-center justify-center bg-slate-950/70 backdrop-blur"
+          role="presentation"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          onMouseDown={(event) => {
+            if (event.target === overlayRef.current) {
+              onClose();
+            }
+          }}
         >
           <motion.div
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            aria-describedby={descriptionId}
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
@@ -51,10 +152,14 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
             className="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900/90 p-6 shadow-2xl"
           >
             <div className="flex items-start gap-3">
-              {icon ? <span className="mt-1 rounded-2xl bg-white/10 p-2 text-accent">{icon}</span> : null}
+              {icon ? <span className="mt-1 rounded-2xl bg-white/10 p-2 text-accent" aria-hidden="true">{icon}</span> : null}
               <div className="space-y-2">
-                <h2 className="text-lg font-semibold text-white">{title}</h2>
-                <p className="text-sm text-zinc-300">{description}</p>
+                <h2 id={titleId} className="text-lg font-semibold text-white">
+                  {title}
+                </h2>
+                <p id={descriptionId} className="text-sm text-zinc-300">
+                  {description}
+                </p>
                 {warning ? <p className="text-xs font-semibold text-amber-200">{warning}</p> : null}
               </div>
             </div>
@@ -97,4 +202,6 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
       ) : null}
     </AnimatePresence>
   );
+
+  return createPortal(dialog, document.body);
 };

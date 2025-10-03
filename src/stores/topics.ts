@@ -25,8 +25,8 @@ export type TopicPayload = {
   subjectLabel: string;
   categoryId?: string | null;
   categoryLabel?: string;
-  icon: string;
-  color: string;
+  icon?: string | null;
+  color?: string | null;
   reminderTime: string | null;
   intervals: number[];
   examDate?: string | null;
@@ -76,7 +76,7 @@ type MarkReviewedOptions = {
 
 type TopicStore = TopicStoreState & {
   addSubject: (payload: SubjectCreatePayload) => Subject;
-  addCategory: (category: Omit<LegacyCategory, "id">) => LegacyCategory;
+  addCategory: (category: { label: string; color?: string | null; icon?: string | null }) => LegacyCategory;
   updateSubject: (id: string, payload: SubjectUpdatePayload) => Subject | null;
   deleteSubject: (id: string) => { success: boolean; reason?: string };
   getSubjectSummaries: () => SubjectSummary[];
@@ -443,8 +443,8 @@ export const useTopicStore = create<TopicStore>()(
         }
         const subject = get().addSubject({
           name: trimmed,
-          color: category.color,
-          icon: category.icon,
+          color: category.color ?? undefined,
+          icon: category.icon ?? undefined,
           examDate: null
         });
         return { id: subject.id, label: subject.name, color: subject.color, icon: subject.icon };
@@ -467,14 +467,16 @@ export const useTopicStore = create<TopicStore>()(
           }
         }
         const examDate = payload.examDate ? normalizeExamDate(payload.examDate) : null;
+        const identityColor = payload.color ?? existing.color;
+        const identityIcon = payload.icon ?? existing.icon;
         set((state) => ({
           subjects: state.subjects.map((subject) => {
             if (subject.id !== id) return subject;
             return {
               ...subject,
               name: updatedName ?? subject.name,
-              color: payload.color ?? subject.color,
-              icon: payload.icon ?? subject.icon,
+              color: identityColor ?? subject.color,
+              icon: identityIcon ?? subject.icon,
               examDate: typeof payload.examDate === "undefined" ? subject.examDate : examDate,
               updatedAt: new Date().toISOString()
             };
@@ -484,15 +486,17 @@ export const useTopicStore = create<TopicStore>()(
             return {
               ...category,
               label: updatedName ?? category.label,
-              color: payload.color ?? category.color,
-              icon: payload.icon ?? category.icon
+              color: identityColor ?? category.color,
+              icon: identityIcon ?? category.icon
             };
           }),
           topics: state.topics.map((topic) => {
             if (topic.subjectId !== id) return topic;
             return {
               ...topic,
-              subjectLabel: updatedName ?? topic.subjectLabel
+              subjectLabel: updatedName ?? topic.subjectLabel,
+              icon: identityIcon ?? topic.icon,
+              color: identityColor ?? topic.color
             };
           })
         }));
@@ -588,6 +592,8 @@ export const useTopicStore = create<TopicStore>()(
         }
 
         const subjectExamDate = resolvedSubject?.examDate ?? null;
+        const subjectColor = resolvedSubject?.color ?? payload.color ?? "#38bdf8";
+        const subjectIcon = resolvedSubject?.icon ?? payload.icon ?? "Sparkles";
         const startedOnIso = payload.startedOn ?? createdAt;
         const startedAtDate = new Date(startedOnIso);
         const lastReviewedAtDate = payload.lastReviewedOn ? new Date(payload.lastReviewedOn) : null;
@@ -631,8 +637,8 @@ export const useTopicStore = create<TopicStore>()(
           subjectLabel: effectiveSubjectLabel,
           categoryId: payload.categoryId ?? effectiveSubjectId,
           categoryLabel: payload.categoryLabel ?? effectiveSubjectLabel,
-          icon: payload.icon,
-          color: payload.color,
+          icon: subjectIcon,
+          color: subjectColor,
           reminderTime: payload.reminderTime,
           intervals: payload.intervals,
           intervalIndex,
@@ -668,6 +674,9 @@ export const useTopicStore = create<TopicStore>()(
             examDate: payload.examDate ?? null
           });
         }
+
+        const subjectColor = resolvedSubject?.color ?? payload.color ?? "#38bdf8";
+        const subjectIcon = resolvedSubject?.icon ?? payload.icon ?? "Sparkles";
 
         set((state) => ({
           topics: state.topics.map((topic) => {
@@ -708,6 +717,9 @@ export const useTopicStore = create<TopicStore>()(
             const effectiveSubjectId = effectiveSubject.id ?? topic.subjectId ?? DEFAULT_SUBJECT_ID;
             const effectiveSubjectLabel = effectiveSubject.name ?? requestedLabel;
 
+            const effectiveColor = effectiveSubject.color ?? subjectColor;
+            const effectiveIcon = effectiveSubject.icon ?? subjectIcon;
+
             return {
               ...topic,
               title: payload.title,
@@ -716,8 +728,8 @@ export const useTopicStore = create<TopicStore>()(
               subjectLabel: effectiveSubjectLabel,
               categoryId: payload.categoryId ?? effectiveSubjectId,
               categoryLabel: payload.categoryLabel ?? effectiveSubjectLabel,
-              icon: payload.icon,
-              color: payload.color,
+              icon: effectiveIcon,
+              color: effectiveColor,
               reminderTime: payload.reminderTime,
               intervals: payload.intervals,
               startedAt,
