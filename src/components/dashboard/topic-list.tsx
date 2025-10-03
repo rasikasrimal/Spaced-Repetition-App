@@ -340,20 +340,23 @@ export function TopicList({
     >
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:gap-4">
-          <div role="search" className="xl:flex-1">
+          <div role="search" className="w-full xl:flex-[1.4] xl:min-w-[22rem] xl:pr-6">
             <label htmlFor="dashboard-topic-search" className="sr-only">
               Search topics
             </label>
             <div
               className={cn(
-                "group relative flex h-11 w-full min-w-0 items-center gap-2 rounded-xl border border-white/15 bg-slate-900/70 px-3 text-sm text-white shadow-sm transition",
-                "hover:border-white/25 hover:shadow-lg hover:shadow-slate-950/40",
+                "group relative flex h-12 w-full min-w-0 items-center rounded-2xl border border-white/15 bg-slate-950/75 px-4 text-sm text-white shadow-lg shadow-slate-950/40 transition",
+                "hover:border-white/25 hover:shadow-xl hover:shadow-slate-950/60",
                 searchFocused
-                  ? "border-accent ring-2 ring-accent/50 ring-offset-2 ring-offset-slate-950"
-                  : "focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/50 focus-within:ring-offset-2 focus-within:ring-offset-slate-950"
+                  ? "border-accent ring-2 ring-accent/45 ring-offset-2 ring-offset-slate-950"
+                  : "focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/45 focus-within:ring-offset-2 focus-within:ring-offset-slate-950"
               )}
             >
-              <Search className="h-4 w-4 flex-none text-zinc-400" aria-hidden="true" />
+              <Search
+                className="pointer-events-none absolute left-4 h-5 w-5 flex-none text-zinc-400"
+                aria-hidden="true"
+              />
               <input
                 ref={searchFieldRef}
                 id="dashboard-topic-search"
@@ -373,7 +376,7 @@ export function TopicList({
                   }
                 }}
                 placeholder="Search topics…"
-                className="flex-1 bg-transparent text-sm text-white placeholder:text-zinc-400 focus:outline-none"
+                className="h-full w-full rounded-2xl bg-transparent pl-10 pr-12 text-sm text-white placeholder:text-zinc-400 focus:outline-none"
                 aria-describedby={filterDescriptions ? appliedFiltersDescriptionId : undefined}
                 autoComplete="off"
                 spellCheck={false}
@@ -389,7 +392,7 @@ export function TopicList({
                   handleClearSearch();
                 }}
                 className={cn(
-                  "ml-1 inline-flex h-7 w-7 flex-none items-center justify-center rounded-full text-zinc-400 transition",
+                  "absolute right-3 inline-flex h-7 w-7 flex-none items-center justify-center rounded-full text-zinc-400 transition",
                   "hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950",
                   searchInput ? "opacity-100" : "pointer-events-none opacity-0"
                 )}
@@ -402,7 +405,10 @@ export function TopicList({
                 Active filters: {filterDescriptions}
               </span>
             ) : null}
-            <p className="mt-1 text-xs text-zinc-500">Press / to search</p>
+            <div className="mt-1 flex items-center justify-between text-xs text-zinc-500">
+              <p>Press / to search</p>
+              <p className="hidden sm:block">Esc clears the field</p>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400 xl:flex-nowrap xl:justify-end">
