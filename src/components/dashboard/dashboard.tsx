@@ -26,6 +26,7 @@ interface DashboardProps {
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const SUBJECT_FILTER_STORAGE_KEY = "dashboard-subject-filter";
+const STATUS_FILTER_STORAGE_KEY = "dashboard-status-filter";
 const useIsomorphicLayoutEffect =
   typeof window !== "undefined" ? React.useLayoutEffect : React.useEffect;
 
@@ -64,6 +65,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
 
   useIsomorphicLayoutEffect(() => {
     if (typeof window === "undefined") return;
+    const stored = window.sessionStorage.getItem(STATUS_FILTER_STORAGE_KEY);
+    if (!stored) return;
+    if (stored === "all" || stored === "overdue" || stored === "due-today" || stored === "upcoming") {
+      setStatusFilter(stored);
+    }
+  }, []);
+
+  useIsomorphicLayoutEffect(() => {
+    if (typeof window === "undefined") return;
     const stored = window.localStorage.getItem(SUBJECT_FILTER_STORAGE_KEY);
     if (!stored) {
       setSubjectFilter(null);
@@ -90,6 +100,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
       window.localStorage.setItem(SUBJECT_FILTER_STORAGE_KEY, JSON.stringify(Array.from(subjectFilter)));
     }
   }, [subjectFilter]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.sessionStorage.setItem(STATUS_FILTER_STORAGE_KEY, statusFilter);
+  }, [statusFilter]);
 
   const resolvedSubjectFilter = subjectFilter ?? null;
 
@@ -240,7 +255,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
   }, []);
 
   return (
-    <section className="flex flex-col gap-8">
+    <section className="flex flex-col gap-8 lg:gap-10">
       <PersonalizedReviewPlanModule
         dueCount={filteredDueCount}
         upcomingCount={filteredUpcomingCount}
