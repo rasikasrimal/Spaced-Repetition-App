@@ -1,7 +1,7 @@
 ﻿import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { nanoid } from "nanoid";
-import { addDays, daysBetween } from "@/lib/date";
+import { addDays, daysBetween, getDayKeyInTimeZone } from "@/lib/date";
 import {
   AutoAdjustPreference,
   Subject,
@@ -33,6 +33,7 @@ export type TopicPayload = {
   autoAdjustPreference?: AutoAdjustPreference;
   startedOn?: string | null;
   lastReviewedOn?: string | null;
+  reviseNowLastUsedAt?: string | null;
 };
 
 type SubjectCreatePayload = {
@@ -49,15 +50,28 @@ type SubjectUpdatePayload = {
   icon?: string | null;
 };
 
+type ReviseNowMetrics = {
+  successCount: number;
+  blockedCount: number;
+  totalLeadTimeMs: number;
+  samples: number;
+  lastSuccessAt: string | null;
+  lastBlockedAt: string | null;
+  lastLeadTimeMs: number | null;
+};
+
 type TopicStoreState = {
   topics: Topic[];
   subjects: Subject[];
   categories: LegacyCategory[];
+  reviseNowMetrics: ReviseNowMetrics;
 };
 
 type MarkReviewedOptions = {
   reviewedAt?: string;
   adjustFuture?: boolean;
+  source?: "revise-now";
+  timeZone?: string;
 };
 
 type TopicStore = TopicStoreState & {
@@ -69,9 +83,10 @@ type TopicStore = TopicStoreState & {
   addTopic: (payload: TopicPayload) => void;
   updateTopic: (id: string, payload: TopicPayload) => void;
   deleteTopic: (id: string) => void;
-  markReviewed: (id: string, options?: MarkReviewedOptions) => void;
+  markReviewed: (id: string, options?: MarkReviewedOptions) => boolean;
   skipTopic: (id: string) => void;
   setAutoAdjustPreference: (id: string, preference: AutoAdjustPreference) => void;
+  trackReviseNowBlocked: () => void;
 };
 
 const DEFAULT_SUBJECT_ID = "subject-general";
@@ -95,6 +110,18 @@ const createDefaultSubject = (): Subject => {
     updatedAt: now
   };
 };
+
+const DEFAULT_TIME_ZONE = "Asia/Colombo";
+
+const createDefaultReviseMetrics = (): ReviseNowMetrics => ({
+  successCount: 0,
+  blockedCount: 0,
+  totalLeadTimeMs: 0,
+  samples: 0,
+  lastSuccessAt: null,
+  lastBlockedAt: null,
+  lastLeadTimeMs: null
+});
 
 const normalizeExamDate = (value?: string | null): string | null => {
   if (!value) return null;
@@ -255,7 +282,7 @@ const createReviewedEvent = (
   intervalDays
 });
 
-const VERSION = 5;
+const VERSION = 6;
 type PersistedState = TopicStoreState & { version?: number; categories?: LegacyCategory[] };
 
 const migrate = (persisted: PersistedState, from: number): PersistedState => {
@@ -277,6 +304,21 @@ const migrate = (persisted: PersistedState, from: number): PersistedState => {
 
   if (!persisted.subjects.some((subject) => subject.id === DEFAULT_SUBJECT_ID)) {
     persisted.subjects = [createDefaultSubject(), ...persisted.subjects];
+  }
+
+  if (!persisted.reviseNowMetrics) {
+    persisted.reviseNowMetrics = createDefaultReviseMetrics();
+  } else {
+    persisted.reviseNowMetrics = {
+      ...createDefaultReviseMetrics(),
+      ...persisted.reviseNowMetrics
+    };
+  }
+
+  for (const topic of persisted.topics) {
+    if (typeof (topic as any).reviseNowLastUsedAt === "undefined") {
+      (topic as any).reviseNowLastUsedAt = null;
+    }
   }
 
   if (from < VERSION) {
@@ -353,6 +395,7 @@ export const useTopicStore = create<TopicStore>()(
       topics: [],
       subjects: [createDefaultSubject()],
       categories: [createDefaultCategory()],
+      reviseNowMetrics: createDefaultReviseMetrics(),
       addSubject: (payload) => {
         const name = payload.name.trim();
         if (!name) {
@@ -601,7 +644,8 @@ export const useTopicStore = create<TopicStore>()(
           startedAt: startedAtDate.toISOString(),
           startedOn: startedAtDate.toISOString(),
           events,
-          forgetting: undefined
+          forgetting: undefined,
+          reviseNowLastUsedAt: payload.reviseNowLastUsedAt ?? null
         };
 
         set((state) => ({ topics: [topic, ...state.topics] }));
@@ -682,7 +726,11 @@ export const useTopicStore = create<TopicStore>()(
               lastReviewedOn,
               nextReviewDate,
               events,
-              autoAdjustPreference: payload.autoAdjustPreference ?? topic.autoAdjustPreference ?? "ask"
+              autoAdjustPreference: payload.autoAdjustPreference ?? topic.autoAdjustPreference ?? "ask",
+              reviseNowLastUsedAt:
+                typeof payload.reviseNowLastUsedAt === "undefined"
+                  ? topic.reviseNowLastUsedAt ?? null
+                  : payload.reviseNowLastUsedAt ?? null
             };
           })
         }));
@@ -693,11 +741,27 @@ export const useTopicStore = create<TopicStore>()(
       markReviewed: (id, options) => {
         const state = get();
         const topic = state.topics.find((item) => item.id === id);
-        if (!topic) return;
+        if (!topic) return false;
 
         const now = new Date();
         const reviewedAtIso = options?.reviewedAt ?? now.toISOString();
         const reviewedAt = new Date(reviewedAtIso);
+        const timeZone = options?.timeZone ?? DEFAULT_TIME_ZONE;
+
+        if (options?.source === "revise-now" && topic.reviseNowLastUsedAt) {
+          const lastKey = getDayKeyInTimeZone(topic.reviseNowLastUsedAt, timeZone);
+          const attemptKey = getDayKeyInTimeZone(reviewedAtIso, timeZone);
+          if (lastKey === attemptKey) {
+            set((prev) => ({
+              reviseNowMetrics: {
+                ...prev.reviseNowMetrics,
+                blockedCount: prev.reviseNowMetrics.blockedCount + 1,
+                lastBlockedAt: reviewedAtIso
+              }
+            }));
+            return false;
+          }
+        }
 
         const currentIntervals = topic.intervals.length > 0 ? topic.intervals : [1];
         const nextIndex = Math.min(topic.intervalIndex + 1, currentIntervals.length - 1);
@@ -722,6 +786,8 @@ export const useTopicStore = create<TopicStore>()(
         const subject = findSubjectById(state.subjects, topic.subjectId ?? null);
         const examDate = subject?.examDate ?? null;
 
+        const leadTimeMsRaw = new Date(topic.nextReviewDate).getTime() - reviewedAt.getTime();
+        const leadTimeMs = Math.max(0, leadTimeMsRaw);
         const intervalDays = currentIntervals[Math.min(nextIndex, currentIntervals.length - 1)] ?? 1;
         let nextReviewDate = computeNextReviewDate(
           reviewedAtIso,
@@ -746,10 +812,25 @@ export const useTopicStore = create<TopicStore>()(
               lastReviewedAt: reviewedAtIso,
               lastReviewedOn: reviewedAtIso,
               nextReviewDate,
-              events: appendEvent(item.events, reviewedEvent)
+              events: appendEvent(item.events, reviewedEvent),
+              reviseNowLastUsedAt:
+                options?.source === "revise-now" ? reviewedAtIso : item.reviseNowLastUsedAt ?? null
             };
-          })
+          }),
+          reviseNowMetrics:
+            options?.source === "revise-now"
+              ? {
+                  ...prev.reviseNowMetrics,
+                  successCount: prev.reviseNowMetrics.successCount + 1,
+                  totalLeadTimeMs: prev.reviseNowMetrics.totalLeadTimeMs + leadTimeMs,
+                  samples: prev.reviseNowMetrics.samples + 1,
+                  lastSuccessAt: reviewedAtIso,
+                  lastLeadTimeMs: leadTimeMs
+                }
+              : prev.reviseNowMetrics
         }));
+
+        return true;
       },
       skipTopic: (id) => {
         const state = get();
@@ -783,6 +864,16 @@ export const useTopicStore = create<TopicStore>()(
           topics: state.topics.map((topic) =>
             topic.id === id ? { ...topic, autoAdjustPreference: preference } : topic
           )
+        }));
+      },
+      trackReviseNowBlocked: () => {
+        const timestamp = new Date().toISOString();
+        set((state) => ({
+          reviseNowMetrics: {
+            ...state.reviseNowMetrics,
+            blockedCount: state.reviseNowMetrics.blockedCount + 1,
+            lastBlockedAt: timestamp
+          }
         }));
       }
     }),

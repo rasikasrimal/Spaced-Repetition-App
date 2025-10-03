@@ -19,9 +19,13 @@ import {
   formatDateWithWeekday,
   formatFullDate,
   formatRelativeToNow,
+  formatInTimeZone,
   formatTime,
+  getDayKeyInTimeZone,
   isDueToday,
-  isToday
+  isToday,
+  nextStartOfDayInTimeZone,
+  nowInTimeZone
 } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import { REMINDER_TIME_OPTIONS } from "@/lib/constants";
@@ -57,6 +61,7 @@ const autoAdjustLabels: Record<AutoAdjustPreference, string> = {
 
 export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
   const { markReviewed, deleteTopic, updateTopic, skipTopic, setAutoAdjustPreference, subjects } = useTopicStore(
+
     (state) => ({
       markReviewed: state.markReviewed,
       deleteTopic: state.deleteTopic,
@@ -92,10 +97,75 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
   const progress = Math.round(((clampedIndex + (reviewedToday ? 1 : 0)) / totalIntervals) * 100);
   const examDateLabel = subject?.examDate ? formatFullDate(subject.examDate) : null;
   const autoAdjustPreference = topic.autoAdjustPreference ?? "ask";
+  const [zonedNow, setZonedNow] = React.useState(() => nowInTimeZone(resolvedTimezone));
+  const pendingReviewSource = React.useRef<"revise-now" | undefined>();
+
+  const todayKey = React.useMemo(
+    () => getDayKeyInTimeZone(zonedNow, resolvedTimezone),
+    [zonedNow, resolvedTimezone]
+  );
+  const lastReviseKey = React.useMemo(
+    () =>
+      topic.reviseNowLastUsedAt
+        ? getDayKeyInTimeZone(topic.reviseNowLastUsedAt, resolvedTimezone)
+        : null,
+    [topic.reviseNowLastUsedAt, resolvedTimezone]
+  );
+  const hasUsedReviseToday = !due && lastReviseKey === todayKey;
+  const nextAvailability = React.useMemo(
+    () => (hasUsedReviseToday ? nextStartOfDayInTimeZone(resolvedTimezone, zonedNow) : null),
+    [hasUsedReviseToday, resolvedTimezone, zonedNow]
+  );
+  const nextAvailabilityLabel = React.useMemo(
+    () =>
+      nextAvailability
+        ? formatInTimeZone(nextAvailability, resolvedTimezone, {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit"
+          })
+        : null,
+    [nextAvailability, resolvedTimezone]
+  );
 
   React.useEffect(() => {
     setNotesValue(topic.notes ?? "");
   }, [topic.notes, topic.id]);
+
+  React.useEffect(() => {
+    let timer: number | undefined;
+
+    const syncNow = () => setZonedNow(nowInTimeZone(resolvedTimezone));
+    const scheduleRefresh = () => {
+      const current = nowInTimeZone(resolvedTimezone);
+      const nextMidnight = nextStartOfDayInTimeZone(resolvedTimezone, current);
+      const delay = Math.max(60_000, nextMidnight.getTime() - current.getTime() + 1_000);
+      timer = window.setTimeout(() => {
+        syncNow();
+        scheduleRefresh();
+      }, delay);
+    };
+
+    syncNow();
+    scheduleRefresh();
+
+    const handleVisibility = () => {
+      if (!document.hidden) {
+        syncNow();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      if (typeof timer !== "undefined") {
+        window.clearTimeout(timer);
+      }
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [resolvedTimezone]);
 
   React.useEffect(() => {
     if (!topic.reminderTime) {
@@ -166,7 +236,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
     endSavingState(setIsSavingReminder);
   };
 
-  const handleMarkReviewed = (adjustFuture?: boolean) => {
+  const handleMarkReviewed = (adjustFuture?: boolean, source?: "revise-now") => {
     const nowIso = new Date().toISOString();
     const scheduledTime = new Date(topic.nextReviewDate).getTime();
     const nowTime = Date.now();
@@ -174,17 +244,68 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
 
     if (isEarly && typeof adjustFuture === "undefined") {
       if (autoAdjustPreference === "ask") {
+        pendingReviewSource.current = source;
         setShowAdjustPrompt(true);
         return;
       }
       const shouldAdjust = autoAdjustPreference === "always";
-      markReviewed(topic.id, { reviewedAt: nowIso, adjustFuture: shouldAdjust });
-      toast.success("Review recorded early");
+      const success = markReviewed(topic.id, {
+        reviewedAt: nowIso,
+        adjustFuture: shouldAdjust,
+        source,
+        timeZone: resolvedTimezone
+      });
+      if (success) {
+        toast.success(
+          source === "revise-now" ? "Great job—logged today’s quick revision." : "Review recorded early"
+        );
+      } else if (source === "revise-now") {
+        toast.error("Already used today. Try again after midnight.");
+      }
       return;
     }
 
-    markReviewed(topic.id, { reviewedAt: nowIso, adjustFuture });
-    toast.success("Great job! Schedule updated.");
+    const success = markReviewed(topic.id, {
+      reviewedAt: nowIso,
+      adjustFuture,
+      source,
+      timeZone: resolvedTimezone
+    });
+
+    if (!success) {
+      if (source === "revise-now") {
+        toast.error("Already used today. Try again after midnight.");
+      }
+      return;
+    }
+
+    if (source === "revise-now") {
+      toast.success("Great job—logged today’s quick revision.");
+    } else if (isEarly) {
+      toast.success("Review recorded early");
+    } else {
+      toast.success("Great job! Schedule updated.");
+    }
+  };
+
+  const handleReviseNow = () => {
+    if (hasUsedReviseToday) {
+      trackReviseNowBlocked();
+      toast.error("Already used today. Try again after midnight.");
+      return;
+    }
+
+    try {
+      handleMarkReviewed(undefined, "revise-now");
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not record that revision. Please try again once you're back online.");
+    }
+  };
+
+  const dismissAdjustPrompt = () => {
+    pendingReviewSource.current = undefined;
+    setShowAdjustPrompt(false);
   };
 
   const handleDelete = () => {
@@ -427,11 +548,15 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
           <div className="flex flex-1 flex-wrap gap-2 sm:gap-3">
             <Button
               type="button"
-              className="flex-1 min-w-[180px] gap-2 rounded-2xl bg-gradient-to-r from-accent to-accent/80 text-sm font-semibold"
-              onClick={() => handleMarkReviewed()}
+              className={cn(
+                "flex-1 min-w-[180px] gap-2 rounded-2xl bg-gradient-to-r from-accent to-accent/80 text-sm font-semibold",
+                !due && hasUsedReviseToday ? "cursor-not-allowed opacity-60" : ""
+              )}
+              onClick={() => (due ? handleMarkReviewed() : handleReviseNow())}
+              aria-disabled={!due && hasUsedReviseToday}
             >
               <CheckCircle2 className="h-4 w-4" />
-              {due ? "Mark review complete" : "Review now"}
+              {due ? "Mark review complete" : "Revise now"}
             </Button>
             <Button
               type="button"
@@ -442,6 +567,16 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
               <SkipForward className="h-4 w-4" /> Skip today
             </Button>
           </div>
+          {!due && hasUsedReviseToday ? (
+            <div className="space-y-1 text-right text-xs sm:text-left">
+              <p className="font-medium text-emerald-300">Great job—logged today’s quick revision.</p>
+              {nextAvailabilityLabel ? (
+                <p className="text-zinc-400">
+                  You already revised this topic today. Available again at {nextAvailabilityLabel}.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
           <div className="flex items-center gap-2">
             <Button
               type="button"
@@ -498,12 +633,14 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
         confirmLabel="Adjust schedule"
         cancelLabel="Keep original plan"
         onConfirm={() => {
-          setShowAdjustPrompt(false);
-          handleMarkReviewed(true);
+          const source = pendingReviewSource.current;
+          dismissAdjustPrompt();
+          handleMarkReviewed(true, source);
         }}
         onCancel={() => {
-          setShowAdjustPrompt(false);
-          handleMarkReviewed(false);
+          const source = pendingReviewSource.current;
+          dismissAdjustPrompt();
+          handleMarkReviewed(false, source);
         }}
         icon={<RefreshCw className="h-5 w-5" />}
         extraActions={[
@@ -511,9 +648,10 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
             ? {
                 label: "Always adjust automatically",
                 action: () => {
+                  const source = pendingReviewSource.current;
                   handlePreferenceChange("always");
-                  setShowAdjustPrompt(false);
-                  handleMarkReviewed(true);
+                  dismissAdjustPrompt();
+                  handleMarkReviewed(true, source);
                 }
               }
             : null,
@@ -521,9 +659,10 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
             ? {
                 label: "Never adjust automatically",
                 action: () => {
+                  const source = pendingReviewSource.current;
                   handlePreferenceChange("never");
-                  setShowAdjustPrompt(false);
-                  handleMarkReviewed(false);
+                  dismissAdjustPrompt();
+                  handleMarkReviewed(false, source);
                 }
               }
             : null
