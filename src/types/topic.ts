@@ -59,4 +59,5 @@ export type Topic = {
   startedOn?: string | null;
   events?: TopicEvent[];
   forgetting?: TopicForgettingConfig;
+  reviseNowLastUsedAt?: string | null;
 };

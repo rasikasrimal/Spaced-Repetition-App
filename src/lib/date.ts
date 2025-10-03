@@ -36,9 +36,43 @@ const ensureDate = (value: string | Date) => {
   return date;
 };
 
+const getZonedFormatter = (timeZone: string) =>
+  new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false
+  });
+
+const getZonedParts = (value: string | Date, timeZone: string) => {
+  const date = ensureDate(value);
+  const formatter = getZonedFormatter(timeZone);
+  const parts = formatter.formatToParts(date);
+  const lookup = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value ?? "0");
+  return {
+    year: lookup("year"),
+    month: lookup("month"),
+    day: lookup("day"),
+    hour: lookup("hour"),
+    minute: lookup("minute"),
+    second: lookup("second"),
+    millisecond: date.getMilliseconds()
+  };
+};
+
 const normalizeToStartOfDay = (value: string | Date) => {
   const date = ensureDate(value);
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+};
+
+export const startOfDayInTimeZone = (value: string | Date, timeZone: string) => {
+  const { year, month, day } = getZonedParts(value, timeZone);
+  return new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
 };
 
 const toDayKey = (value: string | Date) => {
@@ -53,6 +87,13 @@ export const formatDate = (value: string) => formatWithFormatter(value, dayMonth
 export const formatDateWithWeekday = (value: string) => formatWithFormatter(value, weekdayFormatter);
 
 export const formatFullDate = (value: string) => formatWithFormatter(value, fullDateFormatter);
+
+export const getDayKeyInTimeZone = (value: string | Date, timeZone: string) => {
+  const zoned = startOfDayInTimeZone(value, timeZone);
+  const month = String(zoned.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(zoned.getUTCDate()).padStart(2, "0");
+  return `${zoned.getUTCFullYear()}-${month}-${day}`;
+};
 
 export const formatRelativeToNow = (value: string) => {
   const date = ensureDate(value);
@@ -104,6 +145,28 @@ export const formatTime = (value: string | null) => {
 };
 
 export const startOfToday = () => normalizeToStartOfDay(new Date());
+
+export const nowInTimeZone = (timeZone: string) => {
+  const { year, month, day, hour, minute, second, millisecond } = getZonedParts(new Date(), timeZone);
+  return new Date(Date.UTC(year, month - 1, day, hour, minute, second, millisecond));
+};
+
+export const nextStartOfDayInTimeZone = (timeZone: string, from?: string | Date) => {
+  const reference = from ? ensureDate(from) : new Date();
+  const start = startOfDayInTimeZone(reference, timeZone);
+  const next = new Date(start.getTime());
+  next.setUTCDate(next.getUTCDate() + 1);
+  return next;
+};
+
+export const formatInTimeZone = (
+  value: string | Date,
+  timeZone: string,
+  options: Intl.DateTimeFormatOptions
+) => {
+  const date = ensureDate(value);
+  return new Intl.DateTimeFormat("en", { timeZone, ...options }).format(date);
+};
 
 export const isPast = (value: string) => ensureDate(value).getTime() < Date.now();
 
