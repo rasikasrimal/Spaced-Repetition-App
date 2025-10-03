@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import { startOfDayInTimeZone } from "@/lib/date";
@@ -29,11 +29,56 @@ type MarkerTooltip = {
   items: { subjectName: string; dateISO: string; daysRemaining: number | null; color: string }[];
 };
 
+type TimelineViewport = {
+  x: [number, number];
+  y: [number, number];
+};
+
+type ViewportChangeSource = "selection" | "wheel" | "pan" | "keyboard" | "touch";
+
+type ViewportChangeOptions = {
+  push?: boolean;
+  replace?: boolean;
+  source?: ViewportChangeSource;
+};
+
+type InteractionMode = "zoom" | "pan";
+
+type KeyboardBand = {
+  start: number;
+  end: number;
+  y?: [number, number];
+};
+
+type SelectionState = {
+  pointerId: number;
+  pointerType: string;
+  origin: { x: number; y: number };
+  current: { x: number; y: number };
+  shift: boolean;
+};
+
+type PanState = {
+  pointerId: number;
+  originClientX: number;
+  startDomain: [number, number];
+};
+
+type PinchState = {
+  initialDistance: number;
+  initialCenter: number;
+  initialDomain: [number, number];
+  initialSpan: number;
+  pushed: boolean;
+};
+
 interface TimelineChartProps {
   series: TimelineSeries[];
   xDomain: [number, number];
-  onDomainChange?: (domain: [number, number]) => void;
+  yDomain: [number, number];
+  onViewportChange?: (viewport: TimelineViewport, options?: ViewportChangeOptions) => void;
   fullDomain?: [number, number];
+  fullYDomain?: [number, number];
   height?: number;
   showGrid?: boolean;
   examMarkers?: TimelineExamMarker[];
@@ -41,6 +86,11 @@ interface TimelineChartProps {
   timeZone?: string;
   onResetDomain?: () => void;
   ariaDescribedBy?: string;
+  interactionMode?: InteractionMode;
+  temporaryPan?: boolean;
+  onRequestStepBack?: () => void;
+  onTooSmallSelection?: () => void;
+  keyboardSelection?: KeyboardBand | null;
 }
 
 const PADDING_X = 48;
@@ -48,39 +98,68 @@ const PADDING_Y = 32;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEK_MS = 7 * DAY_MS;
 const MIN_SPAN_MS = DAY_MS;
+const MIN_Y_SPAN = 0.05;
 const TICK_SPACING_PX = 96;
+const MIN_DRAG_PX = 10;
 
-const clampDomain = (domain: [number, number], full?: [number, number]) => {
-  if (!full) return domain;
-  const span = domain[1] - domain[0];
-  const min = full[0];
-  const max = full[1];
-  if (span >= max - min) return [min, max];
-  const start = Math.max(min, Math.min(domain[0], max - span));
-  const end = Math.min(max, start + span);
+const clampValue = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+
+const clampRange = (range: [number, number], bounds: [number, number] | undefined, minSpan: number) => {
+  if (!bounds) return range;
+  const [requestedStart, requestedEnd] = range;
+  const [boundStart, boundEnd] = bounds;
+  const availableSpan = Math.max(minSpan, boundEnd - boundStart);
+  const requestedSpan = clampValue(requestedEnd - requestedStart, minSpan, availableSpan);
+  let start = clampValue(requestedStart, boundStart, boundEnd - requestedSpan);
+  let end = start + requestedSpan;
+  if (end > boundEnd) {
+    end = boundEnd;
+    start = end - requestedSpan;
+  }
+  if (start < boundStart) {
+    start = boundStart;
+    end = start + requestedSpan;
+  }
   return [start, end];
 };
 
-
+const ensureSpan = (range: [number, number], minSpan: number) => {
+  const span = range[1] - range[0];
+  if (span >= minSpan) return range;
+  const center = (range[0] + range[1]) / 2;
+  const half = minSpan / 2;
+  return [center - half, center + half];
+};
 export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>(
-  ({
-    series,
-    xDomain,
-    onDomainChange,
-    fullDomain,
-    height = 320,
-    showGrid = true,
-    examMarkers = [],
-    showTodayLine = true,
-    timeZone = "UTC",
-    onResetDomain,
-    ariaDescribedBy
-  }, ref) => {
+  (
+    {
+      series,
+      xDomain,
+      yDomain,
+      onViewportChange,
+      fullDomain,
+      fullYDomain,
+      height = 320,
+      showGrid = true,
+      examMarkers = [],
+      showTodayLine = true,
+      timeZone = "UTC",
+      onResetDomain,
+      ariaDescribedBy,
+      interactionMode = "zoom",
+      temporaryPan = false,
+      onRequestStepBack,
+      onTooSmallSelection,
+      keyboardSelection
+    },
+    ref
+  ) => {
     const containerRef = React.useRef<HTMLDivElement | null>(null);
     const svgRef = React.useRef<SVGSVGElement | null>(null);
     React.useImperativeHandle(ref, () => svgRef.current as SVGSVGElement);
 
     const [width, setWidth] = React.useState(960);
+    const [isPanning, setIsPanning] = React.useState(false);
 
     const tooltipDateFormatter = React.useMemo(
       () =>
@@ -140,7 +219,60 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
 
     const plotWidth = React.useMemo(() => Math.max(100, width - PADDING_X * 2), [width]);
     const plotHeight = React.useMemo(() => Math.max(100, height - PADDING_Y * 2), [height]);
-    const domainSpan = Math.max(MIN_SPAN_MS, xDomain[1] - xDomain[0]);
+    const domainSpan = React.useMemo(() => Math.max(MIN_SPAN_MS, xDomain[1] - xDomain[0]), [xDomain]);
+    const ySpan = React.useMemo(() => Math.max(MIN_Y_SPAN, yDomain[1] - yDomain[0]), [yDomain]);
+
+    const scaleX = React.useCallback(
+      (time: number) => {
+        const ratio = (time - xDomain[0]) / domainSpan;
+        return PADDING_X + clampValue(ratio, 0, 1) * plotWidth;
+      },
+      [xDomain, domainSpan, plotWidth]
+    );
+
+    const unscaleX = React.useCallback(
+      (pixel: number) => {
+        const clamped = clampValue(pixel, PADDING_X, width - PADDING_X);
+        const ratio = (clamped - PADDING_X) / plotWidth;
+        return xDomain[0] + ratio * domainSpan;
+      },
+      [xDomain, domainSpan, plotWidth, width]
+    );
+
+    const scaleY = React.useCallback(
+      (value: number) => {
+        const ratio = (value - yDomain[0]) / ySpan;
+        const clamped = clampValue(ratio, 0, 1);
+        return PADDING_Y + (1 - clamped) * plotHeight;
+      },
+      [yDomain, ySpan, plotHeight]
+    );
+
+    const unscaleY = React.useCallback(
+      (pixel: number) => {
+        const clamped = clampValue(pixel, PADDING_Y, height - PADDING_Y);
+        const ratio = 1 - (clamped - PADDING_Y) / plotHeight;
+        return yDomain[0] + clampValue(ratio, 0, 1) * ySpan;
+      },
+      [yDomain, ySpan, plotHeight, height]
+    );
+
+    const todayPosition = React.useMemo(() => {
+      const now = Date.now();
+      if (now < xDomain[0] || now > xDomain[1]) return null;
+      return scaleX(now);
+    }, [scaleX, xDomain]);
+
+    const yTicks = React.useMemo(() => {
+      const steps = 4;
+      const ticks: { value: number; label: string; pixel: number }[] = [];
+      for (let index = 0; index <= steps; index += 1) {
+        const ratio = index / steps;
+        const value = yDomain[0] + ratio * ySpan;
+        ticks.push({ value, label: `${Math.round(value * 100)}%`, pixel: scaleY(value) });
+      }
+      return ticks;
+    }, [yDomain, ySpan, scaleY]);
 
     const ticks = React.useMemo(() => {
       if (!Number.isFinite(xDomain[0]) || !Number.isFinite(xDomain[1]) || xDomain[0] >= xDomain[1]) {
@@ -201,45 +333,6 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       return results;
     }, [xDomain, plotWidth, timeZone, axisDayFormatter, axisMonthFormatter]);
 
-    const scaleX = React.useCallback(
-      (time: number) => PADDING_X + ((time - xDomain[0]) / domainSpan) * plotWidth,
-      [xDomain, domainSpan, plotWidth]
-    );
-
-    const scaleY = React.useCallback(
-      (retention: number) => PADDING_Y + (1 - retention) * plotHeight,
-      [plotHeight]
-    );
-
-    const todayPosition = React.useMemo(() => {
-      const now = Date.now();
-      if (now < xDomain[0] || now > xDomain[1]) return null;
-      return scaleX(now);
-    }, [scaleX, xDomain]);
-
-    const gridElements = showGrid ? (
-      <g className="stroke-white/10">
-        {[0, 0.5, 1].map((ratio) => (
-          <g key={ratio}>
-            <line
-              x1={PADDING_X}
-              y1={scaleY(ratio)}
-              x2={width - PADDING_X}
-              y2={scaleY(ratio)}
-              className="stroke-white/10"
-            />
-            <text
-              x={12}
-              y={scaleY(ratio) + 4}
-              className="fill-white/50 text-[10px]"
-            >
-              {Math.round(ratio * 100)}%
-            </text>
-          </g>
-        ))}
-      </g>
-    ) : null;
-
     const [tooltip, setTooltip] = React.useState<
       | null
       | {
@@ -255,11 +348,13 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
     >(null);
     const [markerTooltip, setMarkerTooltip] = React.useState<MarkerTooltip | null>(null);
 
-    const hideTooltip = () => setTooltip(null);
-    const hideMarkerTooltip = () => setMarkerTooltip(null);
+    const tooltipsSuspendedRef = React.useRef(false);
+
+    const hideTooltip = React.useCallback(() => setTooltip(null), []);
+    const hideMarkerTooltip = React.useCallback(() => setMarkerTooltip(null), []);
 
     const handlePointerMove: React.PointerEventHandler<SVGRectElement> = (event) => {
-      if (isPanningRef.current) {
+      if (tooltipsSuspendedRef.current) {
         hideTooltip();
         hideMarkerTooltip();
         return;
@@ -270,7 +365,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
         hideMarkerTooltip();
         return;
       }
-      const ratio = Math.min(1, Math.max(0, (offsetX - PADDING_X) / plotWidth));
+      const ratio = clampValue((offsetX - PADDING_X) / plotWidth, 0, 1);
       const time = xDomain[0] + ratio * domainSpan;
       let best:
         | null
@@ -312,43 +407,321 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       }
     };
 
-    const isPanningRef = React.useRef(false);
-    const panStartRef = React.useRef<{ x: number; domain: [number, number] } | null>(null);
+    const selectionRef = React.useRef<SelectionState | null>(null);
+    const [selectionRect, setSelectionRect] = React.useState<SelectionState | null>(null);
+    const [selectionLabel, setSelectionLabel] = React.useState<{ primary: string; secondary?: string } | null>(null);
+
+    const panStateRef = React.useRef<PanState | null>(null);
+
+    const activeTouchesRef = React.useRef<Map<number, { x: number; y: number }>>(new Map());
+    const pinchStateRef = React.useRef<PinchState | null>(null);
+
+    const wheelActiveRef = React.useRef(false);
+    const wheelTimeoutRef = React.useRef<number | null>(null);
+
+    const clearWheelSession = React.useCallback(() => {
+      if (wheelTimeoutRef.current) {
+        window.clearTimeout(wheelTimeoutRef.current);
+        wheelTimeoutRef.current = null;
+      }
+      wheelActiveRef.current = false;
+    }, []);
+
+    const commitViewportChange = React.useCallback(
+      (viewport: TimelineViewport, options: ViewportChangeOptions) => {
+        if (!onViewportChange) return;
+        onViewportChange(viewport, options);
+      },
+      [onViewportChange]
+    );
+
+    const cancelSelection = React.useCallback(() => {
+      selectionRef.current = null;
+      setSelectionRect(null);
+      setSelectionLabel(null);
+      tooltipsSuspendedRef.current = false;
+    }, []);
+
+    const updateSelectionVisual = React.useCallback(
+      (state: SelectionState | null) => {
+        if (!state) {
+          setSelectionRect(null);
+          setSelectionLabel(null);
+          return;
+        }
+        const x0 = clampValue(state.origin.x, PADDING_X, width - PADDING_X);
+        const y0 = clampValue(state.origin.y, PADDING_Y, height - PADDING_Y);
+        const x1 = clampValue(state.current.x, PADDING_X, width - PADDING_X);
+        const y1 = clampValue(state.current.y, PADDING_Y, height - PADDING_Y);
+        const rect: SelectionState = {
+          ...state,
+          origin: { x: x0, y: y0 },
+          current: { x: x1, y: y1 }
+        };
+        setSelectionRect(rect);
+
+        const minX = Math.min(x0, x1);
+        const maxX = Math.max(x0, x1);
+        const minY = Math.min(y0, y1);
+        const maxY = Math.max(y0, y1);
+        const startTime = unscaleX(minX);
+        const endTime = unscaleX(maxX);
+        const primary = `${axisDayFormatter.format(new Date(startTime))} ? ${axisDayFormatter.format(new Date(endTime))}`;
+
+        if (rect.shift) {
+          const topValue = unscaleY(minY);
+          const bottomValue = unscaleY(maxY);
+          const secondary = `${Math.round(bottomValue * 100)}% ? ${Math.round(topValue * 100)}% retention`;
+          setSelectionLabel({ primary, secondary });
+        } else {
+          setSelectionLabel({ primary });
+        }
+      },
+      [axisDayFormatter, height, unscaleX, unscaleY, width]
+    );
+
+    const finalizeSelection = React.useCallback(
+      (state: SelectionState | null) => {
+        if (!state) {
+          cancelSelection();
+          return;
+        }
+        const x0 = clampValue(state.origin.x, PADDING_X, width - PADDING_X);
+        const x1 = clampValue(state.current.x, PADDING_X, width - PADDING_X);
+        const spanPx = Math.abs(x1 - x0);
+        if (spanPx < MIN_DRAG_PX) {
+          cancelSelection();
+          return;
+        }
+        const startTime = unscaleX(Math.min(x0, x1));
+        const endTime = unscaleX(Math.max(x0, x1));
+        const span = endTime - startTime;
+        if (span < MIN_SPAN_MS) {
+          onTooSmallSelection?.();
+          cancelSelection();
+          return;
+        }
+        let nextY: [number, number];
+        if (state.shift) {
+          const y0 = clampValue(state.origin.y, PADDING_Y, height - PADDING_Y);
+          const y1 = clampValue(state.current.y, PADDING_Y, height - PADDING_Y);
+          const topValue = unscaleY(Math.min(y0, y1));
+          const bottomValue = unscaleY(Math.max(y0, y1));
+          const ensured = ensureSpan([topValue, bottomValue], MIN_Y_SPAN);
+          nextY = clampRange(ensured, fullYDomain, MIN_Y_SPAN);
+        } else {
+          nextY = yDomain;
+        }
+        const ensuredX = ensureSpan([startTime, endTime], MIN_SPAN_MS);
+        const nextX = clampRange(ensuredX, fullDomain, MIN_SPAN_MS);
+        commitViewportChange({ x: nextX, y: nextY }, { push: true, source: "selection" });
+        cancelSelection();
+      },
+      [cancelSelection, commitViewportChange, fullDomain, fullYDomain, height, onTooSmallSelection, unscaleX, unscaleY, width, yDomain]
+    );
+
+    React.useEffect(() => {
+      const handleKeydown = (event: KeyboardEvent) => {
+        if (event.key === "Escape" && selectionRef.current) {
+          event.preventDefault();
+          cancelSelection();
+        }
+      };
+      window.addEventListener("keydown", handleKeydown);
+      return () => window.removeEventListener("keydown", handleKeydown);
+    }, [cancelSelection]);
+
+    const beginPan = React.useCallback(
+      (event: React.PointerEvent<SVGRectElement>) => {
+        panStateRef.current = {
+          pointerId: event.pointerId,
+          originClientX: event.clientX,
+          startDomain: xDomain
+        };
+        tooltipsSuspendedRef.current = true;
+        setIsPanning(true);
+        hideTooltip();
+        hideMarkerTooltip();
+      },
+      [hideMarkerTooltip, hideTooltip, xDomain]
+    );
+
+    const updatePan = React.useCallback(
+      (event: React.PointerEvent<SVGRectElement>) => {
+        if (!panStateRef.current || !onViewportChange) return;
+        const deltaPx = event.clientX - panStateRef.current.originClientX;
+        const fraction = deltaPx / plotWidth;
+        const deltaMs = fraction * domainSpan;
+        const next: [number, number] = [
+          panStateRef.current.startDomain[0] - deltaMs,
+          panStateRef.current.startDomain[1] - deltaMs
+        ];
+        const clamped = clampRange(next, fullDomain, MIN_SPAN_MS);
+        commitViewportChange({ x: clamped, y: yDomain }, { replace: true, source: "pan" });
+      },
+      [commitViewportChange, domainSpan, fullDomain, onViewportChange, plotWidth, yDomain]
+    );
+
+    const endPan = React.useCallback(
+      () => {
+        panStateRef.current = null;
+        setIsPanning(false);
+        tooltipsSuspendedRef.current = false;
+      },
+      []
+    );
+
+    const shouldPan = React.useCallback(
+      (event: React.PointerEvent<SVGRectElement>) => {
+        if (temporaryPan) return true;
+        if (interactionMode === "pan") return true;
+        if (event.pointerType === "touch" && activeTouchesRef.current.size >= 2) return true;
+        if (event.button === 1) return true;
+        return false;
+      },
+      [interactionMode, temporaryPan]
+    );
 
     const handlePointerDown: React.PointerEventHandler<SVGRectElement> = (event) => {
-      isPanningRef.current = true;
-      panStartRef.current = { x: event.clientX, domain: xDomain };
+      if (event.button === 2) {
+        event.preventDefault();
+        onRequestStepBack?.();
+        return;
+      }
+
       (event.target as Element).setPointerCapture(event.pointerId);
-      hideMarkerTooltip();
-    };
 
-    const handlePointerUp: React.PointerEventHandler<SVGRectElement> = (event) => {
-      isPanningRef.current = false;
-      panStartRef.current = null;
-      (event.target as Element).releasePointerCapture(event.pointerId);
-    };
-
-    const handlePointerLeave: React.PointerEventHandler<SVGRectElement> = () => {
-      isPanningRef.current = false;
-      panStartRef.current = null;
+      tooltipsSuspendedRef.current = true;
       hideTooltip();
       hideMarkerTooltip();
+
+      if (event.pointerType === "touch") {
+        activeTouchesRef.current.set(event.pointerId, {
+          x: event.nativeEvent.offsetX,
+          y: event.nativeEvent.offsetY
+        });
+      }
+
+      if (shouldPan(event)) {
+        beginPan(event);
+        return;
+      }
+
+      const state: SelectionState = {
+        pointerId: event.pointerId,
+        pointerType: event.pointerType,
+        origin: { x: event.nativeEvent.offsetX, y: event.nativeEvent.offsetY },
+        current: { x: event.nativeEvent.offsetX, y: event.nativeEvent.offsetY },
+        shift: event.shiftKey
+      };
+      selectionRef.current = state;
+      updateSelectionVisual(state);
     };
 
     const handlePointerMovePan: React.PointerEventHandler<SVGRectElement> = (event) => {
-      if (!isPanningRef.current || !panStartRef.current || !onDomainChange) return;
-      const deltaPx = event.clientX - panStartRef.current.x;
-      const fraction = deltaPx / plotWidth;
-      const deltaMs = fraction * domainSpan;
-      const next: [number, number] = [
-        panStartRef.current.domain[0] - deltaMs,
-        panStartRef.current.domain[1] - deltaMs
-      ];
-      onDomainChange(clampDomain(next, fullDomain));
+      if (event.pointerType === "touch") {
+        if (activeTouchesRef.current.has(event.pointerId)) {
+          activeTouchesRef.current.set(event.pointerId, {
+            x: event.nativeEvent.offsetX,
+            y: event.nativeEvent.offsetY
+          });
+        }
+        if (activeTouchesRef.current.size >= 2) {
+          event.preventDefault();
+          const touches = Array.from(activeTouchesRef.current.values());
+          const [first, second] = touches;
+          const distance = Math.abs(second.x - first.x);
+          const center = (second.x + first.x) / 2;
+          if (!pinchStateRef.current) {
+            pinchStateRef.current = {
+              initialDistance: Math.max(1, distance),
+              initialCenter: center,
+              initialDomain: xDomain,
+              initialSpan: domainSpan,
+              pushed: false
+            };
+            tooltipsSuspendedRef.current = true;
+            hideTooltip();
+            hideMarkerTooltip();
+          } else {
+            const session = pinchStateRef.current;
+            const ratio = clampValue(distance / session.initialDistance, 0.25, 4);
+            const newSpan = Math.max(MIN_SPAN_MS, session.initialSpan * ratio);
+            const centerRatio = clampValue((session.initialCenter - PADDING_X) / plotWidth, 0, 1);
+            const initialCenterValue = session.initialDomain[0] + centerRatio * session.initialSpan;
+            const centerDeltaPx = center - session.initialCenter;
+            const centerShift = (centerDeltaPx / plotWidth) * session.initialSpan;
+            let nextCenter = initialCenterValue + centerShift;
+            let nextStart = nextCenter - newSpan / 2;
+            let nextEnd = nextCenter + newSpan / 2;
+            const clamped = clampRange([nextStart, nextEnd], fullDomain, MIN_SPAN_MS);
+            nextStart = clamped[0];
+            nextEnd = clamped[1];
+            const options: ViewportChangeOptions = session.pushed
+              ? { replace: true, source: "touch" }
+              : { push: true, source: "touch" };
+            commitViewportChange({ x: [nextStart, nextEnd], y: yDomain }, options);
+            pinchStateRef.current = { ...session, pushed: true };
+          }
+          return;
+        }
+      }
+
+      if (panStateRef.current) {
+        updatePan(event);
+        return;
+      }
+
+      if (!selectionRef.current || selectionRef.current.pointerId !== event.pointerId) return;
+      const nextState: SelectionState = {
+        ...selectionRef.current,
+        current: { x: event.nativeEvent.offsetX, y: event.nativeEvent.offsetY },
+        shift: event.shiftKey
+      };
+      selectionRef.current = nextState;
+      updateSelectionVisual(nextState);
+    };
+
+    const handlePointerUp: React.PointerEventHandler<SVGRectElement> = (event) => {
+      (event.target as Element).releasePointerCapture(event.pointerId);
+
+      if (event.pointerType === "touch") {
+        activeTouchesRef.current.delete(event.pointerId);
+        if (activeTouchesRef.current.size < 2) {
+          pinchStateRef.current = null;
+          tooltipsSuspendedRef.current = false;
+        }
+      }
+
+      if (panStateRef.current && panStateRef.current.pointerId === event.pointerId) {
+        endPan();
+        return;
+      }
+
+      if (selectionRef.current && selectionRef.current.pointerId === event.pointerId) {
+        finalizeSelection(selectionRef.current);
+      }
+    };
+
+    const handlePointerLeave: React.PointerEventHandler<SVGRectElement> = () => {
+      cancelSelection();
+      hideTooltip();
+      hideMarkerTooltip();
+      endPan();
+      pinchStateRef.current = null;
+      activeTouchesRef.current.clear();
+    };
+
+    const handlePointerCancel: React.PointerEventHandler<SVGRectElement> = () => {
+      cancelSelection();
+      endPan();
+      pinchStateRef.current = null;
+      activeTouchesRef.current.clear();
+      tooltipsSuspendedRef.current = false;
     };
 
     const handleWheel: React.WheelEventHandler<SVGSVGElement> = (event) => {
-      if (!onDomainChange) return;
+      if (!onViewportChange) return;
       const { deltaY, deltaX, offsetX, shiftKey } = event.nativeEvent;
 
       if (shiftKey) {
@@ -358,7 +731,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
         const fraction = delta / plotWidth;
         const deltaMs = fraction * domainSpan;
         const next: [number, number] = [xDomain[0] + deltaMs, xDomain[1] + deltaMs];
-        onDomainChange(clampDomain(next, fullDomain));
+        commitViewportChange({ x: clampRange(next, fullDomain, MIN_SPAN_MS), y: yDomain }, { replace: true, source: "pan" });
         return;
       }
 
@@ -367,13 +740,24 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       const zoomIn = deltaY < 0;
       let newSpan = domainSpan * (zoomIn ? 0.85 : 1.15);
       const fullSpan = fullDomain ? Math.max(MIN_SPAN_MS, fullDomain[1] - fullDomain[0]) : Number.POSITIVE_INFINITY;
-      newSpan = Math.max(MIN_SPAN_MS, Math.min(newSpan, fullSpan));
-      const ratio = Math.min(1, Math.max(0, (offsetX - PADDING_X) / plotWidth));
+      newSpan = clampValue(newSpan, MIN_SPAN_MS, fullSpan);
+      const ratio = clampValue((offsetX - PADDING_X) / plotWidth, 0, 1);
       const anchorTime = xDomain[0] + domainSpan * ratio;
       const nextStart = anchorTime - newSpan * ratio;
       const nextEnd = nextStart + newSpan;
-      onDomainChange(clampDomain([nextStart, nextEnd], fullDomain));
+      const next = clampRange([nextStart, nextEnd], fullDomain, MIN_SPAN_MS);
+      const options: ViewportChangeOptions = wheelActiveRef.current
+        ? { replace: true, source: "wheel" }
+        : { push: true, source: "wheel" };
+      commitViewportChange({ x: next, y: yDomain }, options);
+      wheelActiveRef.current = true;
+      if (wheelTimeoutRef.current) {
+        window.clearTimeout(wheelTimeoutRef.current);
+      }
+      wheelTimeoutRef.current = window.setTimeout(clearWheelSession, 220);
     };
+
+    React.useEffect(() => () => clearWheelSession(), [clearWheelSession]);
 
     React.useEffect(() => {
       setMarkerTooltip(null);
@@ -393,11 +777,11 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
         />
         {line.events.map((event) => {
           const x = scaleX(event.t);
-          const y = scaleY(event.type === "started" ? 1 : 1);
+          const y = scaleY(1);
           const handleFocus = () =>
             setTooltip({
               x,
-              y: scaleY(0.9),
+              y: scaleY(Math.min(0.9, yDomain[1])),
               topic: line.topicTitle,
               time: event.t,
               type: event.type,
@@ -450,7 +834,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
     ));
 
     const clampX = React.useCallback(
-      (value: number) => Math.max(PADDING_X, Math.min(width - PADDING_X, value)),
+      (value: number) => clampValue(value, PADDING_X, width - PADDING_X),
       [width]
     );
 
@@ -521,7 +905,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
               transform={`translate(${x}, ${labelY})`}
               tabIndex={0}
               role="button"
-          aria-label={`Exam date for ${marker.subjectName}, ${examDateFormatter.format(new Date(marker.dateISO))}`}
+              aria-label={`Exam date for ${marker.subjectName}, ${examDateFormatter.format(new Date(marker.dateISO))}`}
               onFocus={handleFocus}
               onBlur={hideMarkerTooltip}
               onMouseEnter={handleFocus}
@@ -597,17 +981,47 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       );
     });
 
+    const keyboardOverlay = React.useMemo(() => {
+      if (!keyboardSelection) return null;
+      const start = clampX(scaleX(Math.min(keyboardSelection.start, keyboardSelection.end)));
+      const end = clampX(scaleX(Math.max(keyboardSelection.start, keyboardSelection.end)));
+      const widthRect = Math.max(0, end - start);
+      if (widthRect <= 0) return null;
+      const yTop = keyboardSelection.y ? scaleY(keyboardSelection.y[1]) : PADDING_Y;
+      const yBottom = keyboardSelection.y ? scaleY(keyboardSelection.y[0]) : height - PADDING_Y;
+      return {
+        x: start,
+        y: Math.min(yTop, yBottom),
+        width: widthRect,
+        height: Math.abs(yBottom - yTop)
+      };
+    }, [keyboardSelection, clampX, scaleX, scaleY, height]);
+
+    const cursor = selectionRect
+      ? "crosshair"
+      : isPanning
+      ? "grabbing"
+      : interactionMode === "pan" || temporaryPan
+      ? "grab"
+      : "default";
+
     return (
-      <div ref={containerRef} className="w-full overflow-hidden rounded-3xl border border-white/5 bg-white/5 p-4">
+      <div ref={containerRef} className="relative">
         <svg
           ref={svgRef}
+          role="img"
           width={width}
           height={height}
-          role="img"
-          aria-label="Retention timeline"
           aria-describedby={ariaDescribedBy}
+          className="w-full select-none"
           onWheel={handleWheel}
+          onContextMenu={(event) => {
+            event.preventDefault();
+            onRequestStepBack?.();
+          }}
+          style={{ cursor }}
         >
+          <rect width={width} height={height} fill="transparent" />
           <rect
             x={PADDING_X}
             y={PADDING_Y}
@@ -617,13 +1031,35 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
             onPointerDown={handlePointerDown}
             onPointerUp={handlePointerUp}
             onPointerLeave={handlePointerLeave}
+            onPointerCancel={handlePointerCancel}
             onPointerMove={(event) => {
               handlePointerMovePan(event);
               handlePointerMove(event);
             }}
             onDoubleClick={() => onResetDomain?.()}
           />
-          {gridElements}
+          {showGrid ? (
+            <g className="stroke-white/10">
+              {yTicks.map((tick) => (
+                <g key={tick.value}>
+                  <line
+                    x1={PADDING_X}
+                    y1={tick.pixel}
+                    x2={width - PADDING_X}
+                    y2={tick.pixel}
+                    className="stroke-white/10"
+                  />
+                  <text
+                    x={12}
+                    y={tick.pixel + 4}
+                    className="fill-white/50 text-[10px]"
+                  >
+                    {tick.label}
+                  </text>
+                </g>
+              ))}
+            </g>
+          ) : null}
           <g aria-hidden="true">
             <line
               x1={PADDING_X}
@@ -672,6 +1108,46 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
           <text x={12} y={16} className="fill-white/40 text-[11px]">
             Retention
           </text>
+          {keyboardOverlay ? (
+            <rect
+              x={keyboardOverlay.x}
+              y={keyboardOverlay.y}
+              width={keyboardOverlay.width}
+              height={keyboardOverlay.height}
+              fill="rgba(56,189,248,0.12)"
+              stroke="rgba(56,189,248,0.7)"
+              strokeDasharray="6 4"
+              pointerEvents="none"
+            />
+          ) : null}
+          {selectionRect ? (
+            <g pointerEvents="none">
+              <rect
+                x={Math.min(selectionRect.origin.x, selectionRect.current.x)}
+                y={Math.min(selectionRect.origin.y, selectionRect.current.y)}
+                width={Math.abs(selectionRect.current.x - selectionRect.origin.x)}
+                height={Math.abs(selectionRect.current.y - selectionRect.origin.y)}
+                fill="rgba(56,189,248,0.15)"
+                stroke="rgba(56,189,248,0.8)"
+                strokeDasharray="6 4"
+              />
+              {selectionLabel ? (
+                <foreignObject
+                  x={Math.min(selectionRect.origin.x, selectionRect.current.x) + 8}
+                  y={Math.min(selectionRect.origin.y, selectionRect.current.y) + 8}
+                  width={220}
+                  height={64}
+                >
+                  <div className="pointer-events-none rounded-md bg-slate-950/80 px-3 py-2 text-[11px] text-white shadow-lg">
+                    <div className="font-semibold">{selectionLabel.primary}</div>
+                    {selectionRect.shift && selectionLabel.secondary ? (
+                      <div className="text-[10px] text-sky-200">{selectionLabel.secondary}</div>
+                    ) : null}
+                  </div>
+                </foreignObject>
+              ) : null}
+            </g>
+          ) : null}
           {tooltip && (
             <g transform={`translate(${tooltip.x}, ${tooltip.y})`} className="pointer-events-none">
               <circle r={4} fill="#fff" />
@@ -729,8 +1205,3 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
 );
 
 TimelineChart.displayName = "TimelineChart";
-
-
-
-
-

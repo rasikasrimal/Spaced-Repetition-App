@@ -1,7 +1,8 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import { TimelineChart, type TimelineSeries } from "@/components/visualizations/timeline-chart";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -23,16 +24,22 @@ import {
   AlertTriangle,
   ZoomIn,
   ZoomOut,
-  RotateCcw
+  RotateCcw,
+  Undo2,
+  Hand,
+  SquareDashedMousePointer
 } from "lucide-react";
 import { daysBetween, formatDateWithWeekday, formatRelativeToNow, isDueToday, nowInTimeZone } from "@/lib/date";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_WINDOW_DAYS = 30;
 const MIN_ZOOM_SPAN = DAY_MS;
+const MIN_Y_SPAN = 0.05;
+const KEYBOARD_STEP_MS = DAY_MS;
 
 type TopicVisibility = Record<string, boolean>;
 type SortView = "next" | "title";
+type ViewportEntry = { x: [number, number]; y: [number, number] };
 
 const ensureVisibilityState = (topics: Topic[], prev: TopicVisibility): TopicVisibility => {
   const next: TopicVisibility = { ...prev };
@@ -204,11 +211,11 @@ const computeTimelineDomain = (topics: Topic[], subjects: Subject[], timeZone: s
     endCandidate = lastExam;
   } else if (latestScheduled !== null) {
     endCandidate = latestScheduled;
-    hint = "No exam dates yet—showing up to your next scheduled reviews.";
+    hint = "No exam dates yetshowing up to your next scheduled reviews.";
   } else {
     const zonedNow = nowInTimeZone(timeZone);
     endCandidate = shiftUtcDays(zonedNow.getTime(), 30);
-    hint = "No exam dates yet—showing up to your next scheduled reviews.";
+    hint = "No exam dates yetshowing up to your next scheduled reviews.";
   }
 
   if (endCandidate === null) {
@@ -219,7 +226,7 @@ const computeTimelineDomain = (topics: Topic[], subjects: Subject[], timeZone: s
   let end = endCandidate;
 
   if (end < start) {
-    warning = "Timeline adjusted—exam date precedes first study date. Check subject dates.";
+    warning = "Timeline adjustedexam date precedes first study date. Check subject dates.";
     end = shiftUtcDays(start, 30);
   }
 
@@ -238,23 +245,31 @@ const computeTimelineDomain = (topics: Topic[], subjects: Subject[], timeZone: s
   };
 };
 
-const clampRangeToBounds = (range: [number, number], bounds: [number, number]): [number, number] => {
+const clampInterval = (range: [number, number], bounds: [number, number], minSpan: number): [number, number] => {
   const [minBound, maxBound] = bounds;
-  const span = Math.max(1, Math.min(range[1] - range[0], maxBound - minBound));
-  if (!Number.isFinite(span) || span <= 0) {
-    return bounds;
-  }
-  let start = Math.max(minBound, Math.min(range[0], maxBound - span));
-  let end = start + span;
+  const availableSpan = Math.max(minSpan, maxBound - minBound);
+  const requestedSpan = Math.min(Math.max(range[1] - range[0], minSpan), availableSpan);
+  let start = Math.max(minBound, Math.min(range[0], maxBound - requestedSpan));
+  let end = start + requestedSpan;
   if (end > maxBound) {
     end = maxBound;
-    start = end - span;
+    start = end - requestedSpan;
   }
   if (start < minBound) {
     start = minBound;
-    end = start + span;
+    end = start + requestedSpan;
   }
   return [start, end];
+};
+
+const ensureSpan = (range: [number, number], minSpan: number): [number, number] => {
+  const span = range[1] - range[0];
+  if (span >= minSpan) {
+    return range;
+  }
+  const center = (range[0] + range[1]) / 2;
+  const half = minSpan / 2;
+  return [center - half, center + half];
 };
 
 interface TimelinePanelProps {
@@ -302,12 +317,20 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   const [domain, setDomain] = React.useState<[number, number] | null>(null);
   const [fullDomain, setFullDomain] = React.useState<[number, number] | null>(null);
   const [defaultDomain, setDefaultDomain] = React.useState<[number, number] | null>(null);
+  const [yDomain, setYDomain] = React.useState<[number, number] | null>(null);
+  const [fullYDomain, setFullYDomain] = React.useState<[number, number] | null>(null);
+  const [defaultYDomain, setDefaultYDomain] = React.useState<[number, number] | null>(null);
+  const [zoomStack, setZoomStack] = React.useState<ViewportEntry[]>([]);
+  const [interactionMode, setInteractionMode] = React.useState<"zoom" | "pan">("zoom");
+  const [spacePanning, setSpacePanning] = React.useState(false);
+  const [keyboardSelection, setKeyboardSelection] = React.useState<{ start: number; end: number; y?: [number, number] } | null>(null);
   const [rangeWarning, setRangeWarning] = React.useState<string | null>(null);
   const [rangeHint, setRangeHint] = React.useState<string | null>(null);
   const [hasStudyActivity, setHasStudyActivity] = React.useState(true);
   const [showExamMarkers, setShowExamMarkers] = React.useState(true);
   const svgRef = React.useRef<SVGSVGElement | null>(null);
   const pointerInstructionId = React.useId();
+  const spacePressedRef = React.useRef(false);
 
   const domainMeta = React.useMemo(
     () => computeTimelineDomain(topics, subjects, resolvedTimezone),
@@ -327,6 +350,11 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
       setDomain(null);
       setFullDomain(null);
       setDefaultDomain(null);
+      setYDomain(null);
+      setFullYDomain(null);
+      setDefaultYDomain(null);
+      setZoomStack([]);
+      setKeyboardSelection(null);
       return;
     }
 
@@ -340,7 +368,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     });
     setDomain((prev) => {
       if (!prev) return domainMeta.domain!;
-      const clamped = clampRangeToBounds(prev, domainMeta.domain!);
+      const clamped = clampInterval(prev, domainMeta.domain!, MIN_ZOOM_SPAN);
       if (clamped[0] === prev[0] && clamped[1] === prev[1]) {
         return prev;
       }
@@ -348,54 +376,83 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     });
   }, [domainMeta]);
 
+  const applyViewport = React.useCallback(
+    (next: ViewportEntry, options: { push?: boolean; clearStack?: boolean } = {}) => {
+      if (!next) return;
+      const nextX = fullDomain ? clampInterval(next.x, fullDomain, MIN_ZOOM_SPAN) : next.x;
+      const nextY = fullYDomain ? clampInterval(next.y, fullYDomain, MIN_Y_SPAN) : next.y;
+      const snapshotX: [number, number] = [nextX[0], nextX[1]];
+      const snapshotY: [number, number] = [nextY[0], nextY[1]];
+
+      if (options.clearStack) {
+        setZoomStack([]);
+      } else if (options.push && domain && yDomain) {
+        setZoomStack((prev) => [...prev.slice(-9), { x: [domain[0], domain[1]], y: [yDomain[0], yDomain[1]] }]);
+      }
+
+      setDomain(snapshotX);
+      setYDomain(snapshotY);
+    },
+    [domain, yDomain, fullDomain, fullYDomain]
+  );
+
   const handleResetDomain = React.useCallback(() => {
-    if (!defaultDomain) return;
-    setDomain([defaultDomain[0], defaultDomain[1]]);
-  }, [defaultDomain]);
+    if (!defaultDomain || !defaultYDomain) return;
+    applyViewport({ x: [defaultDomain[0], defaultDomain[1]], y: [defaultYDomain[0], defaultYDomain[1]] }, { clearStack: true });
+    setKeyboardSelection(null);
+  }, [applyViewport, defaultDomain, defaultYDomain]);
 
   const zoomIn = React.useCallback(() => {
-    setDomain((prev) => {
-      if (!prev) return prev;
-      const span = prev[1] - prev[0];
-      if (span <= MIN_ZOOM_SPAN) {
-        return prev;
-      }
-      const nextSpan = Math.max(MIN_ZOOM_SPAN, span * 0.7);
-      const center = prev[0] + span / 2;
-      const candidate: [number, number] = [center - nextSpan / 2, center + nextSpan / 2];
-      if (fullDomain) {
-        return clampRangeToBounds(candidate, fullDomain);
-      }
-      return candidate;
-    });
-  }, [fullDomain]);
+    if (!domain || !yDomain) return;
+    const span = domain[1] - domain[0];
+    if (span <= MIN_ZOOM_SPAN * 1.05) {
+      return;
+    }
+    const nextSpan = Math.max(MIN_ZOOM_SPAN, span * 0.7);
+    const center = domain[0] + span / 2;
+    const candidate: [number, number] = [center - nextSpan / 2, center + nextSpan / 2];
+    const xRange = fullDomain ? clampInterval(candidate, fullDomain, MIN_ZOOM_SPAN) : candidate;
+    applyViewport({ x: xRange, y: yDomain }, { push: true });
+  }, [applyViewport, domain, yDomain, fullDomain]);
 
   const zoomOut = React.useCallback(() => {
-    setDomain((prev) => {
-      if (!prev) return prev;
-      const span = prev[1] - prev[0];
-      const maxSpan = fullDomain ? Math.max(fullDomain[1] - fullDomain[0], MIN_ZOOM_SPAN) : span * 2;
-      const nextSpan = Math.min(Math.max(span * 1.3, MIN_ZOOM_SPAN), maxSpan);
-      if (nextSpan === span && fullDomain) {
-        const clamped = clampRangeToBounds(prev, fullDomain);
-        if (clamped[0] === prev[0] && clamped[1] === prev[1]) {
-          return prev;
-        }
-        return clamped;
-      }
-      const center = prev[0] + span / 2;
-      const candidate: [number, number] = [center - nextSpan / 2, center + nextSpan / 2];
-      if (fullDomain) {
-        return clampRangeToBounds(candidate, fullDomain);
-      }
-      return candidate;
+    if (!domain || !yDomain) return;
+    const span = domain[1] - domain[0];
+    const maxSpan = fullDomain ? Math.max(fullDomain[1] - fullDomain[0], MIN_ZOOM_SPAN) : span * 2;
+    const nextSpan = Math.min(Math.max(span * 1.3, MIN_ZOOM_SPAN), maxSpan);
+    const center = domain[0] + span / 2;
+    const candidate: [number, number] = [center - nextSpan / 2, center + nextSpan / 2];
+    const xRange = fullDomain ? clampInterval(candidate, fullDomain, MIN_ZOOM_SPAN) : candidate;
+    applyViewport({ x: xRange, y: yDomain }, { push: true });
+  }, [applyViewport, domain, yDomain, fullDomain]);
+
+  const handleViewportChange = React.useCallback(
+    (next: ViewportEntry, options?: { push?: boolean }) => {
+      applyViewport(next, { push: options?.push });
+      setKeyboardSelection(null);
+    },
+    [applyViewport]
+  );
+
+  const handleStepBack = React.useCallback(() => {
+    setZoomStack((prev) => {
+      if (prev.length === 0) return prev;
+      const nextStack = prev.slice(0, -1);
+      const last = prev[prev.length - 1];
+      setDomain([last.x[0], last.x[1]]);
+      setYDomain([last.y[0], last.y[1]]);
+      return nextStack;
     });
-  }, [fullDomain]);
+    setKeyboardSelection(null);
+  }, []);
 
   const isZoomed = React.useMemo(() => {
     if (!domain || !defaultDomain) return false;
-    return domain[0] !== defaultDomain[0] || domain[1] !== defaultDomain[1];
-  }, [domain, defaultDomain]);
+    if (!yDomain || !defaultYDomain) return false;
+    const xChanged = domain[0] !== defaultDomain[0] || domain[1] !== defaultDomain[1];
+    const yChanged = yDomain[0] !== defaultYDomain[0] || yDomain[1] !== defaultYDomain[1];
+    return xChanged || yChanged;
+  }, [domain, defaultDomain, yDomain, defaultYDomain]);
 
   const canZoomIn = React.useMemo(() => {
     if (!domain) return false;
@@ -403,14 +460,73 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   }, [domain]);
 
   const canZoomOut = React.useMemo(() => {
-    if (!domain) return false;
-    if (!fullDomain) return true;
-    return domain[0] > fullDomain[0] || domain[1] < fullDomain[1];
+    if (!domain || !fullDomain) return false;
+    if (!yDomain || !fullYDomain) {
+      return domain[0] > fullDomain[0] || domain[1] < fullDomain[1];
+    }
+    const xDiff = domain[0] > fullDomain[0] || domain[1] < fullDomain[1];
+    const yDiff = yDomain[0] > fullYDomain[0] || yDomain[1] < fullYDomain[1];
+    return xDiff || yDiff;
+  }, [domain, fullDomain, yDomain, fullYDomain]);
+
+  const isUndoAvailable = zoomStack.length > 0;
+
+  const createDefaultKeyboardSelection = React.useCallback(() => {
+    if (!domain) return null;
+    const span = domain[1] - domain[0];
+    const fallbackSpan = Math.max(MIN_ZOOM_SPAN, Math.min(span, 7 * DAY_MS));
+    const center = domain[0] + span / 2;
+    const candidate: [number, number] = [center - fallbackSpan / 2, center + fallbackSpan / 2];
+    const bounded = fullDomain ? clampInterval(candidate, fullDomain, MIN_ZOOM_SPAN) : candidate;
+    return { start: bounded[0], end: bounded[1] };
   }, [domain, fullDomain]);
+
+  const adjustKeyboardSelection = React.useCallback(
+    (action: "expand-end" | "expand-start" | "expand-both" | "contract") => {
+      if (!domain) return;
+      const seed = keyboardSelection ?? createDefaultKeyboardSelection();
+      if (!seed) return;
+      let start = seed.start;
+      let end = seed.end;
+
+      if (action === "expand-end") {
+        end += KEYBOARD_STEP_MS;
+      } else if (action === "expand-start") {
+        start -= KEYBOARD_STEP_MS;
+      } else if (action === "expand-both") {
+        start -= KEYBOARD_STEP_MS / 2;
+        end += KEYBOARD_STEP_MS / 2;
+      } else if (action === "contract") {
+        if (end - start <= MIN_ZOOM_SPAN + KEYBOARD_STEP_MS) {
+          return;
+        }
+        start += KEYBOARD_STEP_MS / 2;
+        end -= KEYBOARD_STEP_MS / 2;
+      }
+
+      const normalized = ensureSpan([start, end], MIN_ZOOM_SPAN);
+      const bounded = fullDomain ? clampInterval(normalized, fullDomain, MIN_ZOOM_SPAN) : normalized;
+      setKeyboardSelection({ start: bounded[0], end: bounded[1] });
+    },
+    [keyboardSelection, createDefaultKeyboardSelection, fullDomain, domain]
+  );
+
+  const commitKeyboardSelection = React.useCallback(() => {
+    if (!keyboardSelection) return;
+    const normalized = ensureSpan([keyboardSelection.start, keyboardSelection.end], MIN_ZOOM_SPAN);
+    const bounded = fullDomain ? clampInterval(normalized, fullDomain, MIN_ZOOM_SPAN) : normalized;
+    const targetY = yDomain ?? defaultYDomain;
+    if (!targetY) return;
+    applyViewport({ x: bounded, y: [targetY[0], targetY[1]] }, { push: true });
+    setKeyboardSelection(null);
+  }, [keyboardSelection, applyViewport, fullDomain, yDomain, defaultYDomain]);
+
+  const handleTooSmallSelection = React.useCallback(() => {
+    toast.error("Select at least one full day to zoom.");
+  }, []);
 
   React.useEffect(() => {
     const handleKeydown = (event: KeyboardEvent) => {
-      if (!domain) return;
       const target = event.target as HTMLElement | null;
       if (target) {
         const tag = target.tagName.toLowerCase();
@@ -422,18 +538,95 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
       if (event.key === "+" || event.key === "=") {
         event.preventDefault();
         zoomIn();
-      } else if (event.key === "-" || event.key === "_") {
+        return;
+      }
+
+      if (event.key === "-" || event.key === "_") {
         event.preventDefault();
         zoomOut();
-      } else if (event.key === "0") {
+        return;
+      }
+
+      if (event.key === "0") {
         event.preventDefault();
         handleResetDomain();
+        return;
+      }
+
+      if ((event.key === " " || event.key === "Spacebar") && !event.repeat) {
+        event.preventDefault();
+        spacePressedRef.current = true;
+        setSpacePanning(true);
+        return;
+      }
+
+      if (event.key === "z" || event.key === "Z") {
+        event.preventDefault();
+        setInteractionMode((prev) => (prev === "zoom" ? "pan" : "zoom"));
+        setKeyboardSelection(null);
+        return;
+      }
+
+      if (event.key === "Escape" && keyboardSelection) {
+        event.preventDefault();
+        setKeyboardSelection(null);
+        return;
+      }
+
+      if (event.key === "Enter" && keyboardSelection) {
+        event.preventDefault();
+        commitKeyboardSelection();
+        return;
+      }
+
+      if (event.shiftKey && event.key === "ArrowRight") {
+        event.preventDefault();
+        adjustKeyboardSelection("expand-end");
+        return;
+      }
+
+      if (event.shiftKey && event.key === "ArrowLeft") {
+        event.preventDefault();
+        adjustKeyboardSelection("expand-start");
+        return;
+      }
+
+      if (event.shiftKey && event.key === "ArrowDown") {
+        event.preventDefault();
+        adjustKeyboardSelection("expand-both");
+        return;
+      }
+
+      if (event.shiftKey && event.key === "ArrowUp") {
+        event.preventDefault();
+        adjustKeyboardSelection("contract");
+      }
+    };
+
+    const handleKeyup = (event: KeyboardEvent) => {
+      if (event.key === " " || event.key === "Spacebar") {
+        if (spacePressedRef.current) {
+          event.preventDefault();
+          spacePressedRef.current = false;
+          setSpacePanning(false);
+        }
       }
     };
 
     window.addEventListener("keydown", handleKeydown);
-    return () => window.removeEventListener("keydown", handleKeydown);
-  }, [domain, zoomIn, zoomOut, handleResetDomain]);
+    window.addEventListener("keyup", handleKeyup);
+    return () => {
+      window.removeEventListener("keydown", handleKeydown);
+      window.removeEventListener("keyup", handleKeyup);
+    };
+  }, [
+    adjustKeyboardSelection,
+    commitKeyboardSelection,
+    handleResetDomain,
+    keyboardSelection,
+    zoomIn,
+    zoomOut
+  ]);
 
   const filteredTopics = React.useMemo(() => {
     const lower = search.trim().toLowerCase();
@@ -466,6 +659,56 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     () => deriveSeries(filteredTopics, visibility, resolveTopicColor),
     [filteredTopics, visibility, resolveTopicColor]
   );
+
+  React.useEffect(() => {
+    if (series.length === 0) {
+      const fallback: [number, number] = [0, 1];
+      setFullYDomain(fallback);
+      setDefaultYDomain((prev) => (prev ? prev : fallback));
+      setYDomain((prev) => (prev ? prev : fallback));
+      return;
+    }
+    let min = Number.POSITIVE_INFINITY;
+    let max = Number.NEGATIVE_INFINITY;
+    for (const line of series) {
+      for (const point of line.points) {
+        if (!Number.isFinite(point.r)) continue;
+        if (point.r < min) min = point.r;
+        if (point.r > max) max = point.r;
+      }
+    }
+    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+      min = 0;
+      max = 1;
+    }
+    if (min === max) {
+      const padding = Math.max(0.05, MIN_Y_SPAN / 2);
+      min = Math.max(0, min - padding);
+      max = Math.min(1, max + padding);
+    }
+    const span = Math.max(MIN_Y_SPAN, max - min);
+    const padding = Math.max(0.02, span * 0.1);
+    let start = min - padding;
+    let end = max + padding;
+    if (end - start < MIN_Y_SPAN) {
+      const center = (start + end) / 2;
+      start = center - MIN_Y_SPAN / 2;
+      end = center + MIN_Y_SPAN / 2;
+    }
+    const bounded: [number, number] = [Math.max(0, start), Math.min(1, end)];
+    setFullYDomain(bounded);
+    setDefaultYDomain((prev) => {
+      if (!prev) return bounded;
+      if (prev[0] === bounded[0] && prev[1] === bounded[1]) {
+        return prev;
+      }
+      return bounded;
+    });
+    setYDomain((prev) => {
+      if (!prev) return bounded;
+      return clampInterval(prev, bounded, MIN_Y_SPAN);
+    });
+  }, [series]);
 
   const examMarkers = React.useMemo<ExamMarker[]>(() => {
     if (!showExamMarkers) return [];
@@ -575,10 +818,21 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
               type="button"
               size="icon"
               variant="ghost"
+              onClick={handleStepBack}
+              disabled={!isUndoAvailable}
+              aria-label="Step back"
+              title="Step back (right click)"
+            >
+              <Undo2 className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
               onClick={zoomOut}
               disabled={!canZoomOut}
-              aria-label="Zoom out (−)"
-              title="Zoom out (−)"
+              aria-label="Zoom out (-)"
+              title="Zoom out (-)"
             >
               <ZoomOut className="h-4 w-4" />
             </Button>
@@ -594,11 +848,44 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
               <ZoomIn className="h-4 w-4" />
             </Button>
           </div>
+          <div
+            className="flex items-center gap-1 rounded-2xl border border-white/10 bg-slate-900/60 p-1"
+            role="group"
+            aria-label="Interaction mode"
+          >
+            <Button
+              type="button"
+              size="sm"
+              variant={interactionMode === "zoom" ? "default" : "ghost"}
+              className={`inline-flex items-center gap-1 rounded-xl px-3 ${interactionMode === "zoom" ? "bg-accent/20 text-white" : "text-zinc-300"}`}
+              onClick={() => setInteractionMode("zoom")}
+              aria-pressed={interactionMode === "zoom"}
+              title="Zoom select (Z)"
+            >
+              <SquareDashedMousePointer className="h-4 w-4" />
+              Zoom (Z)
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={interactionMode === "pan" ? "default" : "ghost"}
+              className={`inline-flex items-center gap-1 rounded-xl px-3 ${interactionMode === "pan" ? "bg-accent/20 text-white" : "text-zinc-300"}`}
+              onClick={() => {
+                setInteractionMode("pan");
+                setKeyboardSelection(null);
+              }}
+              aria-pressed={interactionMode === "pan"}
+              title="Pan (Space)"
+            >
+              <Hand className="h-4 w-4" />
+              Pan (Space)
+            </Button>
+          </div>
           <Button
             size="sm"
             variant="outline"
             onClick={handleResetDomain}
-            disabled={!defaultDomain || !isZoomed}
+            disabled={!defaultDomain || !defaultYDomain || !isZoomed}
             className="inline-flex items-center gap-2"
           >
             <RotateCcw className="h-4 w-4" />
@@ -622,19 +909,21 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
       </p>
 
       <p className="sr-only" id="timeline-zoom-shortcuts">
-        Keyboard shortcuts: press plus to zoom in, minus to zoom out, and zero to reset the timeline view.
+        Keyboard shortcuts: plus zooms in, minus zooms out, zero resets, Z toggles zoom mode, Shift with the arrow keys adjusts the selection band,
+        Enter applies the zoom, and Escape cancels it.
       </p>
 
       <p className="sr-only" id={pointerInstructionId}>
-        Drag across the chart to pan. Scroll to zoom in or out. Hold shift while scrolling to pan horizontally.
-        Double-click the chart to reset to the default window.
+        Drag to draw a selection and release to zoom that range. Hold Shift while dragging to include retention. Hold Space to pan, right-click to step back,
+        and double-click the chart to restore the default window.
       </p>
 
       {isZoomed ? (
-        <div className="flex items-center gap-2 text-xs text-amber-100" aria-live="polite">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-amber-100" aria-live="polite">
           <span className="inline-flex items-center gap-2 rounded-full bg-amber-500/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide">
             Zoomed
           </span>
+          <span>Use Back to step out or reset to return to the full schedule.</span>
           <button
             type="button"
             onClick={handleResetDomain}
@@ -660,11 +949,12 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
               const days = Math.max(7, Number(event.target.value) || DEFAULT_WINDOW_DAYS);
               const end = domain[1];
               const candidate: [number, number] = [end - days * DAY_MS, end];
-              if (fullDomain) {
-                setDomain(clampRangeToBounds(candidate, fullDomain));
-              } else {
-                setDomain(candidate);
-              }
+            const xRange = fullDomain ? clampInterval(candidate, fullDomain, MIN_ZOOM_SPAN) : candidate;
+            const targetY = yDomain ?? defaultYDomain;
+            if (!targetY) {
+              return;
+            }
+            applyViewport({ x: xRange, y: [targetY[0], targetY[1]] }, { push: true });
             }}
             disabled={!domain}
           />
@@ -742,19 +1032,26 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
         </div>
       ) : null}
 
-      {hasStudyActivity && domain ? (
+      {hasStudyActivity && domain && yDomain ? (
         <TimelineChart
           ref={svgRef}
           series={series}
           xDomain={domain}
-          onDomainChange={(next) => setDomain(next)}
+          yDomain={yDomain}
+          onViewportChange={(next, options) => handleViewportChange(next, { push: options?.push })}
           height={variant === "compact" ? 260 : 360}
           showGrid
           fullDomain={fullDomain ?? undefined}
+          fullYDomain={fullYDomain ?? undefined}
           examMarkers={showExamMarkers ? examMarkers : []}
           timeZone={resolvedTimezone}
           onResetDomain={handleResetDomain}
           ariaDescribedBy={`timeline-zoom-shortcuts ${pointerInstructionId}`}
+          interactionMode={interactionMode}
+          temporaryPan={spacePanning}
+          onRequestStepBack={handleStepBack}
+          onTooSmallSelection={handleTooSmallSelection}
+          keyboardSelection={keyboardSelection}
         />
       ) : (
         <div className="flex h-60 items-center justify-center rounded-3xl border border-dashed border-white/10 bg-slate-900/40 text-sm text-zinc-400">
@@ -829,7 +1126,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                     <div className="flex-1">
                       <p className="text-sm font-medium text-white">{topic.title}</p>
                       <p className="text-xs text-zinc-400">
-                        {formatDateWithWeekday(topic.nextReviewDate)} • {formatRelativeToNow(topic.nextReviewDate)}
+                        {formatDateWithWeekday(topic.nextReviewDate)}  {formatRelativeToNow(topic.nextReviewDate)}
                       </p>
                     </div>
                     <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide ${

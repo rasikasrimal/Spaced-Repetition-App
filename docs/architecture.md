@@ -91,6 +91,37 @@ graph LR
 
 Every primary tab shares persisted filters (especially the Subjects dropdown) so the learner never loses context when hopping between views.
 
+## Zoom interactions
+
+### Zoom interaction flow
+
+```mermaid
+flowchart TD
+  A[Pointer down] --> B{Dragged > threshold?}
+  B -- No --> C[Ignore (click)]
+  B -- Yes --> D[Show selection rectangle]
+  D --> E[Pointer up]
+  E --> F{Shift held?}
+  F -- No --> G[Compute X-only range]
+  F -- Yes --> H[Compute X+Y range]
+  G --> I[Push to zoom stack & apply]
+  H --> I[Push to zoom stack & apply]
+  I --> J[Update axes, markers, tooltips]
+```
+
+### Zoom state machine
+
+```mermaid
+stateDiagram-v2
+  [*] --> Idle
+  Idle --> Selecting: mousedown/drag
+  Selecting --> Idle: esc / mouseup<threshold
+  Selecting --> Zoomed: mouseup>=threshold
+  Zoomed --> Zoomed: zoom-in/out / pan
+  Zoomed --> Idle: Reset
+  Zoomed --> Zoomed: Back (pop stack)
+```
+
 ## Data flow
 
 1. User interactions dispatch actions to the Zustand stores (`useTopicStore`, `useProfileStore`).

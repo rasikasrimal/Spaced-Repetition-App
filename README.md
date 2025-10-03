@@ -26,6 +26,14 @@ The Spaced Repetition App is a local-first study companion built with Next.js, T
 - **Timeline markers** – Dotted vertical exam indicators in the subject’s colour, visible in exports and toggleable from the toolbar.
 - **Revise daily rule** – Each topic can be revised once per local calendar day based on the profile timezone; locked attempts surface “You’ve already revised this today. Available again after midnight.”
 
+## How to zoom
+
+- Drag across the timeline to zoom the time range; hold Shift to include the retention axis.
+- Use the Back control or the `-` shortcut to step out, and Reset or `0` to return to the full schedule.
+- Keyboard: `+`/`-` adjust zoom, `Z` toggles zoom select, Shift+Arrow keys size a selection, `Enter` applies it, and `Esc` cancels.
+- Hold Space to pan with the mouse; right-clicking the chart also steps back one zoom level.
+- Touch: pinch to zoom, use a two-finger drag to pan, and tap Reset to restore the full view.
+
 ## Getting started
 
 Install dependencies and run the development server:
