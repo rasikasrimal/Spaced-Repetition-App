@@ -18,7 +18,16 @@ export const downloadSvgAsPng = async (svg: SVGSVGElement, filename = "timeline.
   const url = URL.createObjectURL(svgBlob);
 
   const image = new Image();
-  const { width, height } = svg.getBoundingClientRect();
+  const rect = svg.getBoundingClientRect();
+  const widthAttr = svg.getAttribute("width");
+  const heightAttr = svg.getAttribute("height");
+  const width = rect.width || (widthAttr ? Number.parseFloat(widthAttr) : 0);
+  const height = rect.height || (heightAttr ? Number.parseFloat(heightAttr) : 0);
+  if (!width || !height) {
+    URL.revokeObjectURL(url);
+    return;
+  }
+
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
