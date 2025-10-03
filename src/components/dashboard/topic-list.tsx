@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { QuickRevisionDialog } from "@/components/dashboard/quick-revision-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
 import { useTopicStore } from "@/stores/topics";
 import { Subject, Topic } from "@/types/topic";
 import {
@@ -47,6 +48,7 @@ export interface TopicListItem {
 export type StatusFilter = "all" | TopicStatus;
 export type SortOption = "next" | "title" | "subject" | "recent";
 export type SubjectFilterValue = Set<string> | null;
+
 
 type SubjectOption = {
   id: string;
@@ -250,6 +252,46 @@ export function TopicList({
     }
     return descriptions.join("; ");
   }, [statusFilter, subjectFilter, subjectOptions]);
+
+  const subjectChipLookup = React.useMemo(() => {
+    const map = new Map<string, SubjectChip>();
+    for (const chip of subjectChips) {
+      map.set(chip.id, chip);
+    }
+    return map;
+  }, [subjectChips]);
+
+  const appliedFilters = React.useMemo(
+    () => {
+      const filters: { key: string; label: string; announce: string; onRemove: () => void }[] = [];
+      if (statusFilter !== "all") {
+        const label = STATUS_LABELS[statusFilter].label;
+        filters.push({
+          key: `status-${statusFilter}`,
+          label,
+          announce: `Status ${label}`,
+          onRemove: () => setStatusFilter("all")
+        });
+      }
+      subjectFilter.forEach((value) => {
+        const chip = subjectChipLookup.get(value);
+        const label = chip?.label ?? (value === "__none" ? "No subject" : "Subject");
+        filters.push({
+          key: `subject-${value}`,
+          label,
+          announce: `Subject ${label}`,
+          onRemove: () =>
+            setSubjectFilter((prev) => {
+              const next = new Set(prev);
+              next.delete(value);
+              return next;
+            })
+        });
+      });
+      return filters;
+    },
+    [statusFilter, subjectFilter, subjectChipLookup]
+  );
 
   const filteredItems = React.useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLowerCase();
