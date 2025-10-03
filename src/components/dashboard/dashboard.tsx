@@ -75,6 +75,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
     window.sessionStorage.setItem(STATUS_FILTER_STORAGE_KEY, statusFilter);
   }, [statusFilter]);
 
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.sessionStorage.setItem(STATUS_FILTER_STORAGE_KEY, statusFilter);
+  }, [statusFilter]);
+
   const resolvedSubjectFilter = subjectFilter ?? null;
 
   const enrichedTopics = React.useMemo<TopicListItem[]>(() => {
