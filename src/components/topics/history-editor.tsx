@@ -33,15 +33,12 @@ import {
   Check,
   ClipboardList,
   Clock,
-  Info,
   Plus,
   Trash2
 } from "lucide-react";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 
 const DEFAULT_REVIEW_TIME = "12:00";
-const MAX_HISTORY_ENTRIES = 50;
-
 const FOCUSABLE_SELECTOR =
   'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
@@ -123,8 +120,6 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
   const [error, setError] = React.useState<string | null>(null);
   const [isSaving, setIsSaving] = React.useState(false);
   const [mergePrompt, setMergePrompt] = React.useState<MergePromptState | null>(null);
-  const [overflowCount, setOverflowCount] = React.useState(0);
-
   const overlayRef = React.useRef<HTMLDivElement | null>(null);
   const panelRef = React.useRef<HTMLDivElement | null>(null);
   const previouslyFocused = React.useRef<HTMLElement | null>(null);
@@ -205,12 +200,6 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
       .filter((event) => event.type === "reviewed")
       .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
 
-    if (events.length === 0) {
-      setOverflowCount(0);
-      setDrafts([]);
-      return;
-    }
-
     const mapped: HistoryDraft[] = events.map((event) => ({
       localId: event.id,
       id: event.id,
@@ -221,15 +210,10 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
     }));
 
     const sorted = sortDrafts(mapped, timezone);
-    setOverflowCount(Math.max(0, sorted.length - MAX_HISTORY_ENTRIES));
-    setDrafts(sorted.slice(-MAX_HISTORY_ENTRIES));
+    setDrafts(sorted);
   }, [open, topic, timezone]);
 
   const addDraft = React.useCallback(() => {
-    if (drafts.length >= MAX_HISTORY_ENTRIES) {
-      toast.error(`History editor allows up to ${MAX_HISTORY_ENTRIES} entries per topic.`);
-      return;
-    }
     const now = nowInTimeZone(timezone);
     const draft: HistoryDraft = {
       localId: nanoid(),
@@ -277,20 +261,7 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
       };
     });
 
-    const freeSlots = MAX_HISTORY_ENTRIES - drafts.length;
-    if (freeSlots <= 0) {
-      toast.error(`History editor already has ${MAX_HISTORY_ENTRIES} entries. Remove one before adding more.`);
-      return;
-    }
-
-    const limitedAdditions = additions.slice(0, freeSlots);
-    if (limitedAdditions.length < additions.length) {
-      toast.info(
-        `Only the first ${freeSlots} entr${freeSlots === 1 ? "y" : "ies"} were added (maximum ${MAX_HISTORY_ENTRIES}).`
-      );
-    }
-
-    setDrafts(sortDrafts([...drafts, ...limitedAdditions], timezone));
+    setDrafts(sortDrafts([...drafts, ...additions], timezone));
     setBulkInput("");
   }, [bulkInput, bulkQuality, drafts, timezone]);
 
@@ -300,7 +271,6 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
     setBulkQuality(0.5);
     setError(null);
     setMergePrompt(null);
-    setOverflowCount(0);
   }, []);
 
   const handleClose = React.useCallback(() => {
@@ -392,8 +362,6 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
     return null;
   }
 
-  const remainingSlots = Math.max(0, MAX_HISTORY_ENTRIES - drafts.length);
-
   const content = (
     <AnimatePresence>
       {open ? (
@@ -439,15 +407,6 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
               <div className="flex items-start gap-3 rounded-2xl border border-rose-500/40 bg-rose-500/10 p-3 text-sm text-rose-100">
                 <AlertTriangle className="mt-0.5 h-4 w-4" />
                 <span>{error}</span>
-              </div>
-            ) : null}
-
-            {overflowCount > 0 ? (
-              <div className="flex items-start gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-100">
-                <Info className="mt-0.5 h-4 w-4" />
-                <span>
-                  Showing the latest {MAX_HISTORY_ENTRIES} reviews. {overflowCount} older entr{overflowCount === 1 ? "y is" : "ies are"} hidden from editing.
-                </span>
               </div>
             ) : null}
 
@@ -531,12 +490,11 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
                     variant="ghost"
                     onClick={addDraft}
                     className="inline-flex items-center gap-2"
-                    disabled={remainingSlots === 0}
                   >
                     <Plus className="h-4 w-4" /> Add entry
                   </Button>
                   <span className="text-xs text-zinc-400">
-                    Entries are sorted chronologically and merged on the same day using the highest quality. Up to {MAX_HISTORY_ENTRIES} entries per topic ({remainingSlots} slot{remainingSlots === 1 ? "" : "s"} remaining).
+                    Entries are sorted chronologically and merged on the same day using the highest quality.
                   </span>
                 </div>
 
@@ -578,7 +536,7 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
                         type="button"
                         variant="outline"
                         onClick={applyBulkInput}
-                        disabled={bulkInput.trim().length === 0 || remainingSlots === 0}
+                        disabled={bulkInput.trim().length === 0}
                       >
                         <Check className="mr-2 h-4 w-4" /> Apply
                       </Button>
