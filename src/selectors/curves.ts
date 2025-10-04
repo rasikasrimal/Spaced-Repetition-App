@@ -83,10 +83,24 @@ export const buildCurveSegments = (topics: Topic[]): CurveSegment[] => {
 
 export const sampleSegment = (
   segment: CurveSegment,
-  maxPoints = 160
+  maxPoints = 160,
+  nowMs: number = Date.now()
 ): { t: number; r: number }[] => {
   const startTs = new Date(segment.start.at).getTime();
-  const endTs = new Date(segment.displayEndAt).getTime();
+  if (!Number.isFinite(startTs)) {
+    return [];
+  }
+
+  const rawEndTs = new Date(segment.displayEndAt).getTime();
+  const nowLimit = Number.isFinite(nowMs) ? nowMs : Date.now();
+  const boundedEnd = segment.isHistorical
+    ? (Number.isFinite(rawEndTs) ? Math.min(rawEndTs, nowLimit) : nowLimit)
+    : nowLimit;
+  const endTs = Math.max(startTs, boundedEnd);
+  if (endTs < startTs) {
+    return [];
+  }
+
   const durationMs = Math.max(60_000, endTs - startTs);
   const pointsCount = clamp(maxPoints, 16, 320);
   const stepMs = durationMs / pointsCount;

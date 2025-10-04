@@ -51,8 +51,6 @@ const MIN_ZOOM_SPAN = DAY_MS;
 const MIN_Y_SPAN = 0.05;
 const KEYBOARD_STEP_MS = DAY_MS;
 const DEFAULT_SUBJECT_ID = "subject-general";
-const RETENTION_PROJECTION_DAYS = 30;
-
 type TopicVisibility = Record<string, boolean>;
 type SortView = "next" | "title";
 type TimelineViewMode = "combined" | "per-subject";
@@ -126,20 +124,25 @@ const deriveSeries = (
       nowPoint: null
     };
 
-    let previousSegment: (typeof topicSegments)[number] | null = null;
+    let previousRenderableSegment: (typeof topicSegments)[number] | null = null;
 
     for (const segment of topicSegments) {
-      const samples = sampleSegment(segment, 160);
-      pack.points.push(...samples);
+      const samples = sampleSegment(segment, 160, nowMs);
+      const hasSamples = samples.length > 0;
+      if (hasSamples) {
+        pack.points.push(...samples);
+      }
       const checkpointTime = new Date(segment.checkpointAt).getTime();
-      pack.segments.push({
-        id: `${segment.topicId}-${segment.start.id}-${segment.displayEndAt}`,
-        points: samples,
-        isHistorical: segment.isHistorical,
-        checkpoint: includeCheckpoints && Number.isFinite(checkpointTime)
-          ? { t: checkpointTime, target: segment.target }
-          : undefined
-      });
+      if (hasSamples) {
+        pack.segments.push({
+          id: `${segment.topicId}-${segment.start.id}-${segment.displayEndAt}`,
+          points: samples,
+          isHistorical: segment.isHistorical,
+          checkpoint: includeCheckpoints && Number.isFinite(checkpointTime)
+            ? { t: checkpointTime, target: segment.target }
+            : undefined
+        });
+      }
 
       const reviewTime = new Date(segment.start.at).getTime();
       if (Number.isFinite(reviewTime) && !pack.events.some((event) => event.id === segment.start.id)) {
@@ -155,13 +158,6 @@ const deriveSeries = (
             `Retention ${(segment.start.retrievabilityAtReview * 100).toFixed(0)}% at review`
           );
         }
-        const projectionRetention = computeRetrievability(
-          segment.stabilityDays,
-          RETENTION_PROJECTION_DAYS * DAY_MS
-        );
-        notes.push(
-          `Predicted retention in ${RETENTION_PROJECTION_DAYS}d ≈ ${(projectionRetention * 100).toFixed(0)}%`
-        );
         pack.events.push({
           id: segment.start.id,
           t: reviewTime,
@@ -190,10 +186,10 @@ const deriveSeries = (
         }
       }
 
-      if (previousSegment && Number.isFinite(reviewTime)) {
-        const prevStart = new Date(previousSegment.start.at).getTime();
+      if (previousRenderableSegment && hasSamples && Number.isFinite(reviewTime)) {
+        const prevStart = new Date(previousRenderableSegment.start.at).getTime();
         const elapsed = Math.max(0, reviewTime - prevStart);
-        const priorRetention = computeRetrievability(previousSegment.stabilityDays, elapsed);
+        const priorRetention = computeRetrievability(previousRenderableSegment.stabilityDays, elapsed);
         pack.stitches.push({
           id: `stitch-${segment.start.id}`,
           t: reviewTime,
@@ -206,23 +202,25 @@ const deriveSeries = (
         });
       }
 
-      previousSegment = segment;
+      if (hasSamples) {
+        previousRenderableSegment = segment;
+      }
     }
 
     const activeSegment = topicSegments[topicSegments.length - 1];
     if (activeSegment) {
       const startTime = new Date(activeSegment.start.at).getTime();
-      if (Number.isFinite(startTime)) {
+      if (Number.isFinite(startTime) && startTime <= nowMs) {
         const elapsed = Math.max(0, nowMs - startTime);
         const stability = Math.max(activeSegment.stabilityDays, STABILITY_MIN_DAYS);
         const retentionNow = computeRetrievability(stability, elapsed);
-        const zeroHorizon = startTime + Math.max(0, Math.round(stability * Math.log(100) * DAY_MS));
         pack.nowPoint = {
           t: nowMs,
           r: retentionNow,
-          zeroHorizon,
           notes: `Stability ≈ ${stability.toFixed(2)} days`
         };
+      } else {
+        pack.nowPoint = null;
       }
     }
 

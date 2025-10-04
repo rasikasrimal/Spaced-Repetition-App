@@ -21,7 +21,6 @@ export type TimelineStitch = {
 export type TimelineNowPoint = {
   t: number;
   r: number;
-  zeroHorizon: number;
   notes?: string;
 };
 
@@ -925,19 +924,13 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
             const x = scaleX(line.nowPoint!.t);
             const y = scaleY(line.nowPoint!.r);
             const handleFocus = () => {
-              const zeroNote = `Would trend to 0% near ${tooltipDateFormatter.format(
-                new Date(line.nowPoint!.zeroHorizon)
-              )}`;
-              const combinedNotes = line.nowPoint!.notes
-                ? `${line.nowPoint!.notes} · ${zeroNote}`
-                : zeroNote;
               setTooltip({
                 x,
                 y: scaleY(Math.min(line.nowPoint!.r + 0.1, yDomain[1])),
                 topic: line.topicTitle,
                 time: line.nowPoint!.t,
                 retention: line.nowPoint!.r,
-                notes: combinedNotes
+                notes: line.nowPoint!.notes
               });
             };
             return (
