@@ -666,7 +666,7 @@ const SubjectAdminPage: React.FC = () => {
                                   variant="outline"
                                   className="gap-2 border-white/10 bg-white/5 text-white hover:border-white/30 hover:bg-white/10"
                                 >
-                                  <Link href={`/subjects/${topic.id}/history`}>
+                                  <Link href={`/subjects/${subject.id}/history`}>
                                     <Clock className="h-4 w-4" aria-hidden="true" /> Review history
                                   </Link>
                                 </Button>
