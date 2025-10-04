@@ -4,12 +4,16 @@ The Spaced Repetition App is a local-first study companion built with Next.js, T
 
 ## Quick links
 
+- [Project description](DESCRIPTION.md)
 - [Architecture](docs/architecture.md)
 - [Runbook](docs/runbook.md)
 - [Test plan](docs/test-plan.md)
 - [Security notes](docs/security.md)
 - [OpenAPI stewardship](docs/openapi.yaml)
 - [UI style audit](docs/ui-style-audit.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Contributing guide](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
 
 ## What changed recently
 
