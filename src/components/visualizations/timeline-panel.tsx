@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import {
   TimelineChart,
   type TimelineSeries
@@ -31,7 +32,9 @@ import {
   RotateCcw,
   Undo2,
   Hand,
-  SquareDashedMousePointer
+  SquareDashedMousePointer,
+  Maximize2,
+  Minimize2
 } from "lucide-react";
 import {
   daysBetween,
@@ -62,6 +65,10 @@ type SubjectSeriesGroup = {
   color: string;
   series: TimelineSeries[];
 };
+
+type FullscreenTarget =
+  | { type: "combined" }
+  | { type: "subject"; subjectId: string };
 
 const ensureVisibilityState = (topics: Topic[], prev: TopicVisibility): TopicVisibility => {
   const next: TopicVisibility = { ...prev };
@@ -431,6 +438,8 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   const perSubjectContainerRef = React.useRef<HTMLDivElement | null>(null);
   const pointerInstructionId = React.useId();
   const spacePressedRef = React.useRef(false);
+  const [fullscreenTarget, setFullscreenTarget] = React.useState<FullscreenTarget | null>(null);
+  const fullscreenReturnFocusRef = React.useRef<HTMLElement | null>(null);
   const setSubjectChartRef = React.useCallback((subjectId: string, element: SVGSVGElement | null) => {
     const map = perSubjectSvgRefs.current;
     if (element) {
@@ -633,6 +642,10 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     toast.error("Select at least one full day to zoom.");
   }, []);
 
+  const handleCloseFullscreen = React.useCallback(() => {
+    setFullscreenTarget(null);
+  }, []);
+
   React.useEffect(() => {
     const handleKeydown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -805,6 +818,20 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   }, [filteredTopics, subjectLookup, visibility, resolveTopicColor, nowMs, showCheckpoints]);
 
   React.useEffect(() => {
+    if (!fullscreenTarget) return;
+    if (!domain || !yDomain) {
+      setFullscreenTarget(null);
+      return;
+    }
+    if (fullscreenTarget.type === "subject") {
+      const exists = perSubjectSeries.some((group) => group.subjectId === fullscreenTarget.subjectId);
+      if (!exists) {
+        setFullscreenTarget(null);
+      }
+    }
+  }, [fullscreenTarget, domain, yDomain, perSubjectSeries]);
+
+  React.useEffect(() => {
     if (series.length === 0) {
       const fallback: [number, number] = [0, 1];
       setFullYDomain(fallback);
@@ -908,6 +935,94 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
       .slice(0, variant === "compact" ? 5 : 8);
   }, [filteredTopics, variant]);
 
+  const fullscreenConfig = React.useMemo(() => {
+    if (!fullscreenTarget) return null;
+    if (!domain || !yDomain) return null;
+
+    if (fullscreenTarget.type === "combined") {
+      if (series.length === 0) return null;
+      const markers = showExamMarkers ? examMarkers : [];
+      return {
+        title: "Review timeline",
+        subtitle: "Fullscreen view",
+        renderChart: (height: number) => (
+          <TimelineChart
+            series={series}
+            xDomain={domain}
+            yDomain={yDomain}
+            onViewportChange={(next, options) => handleViewportChange(next, { push: options?.push })}
+            height={height}
+            showGrid
+            fullDomain={fullDomain ?? undefined}
+            fullYDomain={fullYDomain ?? undefined}
+            examMarkers={markers}
+            timeZone={resolvedTimezone}
+            onResetDomain={handleResetDomain}
+            ariaDescribedBy={`timeline-zoom-shortcuts ${pointerInstructionId}`}
+            interactionMode={interactionMode}
+            temporaryPan={spacePanning}
+            onRequestStepBack={handleStepBack}
+            onTooSmallSelection={handleTooSmallSelection}
+            keyboardSelection={keyboardSelection}
+          />
+        )
+      } as const;
+    }
+
+    const group = perSubjectSeries.find((item) => item.subjectId === fullscreenTarget.subjectId);
+    if (!group || group.series.length === 0) return null;
+    const markers = showExamMarkers ? examMarkersBySubject.get(group.subjectId) ?? [] : [];
+    const subtitle = group.subject?.examDate ? `Exam ${formatDateWithWeekday(group.subject.examDate)}` : undefined;
+
+    return {
+      title: `${group.label} timeline`,
+      subtitle,
+      renderChart: (height: number) => (
+        <TimelineChart
+          series={group.series}
+          xDomain={domain}
+          yDomain={yDomain}
+          onViewportChange={(next, options) => handleViewportChange(next, { push: options?.push })}
+          height={height}
+          showGrid
+          fullDomain={fullDomain ?? undefined}
+          fullYDomain={fullYDomain ?? undefined}
+          examMarkers={markers}
+          timeZone={resolvedTimezone}
+          onResetDomain={handleResetDomain}
+          ariaDescribedBy={`timeline-zoom-shortcuts ${pointerInstructionId}`}
+          interactionMode={interactionMode}
+          temporaryPan={spacePanning}
+          onRequestStepBack={handleStepBack}
+          onTooSmallSelection={handleTooSmallSelection}
+          keyboardSelection={keyboardSelection}
+        />
+      )
+    } as const;
+  }, [
+    fullscreenTarget,
+    domain,
+    yDomain,
+    series,
+    showExamMarkers,
+    examMarkers,
+    handleViewportChange,
+    fullDomain,
+    fullYDomain,
+    resolvedTimezone,
+    handleResetDomain,
+    pointerInstructionId,
+    interactionMode,
+    spacePanning,
+    handleStepBack,
+    handleTooSmallSelection,
+    keyboardSelection,
+    perSubjectSeries,
+    examMarkersBySubject
+  ]);
+
+  const isFullscreenOpen = Boolean(fullscreenConfig);
+
   const buildPerSubjectExportSvg = React.useCallback(() => {
     const container = perSubjectContainerRef.current;
     if (!container) return null;
@@ -998,8 +1113,9 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     : "rounded-3xl border border-white/5 bg-slate-900/40 p-6 md:p-8 shadow-xl shadow-slate-900/30";
 
   return (
-    <section className={`${cardClasses} space-y-5`}
-      aria-label="Review timeline">
+    <>
+      <section className={`${cardClasses} space-y-5`}
+        aria-label="Review timeline">
       <header className="flex flex-wrap items-center gap-3">
         <div>
           <div className="inline-flex items-center gap-2 rounded-full bg-accent/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-accent">
@@ -1122,6 +1238,21 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
           >
             <RotateCcw className="h-4 w-4" />
             <span>Reset</span>
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={(event) => {
+              fullscreenReturnFocusRef.current = event.currentTarget;
+              setFullscreenTarget({ type: "combined" });
+            }}
+            disabled={!domain || !yDomain || series.length === 0}
+            className="inline-flex items-center gap-2"
+            aria-label="Expand timeline to fullscreen"
+            title="Expand timeline"
+          >
+            <Maximize2 className="h-4 w-4" />
+            <span>Fullscreen</span>
           </Button>
           {variant === "default" ? (
             <>
@@ -1284,7 +1415,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                 xDomain={domain}
                 yDomain={yDomain}
                 onViewportChange={(next, options) => handleViewportChange(next, { push: options?.push })}
-                height={variant === "compact" ? 260 : 360}
+                height={variant === "compact" ? 320 : 460}
                 showGrid
                 fullDomain={fullDomain ?? undefined}
                 fullYDomain={fullYDomain ?? undefined}
@@ -1331,9 +1462,25 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                           />
                           <h3 className="text-sm font-semibold text-white">{group.label}</h3>
                         </div>
-                        {examLabel ? (
-                          <span className="text-xs text-zinc-400">Exam {examLabel}</span>
-                        ) : null}
+                        <div className="flex items-center gap-2">
+                          {examLabel ? (
+                            <span className="text-xs text-zinc-400">Exam {examLabel}</span>
+                          ) : null}
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            onClick={(event) => {
+                              fullscreenReturnFocusRef.current = event.currentTarget;
+                              setFullscreenTarget({ type: "subject", subjectId: group.subjectId });
+                            }}
+                            disabled={!domain || !yDomain || group.series.length === 0}
+                            aria-label={`Expand ${group.label} timeline`}
+                            title="Expand timeline"
+                          >
+                            <Maximize2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                       <TimelineChart
                         ref={(element) => setSubjectChartRef(group.subjectId, element)}
@@ -1341,7 +1488,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                         xDomain={domain}
                         yDomain={yDomain}
                         onViewportChange={(next, options) => handleViewportChange(next, { push: options?.push })}
-                        height={variant === "compact" ? 240 : 300}
+                        height={variant === "compact" ? 300 : 360}
                         showGrid
                         fullDomain={fullDomain ?? undefined}
                         fullYDomain={fullYDomain ?? undefined}
@@ -1448,6 +1595,212 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
           )}
         </div>
       </div>
-    </section>
+      </section>
+      <TimelineFullscreenDialog
+        open={isFullscreenOpen}
+        title={fullscreenConfig?.title ?? ""}
+        subtitle={fullscreenConfig?.subtitle}
+        onClose={handleCloseFullscreen}
+        renderChart={fullscreenConfig?.renderChart}
+        returnFocusRef={fullscreenReturnFocusRef}
+      />
+    </>
   );
+}
+
+const FOCUSABLE_SELECTOR =
+  'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+interface TimelineFullscreenDialogProps {
+  open: boolean;
+  title: string;
+  subtitle?: string;
+  onClose: () => void;
+  renderChart?: ((height: number) => React.ReactNode) | null;
+  returnFocusRef?: React.RefObject<HTMLElement | null>;
+}
+
+function TimelineFullscreenDialog({
+  open,
+  title,
+  subtitle,
+  onClose,
+  renderChart,
+  returnFocusRef
+}: TimelineFullscreenDialogProps) {
+  const [isMounted, setIsMounted] = React.useState(false);
+  const dialogRef = React.useRef<HTMLDivElement | null>(null);
+  const overlayRef = React.useRef<HTMLDivElement | null>(null);
+  const previouslyFocused = React.useRef<HTMLElement | null>(null);
+  const [viewportHeight, setViewportHeight] = React.useState(() =>
+    typeof window === "undefined" ? 900 : window.innerHeight
+  );
+  const titleId = React.useId();
+  const descriptionId = React.useId();
+
+  React.useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  React.useEffect(() => {
+    if (!open) return;
+    const updateHeight = () => setViewportHeight(window.innerHeight);
+    updateHeight();
+    window.addEventListener("resize", updateHeight);
+    window.addEventListener("orientationchange", updateHeight);
+    return () => {
+      window.removeEventListener("resize", updateHeight);
+      window.removeEventListener("orientationchange", updateHeight);
+    };
+  }, [open]);
+
+  React.useEffect(() => {
+    if (!open) return;
+
+    previouslyFocused.current = document.activeElement as HTMLElement | null;
+
+    const body = document.body;
+    const previousOverflow = body.style.overflow;
+    const previousPaddingRight = body.style.paddingRight;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+
+    body.style.overflow = "hidden";
+    if (scrollbarWidth > 0) {
+      body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+
+    const focusDialog = () => {
+      const node = dialogRef.current;
+      if (!node) return;
+      const focusable = Array.from(
+        node.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
+      ).filter((element) => !element.hasAttribute("disabled"));
+      const target = focusable[0] ?? node;
+      window.requestAnimationFrame(() => target.focus({ preventScroll: true }));
+    };
+
+    focusDialog();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+
+      const node = dialogRef.current;
+      if (!node) return;
+
+      const focusable = Array.from(
+        node.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
+      ).filter((element) => !element.hasAttribute("disabled"));
+
+      if (focusable.length === 0) {
+        event.preventDefault();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+
+      if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus({ preventScroll: true });
+      } else if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus({ preventScroll: true });
+      }
+    };
+
+    const handleFocusIn = (event: FocusEvent) => {
+      const node = dialogRef.current;
+      if (!node) return;
+      if (node.contains(event.target as Node)) return;
+      const focusable = Array.from(
+        node.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
+      ).filter((element) => !element.hasAttribute("disabled"));
+      const fallback = focusable[0] ?? node;
+      window.requestAnimationFrame(() => fallback.focus({ preventScroll: true }));
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("focusin", handleFocusIn);
+
+    return () => {
+      body.style.overflow = previousOverflow;
+      body.style.paddingRight = previousPaddingRight;
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("focusin", handleFocusIn);
+    };
+  }, [open, onClose]);
+
+  React.useEffect(() => {
+    if (open) return;
+    const target = returnFocusRef?.current ?? previouslyFocused.current;
+    if (target && target.isConnected) {
+      window.requestAnimationFrame(() => target.focus({ preventScroll: true }));
+    }
+  }, [open, returnFocusRef]);
+
+  if (!isMounted || !open || !renderChart) {
+    return null;
+  }
+
+  const chartHeight = Math.max(viewportHeight - 160, 520);
+
+  const overlay = (
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-[1200] flex flex-col bg-slate-950/95 backdrop-blur"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === overlayRef.current) {
+          onClose();
+        }
+      }}
+    >
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descriptionId}
+        tabIndex={-1}
+        className="flex h-full w-full flex-col gap-6 p-4 text-white sm:p-6"
+      >
+        <header className="flex flex-wrap items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h2 id={titleId} className="text-xl font-semibold text-white">
+              {title}
+            </h2>
+            <p id={descriptionId} className="text-sm text-zinc-300">
+              {subtitle ?? "Interact with the expanded retention timeline."}
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            onClick={onClose}
+            aria-label="Exit fullscreen"
+          >
+            <Minimize2 className="h-5 w-5" />
+          </Button>
+        </header>
+        <div className="flex min-h-0 flex-1 flex-col gap-4">
+          <div className="flex min-h-0 flex-1 items-stretch rounded-3xl border border-white/10 bg-slate-900/60 p-3">
+            <div className="h-full w-full">{renderChart(chartHeight)}</div>
+          </div>
+          <p className="text-xs text-zinc-400">
+            Use the mouse wheel or touch gestures to zoom, drag to pan, or press Escape to exit fullscreen.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
+  return createPortal(overlay, document.body);
 }

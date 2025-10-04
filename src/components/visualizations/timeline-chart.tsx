@@ -171,7 +171,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       onViewportChange,
       fullDomain,
       fullYDomain,
-      height = 320,
+      height = 400,
       showGrid = true,
       examMarkers = [],
       showTodayLine = true,
@@ -189,6 +189,23 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
     const containerRef = React.useRef<HTMLDivElement | null>(null);
     const svgRef = React.useRef<SVGSVGElement | null>(null);
     React.useImperativeHandle(ref, () => svgRef.current as SVGSVGElement);
+
+    React.useEffect(() => {
+      const element = containerRef.current;
+      if (!element) return;
+
+      const handleWheelCapture = (event: WheelEvent) => {
+        if (!containerRef.current) return;
+        if (!containerRef.current.contains(event.target as Node)) return;
+        event.preventDefault();
+      };
+
+      element.addEventListener("wheel", handleWheelCapture, { passive: false });
+
+      return () => {
+        element.removeEventListener("wheel", handleWheelCapture);
+      };
+    }, []);
 
     const [width, setWidth] = React.useState(960);
     const [isPanning, setIsPanning] = React.useState(false);
