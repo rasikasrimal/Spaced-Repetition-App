@@ -51,6 +51,7 @@ const MIN_ZOOM_SPAN = DAY_MS;
 const MIN_Y_SPAN = 0.05;
 const KEYBOARD_STEP_MS = DAY_MS;
 const DEFAULT_SUBJECT_ID = "subject-general";
+const RETENTION_PROJECTION_DAYS = 30;
 
 type TopicVisibility = Record<string, boolean>;
 type SortView = "next" | "title";
@@ -154,6 +155,13 @@ const deriveSeries = (
             `Retention ${(segment.start.retrievabilityAtReview * 100).toFixed(0)}% at review`
           );
         }
+        const projectionRetention = computeRetrievability(
+          segment.stabilityDays,
+          RETENTION_PROJECTION_DAYS * DAY_MS
+        );
+        notes.push(
+          `Predicted retention in ${RETENTION_PROJECTION_DAYS}d ≈ ${(projectionRetention * 100).toFixed(0)}%`
+        );
         pack.events.push({
           id: segment.start.id,
           t: reviewTime,
