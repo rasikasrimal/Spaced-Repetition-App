@@ -147,6 +147,11 @@ const deriveSeries = (
         if (typeof segment.start.intervalDays === "number") {
           notes.push(`Next interval ≈ ${segment.start.intervalDays.toFixed(2)} days`);
         }
+        if (typeof segment.start.retrievabilityAtReview === "number") {
+          notes.push(
+            `Retention ${(segment.start.retrievabilityAtReview * 100).toFixed(0)}% at review`
+          );
+        }
         pack.events.push({
           id: segment.start.id,
           t: reviewTime,

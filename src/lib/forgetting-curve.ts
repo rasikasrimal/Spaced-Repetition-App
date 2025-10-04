@@ -4,7 +4,11 @@ export const DEFAULT_RETRIEVABILITY_TARGET = 0.7;
 export const DEFAULT_STABILITY_DAYS = 1;
 export const STABILITY_MIN_DAYS = 0.25;
 export const STABILITY_MAX_DAYS = 3650;
-export const STABILITY_ADJUSTMENT_ALPHA = 1.0;
+
+const STABILITY_GROWTH_ALPHA = 0.25;
+const STABILITY_SPACING_BETA = 0.18;
+const STABILITY_REPETITION_GAMMA = 0.12;
+const STABILITY_LAPSE_PENALTY = 0.35;
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
@@ -30,15 +34,36 @@ export const computeIntervalDays = (
 
 export type ReviewQuality = 0 | 0.5 | 1;
 
-export const updateStability = (
-  stabilityDays: number,
-  quality: ReviewQuality,
-  alpha = STABILITY_ADJUSTMENT_ALPHA,
+export interface StabilityUpdateOptions {
+  previousStability: number;
+  elapsedDays: number;
+  quality: ReviewQuality;
+  reviewCount: number;
+  min?: number;
+  max?: number;
+}
+
+export const updateStability = ({
+  previousStability,
+  elapsedDays,
+  quality,
+  reviewCount,
   min = STABILITY_MIN_DAYS,
   max = STABILITY_MAX_DAYS
-): number => {
-  const delta = alpha * (quality - 0.5);
-  const next = stabilityDays * (1 + delta);
+}: StabilityUpdateOptions): number => {
+  const safePrevious = clamp(previousStability, min, max);
+  const safeElapsed = Math.max(elapsedDays, STABILITY_MIN_DAYS / 24);
+
+  if (quality === 0) {
+    const penalized = safePrevious * STABILITY_LAPSE_PENALTY;
+    return clamp(Math.max(penalized, STABILITY_MIN_DAYS), min, max);
+  }
+
+  const qualityBonus = 1 + STABILITY_GROWTH_ALPHA * (quality === 1 ? 1 : 0.6);
+  const spacingBonus = 1 + STABILITY_SPACING_BETA * Math.log10(1 + safeElapsed);
+  const repetitionBonus = 1 + STABILITY_REPETITION_GAMMA * Math.log(1 + Math.max(reviewCount, 1));
+
+  const next = safePrevious * qualityBonus * spacingBonus * repetitionBonus;
   return clamp(next, min, max);
 };
 

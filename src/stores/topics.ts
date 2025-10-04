@@ -58,6 +58,7 @@ export type TopicPayload = {
   stability?: number;
   retrievabilityTarget?: number;
   reviewsCount?: number;
+  retrievabilityAtLastReview?: number | null;
 };
 
 type SubjectCreatePayload = {
@@ -255,14 +256,33 @@ const createDemoSeedState = (): DemoSeedState => {
           : [1, 3, 7, 14, 30, 45, 60];
 
       let stability = DEFAULT_STABILITY_DAYS;
+      let reviewsCountForSeed = 0;
+      let previousReviewDate: Date | null = null;
       const reviewEvents: TopicEvent[] = [];
-      topicReviews.forEach((review, index) => {
+      topicReviews.forEach((review) => {
         const reviewedAt = toDemoIso(review.reviewDate);
+        const reviewedAtDate = new Date(reviewedAt);
+        const baseDate = previousReviewDate ?? new Date(topicCreatedAt);
+        const elapsedMs = reviewedAtDate.getTime() - baseDate.getTime();
+        const elapsedDays = Math.max(elapsedMs / DAY_MS, STABILITY_MIN_DAYS / 24);
+        const retrievabilityAtReview = previousReviewDate
+          ? computeRetrievability(Math.max(stability, STABILITY_MIN_DAYS), Math.max(elapsedMs, 0))
+          : 1;
+        reviewsCountForSeed += 1;
+        stability = updateStability({
+          previousStability: stability,
+          elapsedDays,
+          quality: 1,
+          reviewCount: reviewsCountForSeed
+        });
+        const effectiveStability = Math.max(stability, STABILITY_MIN_DAYS);
         const intervalDays =
           typeof review.interval === "number" && review.interval > 0
             ? review.interval
-            : intervals[Math.min(index, intervals.length - 1)];
-        stability = Math.min(Math.max(stability + 3, STABILITY_MIN_DAYS), STABILITY_MAX_DAYS);
+            : computeIntervalDays(effectiveStability, DEFAULT_RETRIEVABILITY_TARGET);
+        if (intervalDays > 0) {
+          intervalCandidates.add(Math.max(1, Math.round(intervalDays)));
+        }
         const nextReviewAt = addDays(reviewedAt, intervalDays);
         reviewEvents.push({
           id: review.id,
@@ -275,8 +295,10 @@ const createDemoSeedState = (): DemoSeedState => {
           reviewQuality: 1,
           resultingStability: stability,
           targetRetrievability: DEFAULT_RETRIEVABILITY_TARGET,
-          nextReviewAt
+          nextReviewAt,
+          retrievabilityAtReview
         });
+        previousReviewDate = reviewedAtDate;
       });
 
       const events: TopicEvent[] = [
@@ -315,6 +337,7 @@ const createDemoSeedState = (): DemoSeedState => {
         stability,
         retrievabilityTarget: DEFAULT_RETRIEVABILITY_TARGET,
         reviewsCount: reviewEvents.length,
+        retrievabilityAtLastReview: lastReview?.retrievabilityAtReview ?? null,
         subjectDifficultyModifier: 1,
         autoAdjustPreference: "ask",
         createdAt: topicCreatedAt,
@@ -613,7 +636,8 @@ const createReviewedEvent = (
   kind: ReviewKind,
   stability: number,
   target: number,
-  nextReviewAt: string
+  nextReviewAt: string,
+  retrievabilityAtReview: number
 ): TopicEvent => ({
   id: nanoid(),
   topicId,
@@ -624,10 +648,11 @@ const createReviewedEvent = (
   reviewKind: kind,
   resultingStability: stability,
   targetRetrievability: target,
-  nextReviewAt
+  nextReviewAt,
+  retrievabilityAtReview
 });
 
-const VERSION = 8;
+const VERSION = 9;
 type PersistedState = TopicStoreState & { version?: number; categories?: LegacyCategory[] };
 
 type TopicHistoryEntry = {
@@ -723,13 +748,18 @@ const migrate = (persistedState: unknown, from: number): PersistedState => {
     if (Array.isArray((topic as any).events)) {
       (topic as any).events = (topic as any).events.map((event: any) => {
         if (event.type === "reviewed") {
+          const retention =
+            typeof event.retrievabilityAtReview === "number"
+              ? Math.min(Math.max(event.retrievabilityAtReview, 0), 1)
+              : 1;
           return {
             ...event,
             reviewKind: event.reviewKind ?? "scheduled",
             reviewQuality: typeof event.reviewQuality === "number" ? event.reviewQuality : 1,
             resultingStability: event.resultingStability ?? (topic as any).stability,
             targetRetrievability: event.targetRetrievability ?? (topic as any).retrievabilityTarget,
-            nextReviewAt: event.nextReviewAt ?? (topic as any).nextReviewDate
+            nextReviewAt: event.nextReviewAt ?? (topic as any).nextReviewDate,
+            retrievabilityAtReview: retention
           };
         }
         if (event.type === "skipped") {
@@ -741,6 +771,20 @@ const migrate = (persistedState: unknown, from: number): PersistedState => {
         }
         return event;
       });
+    }
+
+    if (typeof (topic as any).retrievabilityAtLastReview !== "number") {
+      const reviewEvents = Array.isArray((topic as any).events)
+        ? (topic as any).events
+            .filter((event: any) => event.type === "reviewed")
+            .sort(
+              (a: any, b: any) => new Date(a.at).getTime() - new Date(b.at).getTime()
+            )
+        : [];
+      const lastReview = reviewEvents[reviewEvents.length - 1];
+      (topic as any).retrievabilityAtLastReview = lastReview
+        ? Math.min(Math.max(lastReview.retrievabilityAtReview ?? 1, 0), 1)
+        : null;
     }
   }
 
@@ -1090,7 +1134,8 @@ export const useTopicStore = create<TopicStore>()(
             "scheduled",
             stability,
             retrievabilityTarget,
-            nextReviewDate
+            nextReviewDate,
+            1
           );
           events = appendEvent(events, { ...backfillReview, backfill: true });
         }
@@ -1115,6 +1160,8 @@ export const useTopicStore = create<TopicStore>()(
           stability,
           retrievabilityTarget,
           reviewsCount,
+          retrievabilityAtLastReview:
+            payload.retrievabilityAtLastReview ?? (lastReviewedAtDate ? 1 : null),
           subjectDifficultyModifier: subjectDifficulty,
           autoAdjustPreference: payload.autoAdjustPreference ?? "ask",
           createdAt,
@@ -1204,7 +1251,8 @@ export const useTopicStore = create<TopicStore>()(
                 "scheduled",
                 stability,
                 retrievabilityTarget,
-                nextReviewDate
+                nextReviewDate,
+                topic.retrievabilityAtLastReview ?? 1
               );
               const existingReviewIndex = events.findIndex(
                 (event) => event.type === "reviewed" && event.at === lastReviewedAtIso
@@ -1233,6 +1281,12 @@ export const useTopicStore = create<TopicStore>()(
               stability,
               retrievabilityTarget,
               reviewsCount,
+              retrievabilityAtLastReview:
+                typeof payload.retrievabilityAtLastReview !== "undefined"
+                  ? payload.retrievabilityAtLastReview
+                  : lastReviewedAtIso
+                    ? topic.retrievabilityAtLastReview ?? 1
+                    : topic.retrievabilityAtLastReview ?? null,
               subjectDifficultyModifier: subjectDifficulty,
               autoAdjustPreference: payload.autoAdjustPreference ?? topic.autoAdjustPreference ?? "ask",
               startedAt: startedAtDate.toISOString(),
@@ -1312,14 +1366,32 @@ export const useTopicStore = create<TopicStore>()(
         const subjectDifficulty = resolveDifficultyModifier(
           subject?.difficultyModifier ?? topic.subjectDifficultyModifier
         );
+        const startedAtIso = topic.startedAt ?? topic.createdAt;
+        const startedAtDate = new Date(startedAtIso);
+        let previousReviewDate: Date | null = null;
 
         for (const entry of ordered) {
+          const reviewedAtDate = new Date(entry.at);
+          const baseForElapsed = previousReviewDate ?? startedAtDate;
+          const elapsedMs = reviewedAtDate.getTime() - baseForElapsed.getTime();
+          const elapsedDays = Math.max(elapsedMs / DAY_MS, STABILITY_MIN_DAYS / 24);
           reviewsCount += 1;
-          stability = updateStability(stability, entry.quality);
+
+          const priorEffectiveStability = Math.max(stability * subjectDifficulty, STABILITY_MIN_DAYS);
+          const retrievabilityAtReview = previousReviewDate
+            ? computeRetrievability(priorEffectiveStability, Math.max(elapsedMs, 0))
+            : 1;
+
+          stability = updateStability({
+            previousStability: stability,
+            elapsedDays,
+            quality: entry.quality,
+            reviewCount: reviewsCount
+          });
+
           const effectiveStability = Math.max(stability * subjectDifficulty, STABILITY_MIN_DAYS);
           const intervalDays = computeIntervalDays(effectiveStability, topic.retrievabilityTarget);
           lastIntervalDays = intervalDays;
-          const reviewedAtDate = new Date(entry.at);
           const reviewedAtIso = reviewedAtDate.toISOString();
           const nextReviewIso = clampToExamDate(
             new Date(new Date(reviewedAtIso).getTime() + intervalDays * DAY_MS),
@@ -1337,28 +1409,31 @@ export const useTopicStore = create<TopicStore>()(
             resultingStability: stability,
             targetRetrievability: topic.retrievabilityTarget,
             nextReviewAt: nextReviewIso,
+            retrievabilityAtReview,
             backfill: reviewedAtDate.getTime() < nowMs ? true : undefined
           });
 
           const intervalCap = Math.max(topic.intervals.length - 1, 0);
           intervalIndex = Math.min(reviewsCount, intervalCap);
+          previousReviewDate = reviewedAtDate;
         }
 
         const nonReviewEvents = (topic.events ?? []).filter((event) => event.type !== "reviewed");
-        const startedAt = topic.startedAt ?? topic.createdAt;
         const markBackfilled =
-          ordered.length > 0 && new Date(ordered[0].at).getTime() < new Date(startedAt).getTime();
-        let events = ensureStartedEvent(topic.id, nonReviewEvents, startedAt, markBackfilled);
+          ordered.length > 0 && new Date(ordered[0].at).getTime() < startedAtDate.getTime();
+        let events = ensureStartedEvent(topic.id, nonReviewEvents, startedAtIso, markBackfilled);
         events = ensureEventsSorted([...events, ...reviewEvents]);
 
         let nextReviewDate = topic.nextReviewDate;
         let lastReviewedAt: string | null = null;
+        let retrievabilityAtLastReview: number | null = null;
 
         if (reviewEvents.length > 0) {
           const lastEvent = reviewEvents[reviewEvents.length - 1];
           lastReviewedAt = lastEvent.at;
           const intervalDays = lastEvent.intervalDays ?? lastIntervalDays;
           const referenceDate = new Date(lastEvent.at);
+          retrievabilityAtLastReview = lastEvent.retrievabilityAtReview ?? null;
           nextReviewDate = scheduleNextReviewDate({
             topicId: topic.id,
             referenceDate,
@@ -1393,6 +1468,8 @@ export const useTopicStore = create<TopicStore>()(
               nextReviewDate,
               lastReviewedAt,
               lastReviewedOn: lastReviewedAt,
+              retrievabilityAtLastReview:
+                retrievabilityAtLastReview ?? item.retrievabilityAtLastReview ?? null,
               subjectDifficultyModifier: subjectDifficulty,
               reviseNowLastUsedAt: item.reviseNowLastUsedAt
             };
@@ -1463,14 +1540,37 @@ export const useTopicStore = create<TopicStore>()(
         );
         const examDate = subject?.examDate ?? null;
 
+        if (quality === 0) {
+          shouldAdjust = true;
+        }
+
         const leadTimeMsRaw = new Date(topic.nextReviewDate).getTime() - reviewedAt.getTime();
         const leadTimeMs = Math.max(0, leadTimeMsRaw);
 
-        const nextIntervalIndex = Math.min(topic.intervalIndex + 1, topic.intervals.length - 1);
-        const updatedStability = updateStability(topic.stability, quality);
+        const reviewsCount = topic.reviewsCount + 1;
+        const nextIntervalIndex =
+          quality === 0 ? 0 : Math.min(topic.intervalIndex + 1, topic.intervals.length - 1);
+
+        const anchorDate = topic.lastReviewedAt
+          ? new Date(topic.lastReviewedAt)
+          : topic.startedAt
+            ? new Date(topic.startedAt)
+            : new Date(topic.createdAt);
+        const elapsedMs = reviewedAt.getTime() - anchorDate.getTime();
+        const elapsedDays = Math.max(elapsedMs / DAY_MS, STABILITY_MIN_DAYS / 24);
+        const priorEffectiveStability = Math.max(topic.stability * subjectDifficulty, STABILITY_MIN_DAYS);
+        const retrievabilityAtReview = topic.lastReviewedAt
+          ? computeRetrievability(priorEffectiveStability, Math.max(elapsedMs, 0))
+          : 1;
+
+        const updatedStability = updateStability({
+          previousStability: topic.stability,
+          elapsedDays,
+          quality,
+          reviewCount: reviewsCount
+        });
         const effectiveStability = Math.max(updatedStability * subjectDifficulty, STABILITY_MIN_DAYS);
         const intervalDays = computeIntervalDays(effectiveStability, topic.retrievabilityTarget);
-        const reviewsCount = topic.reviewsCount + 1;
 
         let nextReviewDate = topic.nextReviewDate;
         if (!wasEarly || shouldAdjust) {
@@ -1494,7 +1594,8 @@ export const useTopicStore = create<TopicStore>()(
           reviewKind,
           updatedStability,
           topic.retrievabilityTarget,
-          nextReviewDate
+          nextReviewDate,
+          retrievabilityAtReview
         );
 
         set((prev) => ({
@@ -1509,6 +1610,7 @@ export const useTopicStore = create<TopicStore>()(
               lastReviewedAt: reviewedAtIso,
               lastReviewedOn: reviewedAtIso,
               nextReviewDate,
+              retrievabilityAtLastReview: retrievabilityAtReview,
               events: appendEvent(item.events, reviewedEvent),
               reviseNowLastUsedAt:
                 options?.source === "revise-now" ? reviewedAtIso : item.reviseNowLastUsedAt ?? null
