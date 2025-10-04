@@ -22,6 +22,7 @@ import {
   EyeOff,
   Filter,
   Info,
+  Milestone,
   Search,
   Sparkles,
   AlertTriangle,
@@ -50,6 +51,7 @@ const MIN_ZOOM_SPAN = DAY_MS;
 const MIN_Y_SPAN = 0.05;
 const KEYBOARD_STEP_MS = DAY_MS;
 const DEFAULT_SUBJECT_ID = "subject-general";
+const RETENTION_PROJECTION_DAYS = 30;
 
 type TopicVisibility = Record<string, boolean>;
 type SortView = "next" | "title";
@@ -79,7 +81,8 @@ const deriveSeries = (
   topics: Topic[],
   visibility: TopicVisibility,
   resolveColor: (topic: Topic) => string,
-  nowMs: number
+  nowMs: number,
+  includeCheckpoints: boolean
 ): TimelineSeries[] => {
   const visibleTopics = topics.filter((topic) => visibility[topic.id] ?? true);
   const segments = buildCurveSegments(visibleTopics);
@@ -133,7 +136,7 @@ const deriveSeries = (
         id: `${segment.topicId}-${segment.start.id}-${segment.displayEndAt}`,
         points: samples,
         isHistorical: segment.isHistorical,
-        checkpoint: Number.isFinite(checkpointTime)
+        checkpoint: includeCheckpoints && Number.isFinite(checkpointTime)
           ? { t: checkpointTime, target: segment.target }
           : undefined
       });
@@ -152,6 +155,13 @@ const deriveSeries = (
             `Retention ${(segment.start.retrievabilityAtReview * 100).toFixed(0)}% at review`
           );
         }
+        const projectionRetention = computeRetrievability(
+          segment.stabilityDays,
+          RETENTION_PROJECTION_DAYS * DAY_MS
+        );
+        notes.push(
+          `Predicted retention in ${RETENTION_PROJECTION_DAYS}d ≈ ${(projectionRetention * 100).toFixed(0)}%`
+        );
         pack.events.push({
           id: segment.start.id,
           t: reviewTime,
@@ -162,7 +172,11 @@ const deriveSeries = (
       }
 
       const checkpointId = `${segment.topicId}-checkpoint-${segment.checkpointAt}`;
-      if (Number.isFinite(checkpointTime) && !pack.events.some((event) => event.id === checkpointId)) {
+      if (
+        includeCheckpoints &&
+        Number.isFinite(checkpointTime) &&
+        !pack.events.some((event) => event.id === checkpointId)
+      ) {
         const startTime = new Date(segment.start.at).getTime();
         if (Number.isFinite(startTime)) {
           const intervalDays = Math.max(0, (checkpointTime - startTime) / DAY_MS);
@@ -413,6 +427,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   const [rangeHint, setRangeHint] = React.useState<string | null>(null);
   const [hasStudyActivity, setHasStudyActivity] = React.useState(true);
   const [showExamMarkers, setShowExamMarkers] = React.useState(true);
+  const [showCheckpoints, setShowCheckpoints] = React.useState(false);
   const svgRef = React.useRef<SVGSVGElement | null>(null);
   const perSubjectSvgRefs = React.useRef(new Map<string, SVGSVGElement | null>());
   const perSubjectContainerRef = React.useRef<HTMLDivElement | null>(null);
@@ -758,8 +773,8 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   }, []);
 
   const series = React.useMemo(
-    () => deriveSeries(filteredTopics, visibility, resolveTopicColor, nowMs),
-    [filteredTopics, visibility, resolveTopicColor, nowMs]
+    () => deriveSeries(filteredTopics, visibility, resolveTopicColor, nowMs, showCheckpoints),
+    [filteredTopics, visibility, resolveTopicColor, nowMs, showCheckpoints]
   );
 
   const perSubjectSeries = React.useMemo<SubjectSeriesGroup[]>(() => {
@@ -776,7 +791,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     const items: SubjectSeriesGroup[] = [];
     for (const [subjectId, list] of grouped) {
       const subject = subjectLookup.get(subjectId) ?? null;
-      const derived = deriveSeries(list, visibility, resolveTopicColor, nowMs);
+      const derived = deriveSeries(list, visibility, resolveTopicColor, nowMs, showCheckpoints);
       if (derived.length === 0) continue;
       const color = subject?.color ?? resolveTopicColor(list[0]);
       items.push({
@@ -789,7 +804,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     }
     items.sort((a, b) => a.label.localeCompare(b.label));
     return items;
-  }, [filteredTopics, subjectLookup, visibility, resolveTopicColor, nowMs]);
+  }, [filteredTopics, subjectLookup, visibility, resolveTopicColor, nowMs, showCheckpoints]);
 
   React.useEffect(() => {
     if (series.length === 0) {
@@ -1206,6 +1221,17 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
           }`}
         >
           <CalendarClock className="h-3.5 w-3.5" /> Exam markers {showExamMarkers ? "on" : "off"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowCheckpoints((prev) => !prev)}
+          className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs transition ${
+            showCheckpoints
+              ? "border-accent/40 bg-accent/20 text-white"
+              : "border-white/10 bg-transparent text-zinc-400 hover:text-white"
+          }`}
+        >
+          <Milestone className="h-3.5 w-3.5" /> Checkpoints {showCheckpoints ? "on" : "off"}
         </button>
         {categoryFilter.size > 0 ? (
           <Button size="sm" variant="ghost" onClick={() => setCategoryFilter(new Set())}>

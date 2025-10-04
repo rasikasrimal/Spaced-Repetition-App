@@ -5,21 +5,30 @@ export const DEFAULT_STABILITY_DAYS = 1;
 export const STABILITY_MIN_DAYS = 0.25;
 export const STABILITY_MAX_DAYS = 3650;
 
-const STABILITY_GROWTH_ALPHA = 0.25;
-const STABILITY_SPACING_BETA = 0.18;
-const STABILITY_REPETITION_GAMMA = 0.12;
-const STABILITY_LAPSE_PENALTY = 0.35;
+const STABILITY_GROWTH_FACTOR = 0.5;
+const STABILITY_STREAK_FACTOR = 0.14;
+const STABILITY_STREAK_BONUS = 0.45;
+const STABILITY_PARTIAL_SUCCESS_FACTOR = 0.6;
+const STABILITY_LAPSE_PENALTY = 0.55;
+
+export const DEFAULT_RETENTION_FLOOR = 0.2;
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
-export const computeRetrievability = (stabilityDays: number, elapsedMs: number): number => {
+export const computeRetrievability = (
+  stabilityDays: number,
+  elapsedMs: number,
+  floor = DEFAULT_RETENTION_FLOOR
+): number => {
   const safeStability = Math.max(stabilityDays, STABILITY_MIN_DAYS);
   const elapsedDays = Math.max(0, elapsedMs) / DAY_IN_MS;
-  const retention = Math.exp(-elapsedDays / safeStability);
+  const safeFloor = clamp(floor, 0, 0.95);
+  const decayPortion = 1 - safeFloor;
+  const retention = safeFloor + decayPortion * Math.exp(-elapsedDays / safeStability);
   if (!Number.isFinite(retention)) {
     return 0;
   }
-  return clamp(retention, 0, 1);
+  return clamp(retention, safeFloor, 1);
 };
 
 export const computeIntervalDays = (
@@ -59,11 +68,14 @@ export const updateStability = ({
     return clamp(Math.max(penalized, STABILITY_MIN_DAYS), min, max);
   }
 
-  const qualityBonus = 1 + STABILITY_GROWTH_ALPHA * (quality === 1 ? 1 : 0.6);
-  const spacingBonus = 1 + STABILITY_SPACING_BETA * Math.log10(1 + safeElapsed);
-  const repetitionBonus = 1 + STABILITY_REPETITION_GAMMA * Math.log(1 + Math.max(reviewCount, 1));
+  const spacingTerm = Math.log1p(safeElapsed);
+  const streakTerm = Math.log1p(Math.max(reviewCount - 1, 0));
+  const qualityScale = quality === 1 ? 1 : STABILITY_PARTIAL_SUCCESS_FACTOR;
+  const spacingGrowth = 1 + STABILITY_GROWTH_FACTOR * qualityScale * spacingTerm;
+  const streakGrowth = 1 + STABILITY_STREAK_FACTOR * qualityScale * streakTerm;
+  const streakBonus = STABILITY_STREAK_BONUS * qualityScale * streakTerm;
 
-  const next = safePrevious * qualityBonus * spacingBonus * repetitionBonus;
+  const next = safePrevious * spacingGrowth * streakGrowth + streakBonus;
   return clamp(next, min, max);
 };
 
