@@ -731,7 +731,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
       ? byCategory.filter((topic) =>
           topic.title.toLowerCase().includes(lower) ||
           topic.notes.toLowerCase().includes(lower) ||
-          topic.categoryLabel.toLowerCase().includes(lower)
+          (topic.categoryLabel ?? "").toLowerCase().includes(lower)
         )
       : byCategory;
 

@@ -43,6 +43,8 @@ export type TopicPayload = {
   notes: string;
   subjectId: string | null;
   subjectLabel: string;
+  color?: string | null;
+  icon?: string | null;
   categoryId?: string | null;
   categoryLabel?: string;
   reminderTime: string | null;
@@ -446,7 +448,16 @@ const QUALITY_PRIORITY: Record<ReviewQuality, number> = {
   1: 2
 };
 
-const migrate = (persisted: PersistedState, from: number): PersistedState => {
+const migrate = (persistedState: unknown, from: number): PersistedState => {
+  const persisted: PersistedState =
+    typeof persistedState === "object" && persistedState !== null
+      ? (persistedState as PersistedState)
+      : {
+          topics: [],
+          subjects: [],
+          categories: [],
+          reviseNowMetrics: createDefaultReviseMetrics()
+        };
   if (!persisted.topics) {
     persisted.topics = [];
   }
