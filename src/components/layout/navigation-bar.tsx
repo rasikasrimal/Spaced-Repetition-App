@@ -1,8 +1,9 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import type { Route } from "next";
 import {
   Menu,
   Bell,
@@ -13,18 +14,27 @@ import {
   NotebookPen,
   Settings
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTopicStore } from "@/stores/topics";
 import { Topic } from "@/types/topic";
 import { ProfileMenu } from "@/components/layout/profile-menu";
 
-const navItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/calendar", label: "Calendar", icon: CalendarDays },
-  { href: "/reviews", label: "Reviews", icon: CalendarCheck2 },
-  { href: "/timeline", label: "Timeline", icon: LineChart },
-  { href: "/subjects", label: "Subjects", icon: NotebookPen },
-  { href: "/settings", label: "Settings", icon: Settings }
+type AppRoute = Route<"/"> | Route<"/calendar"> | Route<"/reviews"> | Route<"/timeline"> | Route<"/subjects"> | Route<"/settings">;
+
+type NavItem = {
+  href: AppRoute;
+  label: string;
+  icon: LucideIcon;
+};
+
+const navItems: NavItem[] = [
+  { href: "/" as AppRoute, label: "Dashboard", icon: LayoutDashboard },
+  { href: "/calendar" as AppRoute, label: "Calendar", icon: CalendarDays },
+  { href: "/reviews" as AppRoute, label: "Reviews", icon: CalendarCheck2 },
+  { href: "/timeline" as AppRoute, label: "Timeline", icon: LineChart },
+  { href: "/subjects" as AppRoute, label: "Subjects", icon: NotebookPen },
+  { href: "/settings" as AppRoute, label: "Settings", icon: Settings }
 ];
 
 const computeDueCounts = (topics: Topic[]) => {
@@ -86,10 +96,10 @@ export const NavigationBar: React.FC = () => {
             variant="outline"
             size="sm"
             className="hidden items-center gap-2 rounded-full border-white/20 text-xs text-white hover:bg-white/10 md:inline-flex"
-            onClick={() => router.push("/reviews")}
+            onClick={() => router.push("/reviews" as AppRoute)}
           >
             <Bell className="h-3.5 w-3.5" />
-            Today’s Tasks
+            Today&apos;s Tasks
             <span className="ml-1 inline-flex h-5 min-w-[1.5rem] items-center justify-center rounded-full bg-accent text-[11px] font-semibold text-accent-foreground">
               {due}
             </span>
@@ -101,3 +111,4 @@ export const NavigationBar: React.FC = () => {
     </header>
   );
 };
+
