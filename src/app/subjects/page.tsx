@@ -6,6 +6,7 @@ import { useTopicStore } from "@/stores/topics";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { ColorPicker } from "@/components/forms/color-picker";
 import { IconPicker } from "@/components/forms/icon-picker";
 import { IconPreview } from "@/components/icon-preview";
@@ -139,6 +140,7 @@ const SubjectAdminPage: React.FC = () => {
   const [expandedSubjects, setExpandedSubjects] = React.useState<Set<string>>(new Set());
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
   const [sortOption, setSortOption] = React.useState<SortOption>("urgency");
+  const [subjectPendingDelete, setSubjectPendingDelete] = React.useState<Subject | null>(null);
 
   React.useEffect(() => {
     if (!isCreateOpen) return;
@@ -285,9 +287,20 @@ const SubjectAdminPage: React.FC = () => {
     const result = deleteSubject(subject.id);
     if (!result.success) {
       toast.error(result.reason ?? "Unable to delete subject");
-      return;
+      return false;
     }
     toast.success(`Subject “${subject.name}” removed`);
+    return true;
+  };
+
+  const handleConfirmDelete = () => {
+    if (!subjectPendingDelete) {
+      return;
+    }
+    const wasDeleted = handleDeleteSubject(subjectPendingDelete);
+    if (wasDeleted) {
+      setSubjectPendingDelete(null);
+    }
   };
 
   return (
@@ -523,12 +536,10 @@ const SubjectAdminPage: React.FC = () => {
                         variant="ghost"
                         size="icon"
                         className="text-rose-200 hover:text-rose-100"
-                        onClick={() => handleDeleteSubject(subject)}
-                        disabled={hasTopics || subject.id === DEFAULT_SUBJECT_ID}
+                        onClick={() => setSubjectPendingDelete(subject)}
+                        disabled={hasTopics}
                         aria-label={
-                          hasTopics || subject.id === DEFAULT_SUBJECT_ID
-                            ? "Cannot delete a subject while topics exist"
-                            : `Delete ${subject.name}`
+                          hasTopics ? "Cannot delete a subject while topics exist" : `Delete ${subject.name}`
                         }
                       >
                         <Trash2 className="h-4 w-4" />
@@ -766,6 +777,22 @@ const SubjectAdminPage: React.FC = () => {
           </aside>
         </div>
       ) : null}
+      <ConfirmationDialog
+        open={subjectPendingDelete !== null}
+        title="Delete subject"
+        description={
+          subjectPendingDelete
+            ? `This will permanently remove “${subjectPendingDelete.name}” and its identity settings.`
+            : "This will permanently remove the selected subject and its identity settings."
+        }
+        warning="Existing topics must be reassigned or removed separately."
+        confirmLabel="Delete subject"
+        confirmTone="danger"
+        icon={<Trash2 className="h-5 w-5" aria-hidden="true" />}
+        onConfirm={handleConfirmDelete}
+        onClose={() => setSubjectPendingDelete(null)}
+        onCancel={() => setSubjectPendingDelete(null)}
+      />
     </main>
   );
 };

@@ -757,9 +757,6 @@ export const useTopicStore = create<TopicStore>()(
         return get().subjects.find((subject) => subject.id === id) ?? null;
       },
       deleteSubject: (id) => {
-        if (id === DEFAULT_SUBJECT_ID) {
-          return { success: false, reason: "Default subject cannot be deleted" };
-        }
         const { topics } = get();
         const hasTopics = topics.some((topic) => topic.subjectId === id);
         if (hasTopics) {
