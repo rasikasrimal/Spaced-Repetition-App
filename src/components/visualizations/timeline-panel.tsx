@@ -9,6 +9,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Toggle } from "@/components/ui/toggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { downloadSvg, downloadSvgAsPng } from "@/lib/export-svg";
 import { buildCurveSegments, sampleSegment } from "@/selectors/curves";
@@ -19,6 +20,8 @@ import { SubjectFilterValue, NO_SUBJECT_KEY } from "@/components/dashboard/topic
 import {
   CalendarClock,
   Check,
+  Droplet,
+  EllipsisVertical,
   Eye,
   EyeOff,
   Filter,
@@ -136,22 +139,26 @@ const deriveSeries = (
     for (const segment of topicSegments) {
       const samples = sampleSegment(segment, 160, nowMs);
       const hasSamples = samples.length > 0;
+      const reviewTime = new Date(segment.start.at).getTime();
       if (hasSamples) {
         pack.points.push(...samples);
       }
       const checkpointTime = new Date(segment.checkpointAt).getTime();
       if (hasSamples) {
+        const fadeFrom = Number.isFinite(reviewTime)
+          ? reviewTime
+          : samples[0]?.t ?? nowMs;
         pack.segments.push({
           id: `${segment.topicId}-${segment.start.id}-${segment.displayEndAt}`,
           points: samples,
           isHistorical: segment.isHistorical,
+          fade: { from: fadeFrom, to: nowMs },
           checkpoint: includeCheckpoints && Number.isFinite(checkpointTime)
             ? { t: checkpointTime, target: segment.target }
             : undefined
         });
       }
 
-      const reviewTime = new Date(segment.start.at).getTime();
       if (Number.isFinite(reviewTime) && !pack.events.some((event) => event.id === segment.start.id)) {
         const notes: string[] = [];
         if (typeof segment.start.reviewQuality === "number") {
@@ -433,6 +440,8 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   const [hasStudyActivity, setHasStudyActivity] = React.useState(true);
   const [showExamMarkers, setShowExamMarkers] = React.useState(true);
   const [showCheckpoints, setShowCheckpoints] = React.useState(false);
+  const [showOpacityFade, setShowOpacityFade] = React.useState(true);
+  const [showReviewMarkers, setShowReviewMarkers] = React.useState(false);
   const svgRef = React.useRef<SVGSVGElement | null>(null);
   const perSubjectSvgRefs = React.useRef(new Map<string, SVGSVGElement | null>());
   const perSubjectContainerRef = React.useRef<HTMLDivElement | null>(null);
@@ -964,6 +973,8 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
             onRequestStepBack={handleStepBack}
             onTooSmallSelection={handleTooSmallSelection}
             keyboardSelection={keyboardSelection}
+            showOpacityFade={showOpacityFade}
+            showReviewLines={showReviewMarkers}
           />
         )
       } as const;
@@ -996,6 +1007,8 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
           onRequestStepBack={handleStepBack}
           onTooSmallSelection={handleTooSmallSelection}
           keyboardSelection={keyboardSelection}
+          showOpacityFade={showOpacityFade}
+          showReviewLines={showReviewMarkers}
         />
       )
     } as const;
@@ -1018,7 +1031,9 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     handleTooSmallSelection,
     keyboardSelection,
     perSubjectSeries,
-    examMarkersBySubject
+    examMarkersBySubject,
+    showOpacityFade,
+    showReviewMarkers
   ]);
 
   const isFullscreenOpen = Boolean(fullscreenConfig);
@@ -1229,6 +1244,32 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
               Pan (Space)
             </Button>
           </div>
+          <div
+            className="flex items-center gap-1 rounded-2xl border border-white/10 bg-slate-900/60 p-1"
+            role="group"
+            aria-label="Timeline display options"
+          >
+            <Toggle
+              type="button"
+              pressed={showOpacityFade}
+              onPressedChange={(pressed) => setShowOpacityFade(Boolean(pressed))}
+              aria-label="Toggle opacity fade"
+              title="Toggle opacity fade"
+            >
+              <Droplet className="h-3.5 w-3.5" />
+              <span>Opacity fade</span>
+            </Toggle>
+            <Toggle
+              type="button"
+              pressed={showReviewMarkers}
+              onPressedChange={(pressed) => setShowReviewMarkers(Boolean(pressed))}
+              aria-label="Toggle review markers"
+              title="Toggle review markers"
+            >
+              <EllipsisVertical className="h-3.5 w-3.5" />
+              <span>Review markers</span>
+            </Toggle>
+          </div>
           <Button
             size="sm"
             variant="outline"
@@ -1428,6 +1469,8 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                 onRequestStepBack={handleStepBack}
                 onTooSmallSelection={handleTooSmallSelection}
                 keyboardSelection={keyboardSelection}
+                showOpacityFade={showOpacityFade}
+                showReviewLines={showReviewMarkers}
               />
             )
           : (
@@ -1501,6 +1544,8 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                         onRequestStepBack={handleStepBack}
                         onTooSmallSelection={handleTooSmallSelection}
                         keyboardSelection={keyboardSelection}
+                        showOpacityFade={showOpacityFade}
+                        showReviewLines={showReviewMarkers}
                       />
                     </div>
                   );

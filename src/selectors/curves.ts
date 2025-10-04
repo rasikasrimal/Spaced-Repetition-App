@@ -85,7 +85,7 @@ export const sampleSegment = (
   segment: CurveSegment,
   maxPoints = 160,
   nowMs: number = Date.now()
-): { t: number; r: number }[] => {
+): { t: number; r: number; opacity: number }[] => {
   const startTs = new Date(segment.start.at).getTime();
   if (!Number.isFinite(startTs)) {
     return [];
@@ -105,17 +105,27 @@ export const sampleSegment = (
   const pointsCount = clamp(maxPoints, 16, 320);
   const stepMs = durationMs / pointsCount;
   const stability = Math.max(segment.stabilityDays, STABILITY_MIN_DAYS);
-  const points: { t: number; r: number }[] = [];
+  const points: { t: number; r: number; opacity: number }[] = [];
+
+  const nowSpan = nowLimit - startTs;
+  const computeOpacity = (timestamp: number) => {
+    if (!Number.isFinite(timestamp)) return 0;
+    if (nowSpan <= 0) {
+      return timestamp >= startTs ? 1 : 0;
+    }
+    const ratio = (timestamp - startTs) / nowSpan;
+    return clamp(ratio, 0, 1);
+  };
 
   for (let ts = startTs; ts <= endTs; ts += stepMs) {
     const elapsedMs = ts - startTs;
     const retention = computeRetrievability(stability, elapsedMs);
-    points.push({ t: ts, r: clamp(retention, 0, 1) });
+    points.push({ t: ts, r: clamp(retention, 0, 1), opacity: computeOpacity(ts) });
   }
 
   if (!points.some((point) => point.t === endTs)) {
     const retention = computeRetrievability(stability, endTs - startTs);
-    points.push({ t: endTs, r: clamp(retention, 0, 1) });
+    points.push({ t: endTs, r: clamp(retention, 0, 1), opacity: computeOpacity(endTs) });
   }
 
   return points;
