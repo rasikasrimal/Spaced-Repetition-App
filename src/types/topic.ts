@@ -17,6 +17,7 @@ export interface TopicEvent {
   resultingStability?: number;
   targetRetrievability?: number;
   nextReviewAt?: string;
+  retrievabilityAtReview?: number;
 }
 
 export type AutoAdjustPreference = "always" | "never" | "ask";
@@ -59,6 +60,7 @@ export type Topic = {
   stability: number;
   retrievabilityTarget: number;
   reviewsCount: number;
+  retrievabilityAtLastReview?: number | null;
   subjectDifficultyModifier?: number | null;
   autoAdjustPreference?: AutoAdjustPreference;
   createdAt: string;
