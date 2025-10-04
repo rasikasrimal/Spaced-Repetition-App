@@ -93,7 +93,9 @@ export const sampleSegment = (
 
   const rawEndTs = new Date(segment.displayEndAt).getTime();
   const nowLimit = Number.isFinite(nowMs) ? nowMs : Date.now();
-  const boundedEnd = Number.isFinite(rawEndTs) ? Math.min(rawEndTs, nowLimit) : nowLimit;
+  const boundedEnd = segment.isHistorical
+    ? (Number.isFinite(rawEndTs) ? Math.min(rawEndTs, nowLimit) : nowLimit)
+    : nowLimit;
   const endTs = Math.max(startTs, boundedEnd);
   if (endTs < startTs) {
     return [];
