@@ -133,9 +133,11 @@ const MIN_Y_SPAN = 0.05;
 const TICK_SPACING_PX = 96;
 const MIN_DRAG_PX = 10;
 
+type RangeTuple = [number, number];
+
 const clampValue = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
-const clampRange = (range: [number, number], bounds: [number, number] | undefined, minSpan: number) => {
+const clampRange = (range: RangeTuple, bounds: RangeTuple | undefined, minSpan: number): RangeTuple => {
   if (!bounds) return range;
   const [requestedStart, requestedEnd] = range;
   const [boundStart, boundEnd] = bounds;
@@ -154,7 +156,7 @@ const clampRange = (range: [number, number], bounds: [number, number] | undefine
   return [start, end];
 };
 
-const ensureSpan = (range: [number, number], minSpan: number) => {
+const ensureSpan = (range: RangeTuple, minSpan: number): RangeTuple => {
   const span = range[1] - range[0];
   if (span >= minSpan) return range;
   const center = (range[0] + range[1]) / 2;
@@ -532,7 +534,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
           cancelSelection();
           return;
         }
-        let nextY: [number, number];
+        let nextY: RangeTuple;
         if (state.shift) {
           const y0 = clampValue(state.origin.y, PADDING_Y, height - PADDING_Y);
           const y1 = clampValue(state.current.y, PADDING_Y, height - PADDING_Y);
@@ -583,7 +585,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
         const deltaPx = event.clientX - panStateRef.current.originClientX;
         const fraction = deltaPx / plotWidth;
         const deltaMs = fraction * domainSpan;
-        const next: [number, number] = [
+        const next: RangeTuple = [
           panStateRef.current.startDomain[0] - deltaMs,
           panStateRef.current.startDomain[1] - deltaMs
         ];

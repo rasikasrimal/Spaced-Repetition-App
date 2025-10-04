@@ -46,8 +46,10 @@ export type Topic = {
   notes: string;
   subjectId: string | null;
   subjectLabel: string;
+  color?: string | null;
   categoryId?: string | null;
   categoryLabel?: string;
+  icon?: string | null;
   reminderTime: string | null;
   intervals: number[];
   intervalIndex: number;
