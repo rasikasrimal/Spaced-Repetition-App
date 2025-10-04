@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import Link from "next/link";
@@ -19,9 +19,29 @@ import {
   startOfDayInTimeZone
 } from "@/lib/date";
 import { toast } from "sonner";
-import { Calendar, ChevronDown, Clock, PencilLine, Plus, Trash2 } from "lucide-react";
+import {
+  BookOpen,
+  CalendarDays,
+  Clock,
+  Info,
+  ListChecks,
+  PencilLine,
+  Plus,
+  RefreshCw,
+  Trash2,
+  X
+} from "lucide-react";
 import { useProfileStore } from "@/stores/profile";
 import { DAY_MS } from "@/lib/forgetting-curve";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
 
 const toDateInputValue = (value: string | null | undefined) => {
   if (!value) return "";
@@ -47,6 +67,60 @@ const computeTopicStatus = (topic: Topic, startMs: number, endMs: number): Topic
   return "upcoming";
 };
 
+type SortOption = "urgency" | "exam-date" | "name";
+
+interface ExamUrgencyMeta {
+  label: string;
+  badgeClass: string;
+  description: string;
+  accentClass: string;
+}
+
+const getExamUrgencyMeta = (daysLeft: number | null): ExamUrgencyMeta => {
+  if (daysLeft === null) {
+    return {
+      label: "No exam date",
+      badgeClass: "bg-zinc-800/80 text-zinc-200",
+      description: "Set an exam date to unlock countdowns and exam alerts.",
+      accentClass: "ring-1 ring-inset ring-zinc-700/40"
+    };
+  }
+
+  if (daysLeft < 0) {
+    return {
+      label: "Exam passed",
+      badgeClass: "bg-zinc-800/80 text-zinc-200",
+      description: "This exam date has passed. Plan a new milestone when you are ready.",
+      accentClass: "ring-1 ring-inset ring-zinc-700/40"
+    };
+  }
+
+  if (daysLeft <= 7) {
+    return {
+      label: "Urgent",
+      badgeClass: "bg-rose-500/20 text-rose-100",
+      description: "Exam is around the corner. Prioritise these reviews.",
+      accentClass: "ring-1 ring-inset ring-rose-400/40"
+    };
+  }
+
+  if (daysLeft <= 30) {
+    return {
+      label: "Next up",
+      badgeClass: "bg-amber-500/20 text-amber-100",
+      description: "Exam is approaching. Keep momentum steady.",
+      accentClass: "ring-1 ring-inset ring-amber-300/40"
+    };
+  }
+
+  return {
+    label: "Plenty of time",
+    badgeClass: "bg-emerald-500/20 text-emerald-100",
+    description: "Planned well ahead. Maintain a consistent cadence.",
+    accentClass: "ring-1 ring-inset ring-emerald-300/40"
+  };
+};
+
 const SubjectAdminPage: React.FC = () => {
   const subjects = useTopicStore((state) => state.subjects);
   const topics = useTopicStore((state) => state.topics);
@@ -63,6 +137,27 @@ const SubjectAdminPage: React.FC = () => {
   const [editing, setEditing] = React.useState<string | null>(null);
   const [editDraft, setEditDraft] = React.useState({ name: "", examDate: "", color: "#38bdf8", icon: "Sparkles" });
   const [expandedSubjects, setExpandedSubjects] = React.useState<Set<string>>(new Set());
+  const [isCreateOpen, setIsCreateOpen] = React.useState(false);
+  const [sortOption, setSortOption] = React.useState<SortOption>("urgency");
+
+  React.useEffect(() => {
+    if (!isCreateOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsCreateOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isCreateOpen]);
 
   const summaryById = React.useMemo(() => {
     const map = new Map<string, SubjectSummary>();
@@ -82,9 +177,7 @@ const SubjectAdminPage: React.FC = () => {
       }
     }
     for (const [, list] of map) {
-      list.sort(
-        (a, b) => new Date(a.nextReviewDate).getTime() - new Date(b.nextReviewDate).getTime()
-      );
+      list.sort((a, b) => new Date(a.nextReviewDate).getTime() - new Date(b.nextReviewDate).getTime());
     }
     return map;
   }, [topics]);
@@ -96,6 +189,32 @@ const SubjectAdminPage: React.FC = () => {
   );
   const startMs = startOfToday.getTime();
   const endMs = startMs + DAY_MS;
+
+  const sortedSubjects = React.useMemo(() => {
+    const now = new Date();
+    return [...subjects].sort((a, b) => {
+      if (sortOption === "name") {
+        return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+      }
+
+      const aExam = a.examDate ? new Date(a.examDate) : null;
+      const bExam = b.examDate ? new Date(b.examDate) : null;
+      const aDays = aExam ? daysBetween(now, aExam) : Number.POSITIVE_INFINITY;
+      const bDays = bExam ? daysBetween(now, bExam) : Number.POSITIVE_INFINITY;
+
+      if (sortOption === "exam-date") {
+        if (aExam && bExam) return aExam.getTime() - bExam.getTime();
+        if (aExam) return -1;
+        if (bExam) return 1;
+        return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+      }
+
+      if (aDays === bDays) {
+        return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+      }
+      return aDays - bDays;
+    });
+  }, [sortOption, subjects]);
 
   const resetForm = () => {
     setName("");
@@ -127,6 +246,7 @@ const SubjectAdminPage: React.FC = () => {
       const created = addSubject({ name: trimmed, color, icon, examDate });
       toast.success(`Subject “${created.name}” created`);
       resetForm();
+      setIsCreateOpen(false);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to create subject");
     }
@@ -171,294 +291,481 @@ const SubjectAdminPage: React.FC = () => {
   };
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-8 px-4 py-12 md:px-6 lg:px-8">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-semibold text-white">Subjects</h1>
-        <p className="text-sm text-zinc-400">
-          Manage the subjects that power your review schedule, including exam dates and identity settings.
-        </p>
+    <main className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-10 px-4 pb-24 pt-12 md:px-8 lg:px-10">
+      <header className="relative flex flex-col gap-6 pb-8">
+        <div className="space-y-3 pr-0 md:pr-64">
+          <h1 className="text-4xl font-semibold text-white">Subjects</h1>
+          <p className="text-sm text-zinc-400">
+            Manage the subjects that power your review schedule, including exam dates and identity settings.
+          </p>
+        </div>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+            <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Sort</span>
+            <Select value={sortOption} onValueChange={(value) => setSortOption(value as SortOption)}>
+              <SelectTrigger className="w-48 border-white/10 bg-white/5 text-white/90 backdrop-blur">
+                <SelectValue placeholder="Sort subjects" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectLabel>Order subjects</SelectLabel>
+                  <SelectItem value="urgency">Exam urgency</SelectItem>
+                  <SelectItem value="exam-date">Exam date</SelectItem>
+                  <SelectItem value="name">Name (A–Z)</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
+          <p className="text-xs text-zinc-500 sm:text-sm">
+            {subjects.length} subject{subjects.length === 1 ? "" : "s"} tracked
+          </p>
+        </div>
+        <Button
+          size="lg"
+          onClick={() => setIsCreateOpen(true)}
+          className="self-start rounded-full bg-accent px-6 py-3 text-base font-semibold shadow-[0_20px_60px_-20px_rgba(56,189,248,0.6)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 md:absolute md:right-0 md:top-0"
+          aria-haspopup="dialog"
+          aria-expanded={isCreateOpen}
+          aria-controls="create-subject-drawer"
+        >
+          ➕ New Subject
+        </Button>
       </header>
 
-      <section className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <div className="space-y-4">
-          <div className="rounded-3xl border border-white/5 bg-slate-900/60 p-6 shadow-xl shadow-slate-900/40">
-            <h2 className="text-xl font-semibold text-white">All subjects</h2>
-            <p className="text-sm text-zinc-400">Edit existing subjects and their exam timelines.</p>
-
-            <div className="mt-6 space-y-4">
-              {subjects.map((subject) => {
-                const summary = summaryById.get(subject.id);
-                const daysLeft = subject.examDate ? daysBetween(new Date(), new Date(subject.examDate)) : null;
-                const subjectTopics = topicsBySubject.get(subject.id) ?? [];
-                const isEditing = editing === subject.id;
-                const isExpanded = expandedSubjects.has(subject.id);
-                const topicsCount = summary?.topicsCount ?? subjectTopics.length;
-                const upcomingCount = summary?.upcomingReviewsCount ?? 0;
-                const nextReviewAt = summary?.nextReviewAt ?? null;
-                const hasTopics = subjectTopics.length > 0;
-
-                const nextReviewLabel = nextReviewAt
-                  ? `${formatRelativeToNow(nextReviewAt)} • ${formatDateWithWeekday(nextReviewAt)}`
-                  : "No upcoming reviews";
-
-                return (
-                  <div key={subject.id} className="rounded-3xl border border-white/10 bg-white/5 p-4">
-                    {isEditing ? (
-                      <div className="space-y-4">
-                        <div className="grid gap-3 md:grid-cols-2">
-                          <div className="space-y-2">
-                            <Label htmlFor={`subject-name-${subject.id}`}>Name</Label>
-                            <Input
-                              id={`subject-name-${subject.id}`}
-                              value={editDraft.name}
-                              onChange={(event) => setEditDraft((prev) => ({ ...prev, name: event.target.value }))}
-                              placeholder="Subject name"
-                              className="h-10"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor={`subject-exam-${subject.id}`}>Exam date (optional)</Label>
-                            <Input
-                              id={`subject-exam-${subject.id}`}
-                              type="date"
-                              value={editDraft.examDate}
-                              min={toDateInputValue(new Date().toISOString())}
-                              onChange={(event) => setEditDraft((prev) => ({ ...prev, examDate: event.target.value }))}
-                              className="h-10"
-                            />
-                          </div>
-                        </div>
-                        <div className="grid gap-3 md:grid-cols-2">
-                          <div className="space-y-2">
-                            <Label>Icon</Label>
-                            <IconPicker value={editDraft.icon} onChange={(value) => setEditDraft((prev) => ({ ...prev, icon: value }))} />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Color</Label>
-                            <ColorPicker value={editDraft.color} onChange={(value) => setEditDraft((prev) => ({ ...prev, color: value }))} />
-                          </div>
-                        </div>
-                        <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
-                          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Live preview</p>
-                          <div className="mt-3 flex items-center gap-3">
-                            <span
-                              className="flex h-12 w-12 items-center justify-center rounded-2xl"
-                              style={{ backgroundColor: `${editDraft.color}22` }}
-                              aria-hidden="true"
-                            >
-                              <IconPreview name={editDraft.icon} className="h-5 w-5" />
-                            </span>
-                            <div className="text-xs text-zinc-300 space-y-1">
-                              <p>
-                                Icon: <span className="text-white">{editDraft.icon}</span>
-                              </p>
-                              <p>
-                                Colour: <span className="text-white">{editDraft.color}</span>
-                              </p>
-                              <p className="text-[11px] text-zinc-500">
-                                Saving updates every topic assigned to this subject.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-end gap-3">
-                          <Button type="button" variant="ghost" onClick={handleCancelEdit}>
-                            Cancel
-                          </Button>
-                          <Button type="button" onClick={() => handleSaveEdit(subject)}>
-                            Save changes
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                          <button
-                            type="button"
-                            onClick={() => toggleSubjectExpansion(subject.id)}
-                            aria-expanded={isExpanded}
-                            aria-controls={`subject-topics-${subject.id}`}
-                            className="group flex flex-1 items-stretch justify-between gap-4 rounded-2xl border border-white/10 bg-slate-900/60 p-4 text-left transition hover:border-accent/40 focus:outline-none focus:ring-2 focus:ring-accent/40"
-                          >
-                            <div className="flex flex-col gap-3">
-                              <div className="flex items-center gap-3">
-                                <span
-                                  className="flex h-12 w-12 items-center justify-center rounded-2xl"
-                                  style={{ backgroundColor: `${subject.color ?? "#38bdf8"}22` }}
-                                  aria-hidden="true"
-                                >
-                                  <IconPreview name={subject.icon} className="h-5 w-5" />
-                                </span>
-                                <div>
-                                  <h3 className="text-lg font-semibold text-white">{subject.name}</h3>
-                                  {subject.examDate ? (
-                                    <p className="text-xs text-zinc-400">
-                                      Exam on {formatFullDate(subject.examDate)}
-                                      {typeof daysLeft === "number"
-                                        ? ` • ${daysLeft} day${daysLeft === 1 ? "" : "s"} remaining`
-                                        : ""}
-                                    </p>
-                                  ) : (
-                                    <p className="text-xs text-zinc-400">No exam date set</p>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-400">
-                                <span>{topicsCount} topics</span>
-                                <span className="inline-flex items-center gap-1">
-                                  <Calendar className="h-3.5 w-3.5" />
-                                  {upcomingCount} reviews next 7 days
-                                </span>
-                                <span className="inline-flex items-center gap-1">
-                                  <Clock className="h-3.5 w-3.5" /> {nextReviewLabel}
-                                </span>
-                              </div>
-                            </div>
-                            <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5">
-                              <ChevronDown
-                                className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}
-                                aria-hidden="true"
-                              />
-                            </span>
-                          </button>
-                          <div className="flex items-center gap-2">
-                            <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => handleStartEdit(subject)}>
-                              <PencilLine className="h-4 w-4" /> Edit
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="text-rose-200 hover:text-rose-100"
-                              onClick={() => handleDeleteSubject(subject)}
-                              disabled={hasTopics || subject.id === DEFAULT_SUBJECT_ID}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                        {isExpanded ? (
-                          <div id={`subject-topics-${subject.id}`} className="space-y-3">
-                            {subjectTopics.length === 0 ? (
-                              <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/60 p-4 text-sm text-zinc-400">
-                                No topics assigned yet.
-                              </div>
-                            ) : (
-                              subjectTopics.map((topic) => {
-                                const status = computeTopicStatus(topic, startMs, endMs);
-                                const statusMeta = STATUS_META[status];
-                                const nextDateLabel = formatDateWithWeekday(topic.nextReviewDate);
-                                const nextRelative = formatRelativeToNow(topic.nextReviewDate);
-                                return (
-                                  <div
-                                    key={topic.id}
-                                    className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-slate-900/70 p-4 md:flex-row md:items-center md:justify-between"
-                                  >
-                                    <div className="min-w-0 space-y-1">
-                                      <p className="text-sm font-semibold text-white">{topic.title}</p>
-                                      <p className="text-xs text-zinc-400">
-                                        Next {nextDateLabel} • {nextRelative}
-                                      </p>
-                                    </div>
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <span
-                                        className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${statusMeta.tone}`}
-                                      >
-                                        {statusMeta.label}
-                                      </span>
-                                      <Button asChild size="sm" variant="outline" className="gap-2">
-                                        <Link href={`/subjects/${topic.id}/history`}>
-                                          <Clock className="h-4 w-4" /> Edit history
-                                        </Link>
-                                      </Button>
-                                    </div>
-                                  </div>
-                                );
-                              })
-                            )}
-                          </div>
-                        ) : null}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-
-              {subjects.length === 0 ? (
-                <p className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-4 text-sm text-zinc-400">
-                  No subjects yet. Create one to get started.
-                </p>
-              ) : null}
-            </div>
-          </div>
+      <section className="space-y-6">
+        <div className="flex flex-col gap-2">
+          <h2 className="text-lg font-semibold text-white">Subjects overview</h2>
+          <p className="text-sm text-zinc-400">
+            Monitor exam timelines, review momentum, and drill into topics from a single place.
+          </p>
         </div>
 
-        <aside className="rounded-3xl border border-white/5 bg-slate-900/60 p-6 shadow-xl shadow-slate-900/40">
-          <h2 className="text-xl font-semibold text-white">Create a subject</h2>
-          <p className="text-sm text-zinc-400">Subjects group related topics and enforce exam date cutoffs.</p>
+        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+          {sortedSubjects.map((subject) => {
+            const summary = summaryById.get(subject.id);
+            const subjectTopics = topicsBySubject.get(subject.id) ?? [];
+            const isEditing = editing === subject.id;
+            const isExpanded = expandedSubjects.has(subject.id);
+            const examDateValue = subject.examDate ? new Date(subject.examDate) : null;
+            const daysLeft = examDateValue ? daysBetween(startOfToday, examDateValue) : null;
+            const urgencyMeta = getExamUrgencyMeta(daysLeft);
+            const accentColor = (subject.color?.trim() || "#38bdf8") as string;
+            const topicsCount = summary?.topicsCount ?? subjectTopics.length;
+            const upcomingCount = summary?.upcomingReviewsCount ?? 0;
+            const nextReviewAt = summary?.nextReviewAt ?? null;
+            const hasTopics = subjectTopics.length > 0;
+            const countdownText =
+              daysLeft === null
+                ? null
+                : daysLeft < 0
+                ? `${Math.abs(daysLeft)} day${Math.abs(daysLeft) === 1 ? "" : "s"} ago`
+                : daysLeft === 0
+                ? "Exam today"
+                : `${daysLeft} day${daysLeft === 1 ? "" : "s"} left`;
+            const nextReviewLabel = nextReviewAt
+              ? `${formatRelativeToNow(nextReviewAt)} • ${formatDateWithWeekday(nextReviewAt)}`
+              : "No upcoming reviews";
+            const examBadgeText =
+              daysLeft === null
+                ? "No exam date set"
+                : daysLeft < 0
+                ? "Exam passed"
+                : daysLeft === 0
+                ? "Exam today"
+                : `Exam in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`;
 
-          <form className="mt-6 space-y-4" onSubmit={handleCreateSubject}>
-            <div className="space-y-2">
-              <Label htmlFor="new-subject-name">Name</Label>
-              <Input
-                id="new-subject-name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="e.g., Organic Chemistry"
-                className="h-10"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="new-subject-exam">Exam date (optional)</Label>
-              <Input
-                id="new-subject-exam"
-                type="date"
-                value={examDate}
-                min={toDateInputValue(new Date().toISOString())}
-                onChange={(event) => setExamDate(event.target.value)}
-                className="h-10"
-              />
-              <p className="text-xs text-zinc-500">
-                Set the exam date for this subject to optimize your review schedule. No reviews will be scheduled after the exam.
-              </p>
-            </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Icon</Label>
-                <IconPicker value={icon} onChange={setIcon} />
-              </div>
-              <div className="space-y-2">
-                <Label>Color</Label>
-                <ColorPicker value={color} onChange={setColor} />
-              </div>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Live preview</p>
-              <div className="mt-3 flex items-center gap-3">
-                <span
-                  className="flex h-12 w-12 items-center justify-center rounded-2xl"
-                  style={{ backgroundColor: `${color}22` }}
-                  aria-hidden="true"
+            if (isEditing) {
+              const previewExamLabel = editDraft.examDate ? formatFullDate(editDraft.examDate) : "No exam date";
+              return (
+                <div
+                  key={subject.id}
+                  className={`relative overflow-hidden rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-xl shadow-slate-950/40 ${urgencyMeta.accentClass}`}
                 >
-                  <IconPreview name={icon} className="h-5 w-5" />
-                </span>
-                <div className="text-xs text-zinc-300 space-y-1">
-                  <p>
-                    Icon: <span className="text-white">{icon}</span>
-                  </p>
-                  <p>
-                    Colour: <span className="text-white">{color}</span>
-                  </p>
-                  <p className="text-[11px] text-zinc-500">Topics created in this subject will use this identity.</p>
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-x-4 top-0 h-px"
+                    style={{
+                      background: `linear-gradient(90deg, transparent, ${accentColor}, transparent)`
+                    }}
+                  />
+                  <div className="flex flex-col gap-6">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Editing</p>
+                        <h3 className="text-xl font-semibold text-white">{subject.name}</h3>
+                        <p className="text-sm text-zinc-400">Adjust the identity and exam target for this subject.</p>
+                      </div>
+                      <Button type="button" variant="ghost" onClick={handleCancelEdit}>
+                        Cancel
+                      </Button>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor={`subject-name-${subject.id}`}>Name</Label>
+                        <Input
+                          id={`subject-name-${subject.id}`}
+                          value={editDraft.name}
+                          onChange={(event) => setEditDraft((prev) => ({ ...prev, name: event.target.value }))}
+                          placeholder="Subject name"
+                          className="h-11 rounded-xl border-white/10 bg-white/5 text-white"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`subject-exam-${subject.id}`}>Exam date (optional)</Label>
+                        <Input
+                          id={`subject-exam-${subject.id}`}
+                          type="date"
+                          value={editDraft.examDate}
+                          min={toDateInputValue(new Date().toISOString())}
+                          onChange={(event) => setEditDraft((prev) => ({ ...prev, examDate: event.target.value }))}
+                          className="h-11 rounded-xl border-white/10 bg-white/5 text-white"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Icon</Label>
+                        <IconPicker value={editDraft.icon} onChange={(value) => setEditDraft((prev) => ({ ...prev, icon: value }))} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Color</Label>
+                        <ColorPicker value={editDraft.color} onChange={(value) => setEditDraft((prev) => ({ ...prev, color: value }))} />
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-slate-950/80 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Live preview</p>
+                      <div className="mt-3 flex items-center gap-3">
+                        <span
+                          className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/5"
+                          style={{ backgroundColor: `${editDraft.color}22`, color: editDraft.color }}
+                          aria-hidden="true"
+                        >
+                          <IconPreview name={editDraft.icon} className="h-5 w-5" />
+                        </span>
+                        <div className="space-y-1 text-xs text-zinc-300">
+                          <p className="text-sm font-semibold text-white">{editDraft.name || "Untitled subject"}</p>
+                          <p>{previewExamLabel}</p>
+                          <p className="text-[11px] text-zinc-500">
+                            Saving applies the new identity to every topic in this subject.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-end gap-2">
+                      <Button type="button" variant="ghost" onClick={handleCancelEdit}>
+                        Cancel
+                      </Button>
+                      <Button type="button" onClick={() => handleSaveEdit(subject)}>
+                        Save changes
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <article
+                key={subject.id}
+                className={`relative overflow-hidden rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-xl shadow-slate-950/40 ${urgencyMeta.accentClass}`}
+              >
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-x-4 top-0 h-px"
+                  style={{
+                    background: `linear-gradient(90deg, transparent, ${accentColor}, transparent)`
+                  }}
+                />
+                <div className="flex flex-col gap-6">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="flex flex-1 items-start gap-4">
+                      <span
+                        className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10"
+                        style={{ backgroundColor: `${accentColor}22`, color: accentColor }}
+                        aria-hidden="true"
+                      >
+                        <IconPreview name={subject.icon} className="h-6 w-6" />
+                      </span>
+                      <div className="space-y-3">
+                        <h3 className="text-xl font-semibold text-white">{subject.name}</h3>
+                        <div className="space-y-2 text-sm text-zinc-300">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${urgencyMeta.badgeClass}`}
+                            >
+                              <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
+                              {examBadgeText}
+                            </span>
+                            {subject.examDate ? (
+                              <span className="text-sm text-zinc-300">
+                                Exam on {formatFullDate(subject.examDate)}
+                                {countdownText ? ` • ${countdownText}` : ""}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-zinc-400">{urgencyMeta.description}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="gap-2 border-white/10 bg-white/5 text-white hover:border-white/30 hover:bg-white/10"
+                        onClick={() => handleStartEdit(subject)}
+                      >
+                        <PencilLine className="h-4 w-4" /> Edit
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="text-rose-200 hover:text-rose-100"
+                        onClick={() => handleDeleteSubject(subject)}
+                        disabled={hasTopics || subject.id === DEFAULT_SUBJECT_ID}
+                        aria-label={
+                          hasTopics || subject.id === DEFAULT_SUBJECT_ID
+                            ? "Cannot delete a subject while topics exist"
+                            : `Delete ${subject.name}`
+                        }
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-2xl border border-white/10 bg-slate-950/80 p-4">
+                      <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                        <span>Topics</span>
+                        <BookOpen className="h-4 w-4 text-zinc-500" aria-hidden="true" />
+                      </div>
+                      <p className="mt-2 text-2xl font-semibold text-white">{topicsCount}</p>
+                      {topicsCount === 0 ? (
+                        <span
+                          className="mt-2 inline-flex items-center gap-1 text-xs text-zinc-500"
+                          title="No topics yet. Create topics and assign them to this subject."
+                        >
+                          <Info className="h-3.5 w-3.5 text-zinc-600" aria-hidden="true" />
+                          No topics
+                        </span>
+                      ) : (
+                        <p className="mt-2 text-xs text-zinc-400">Active topics</p>
+                      )}
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-slate-950/80 p-4">
+                      <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                        <span>Upcoming</span>
+                        <RefreshCw className="h-4 w-4 text-zinc-500" aria-hidden="true" />
+                      </div>
+                      <p className="mt-2 text-2xl font-semibold text-white">{upcomingCount}</p>
+                      {upcomingCount === 0 ? (
+                        <span
+                          className="mt-2 inline-flex items-center gap-1 text-xs text-zinc-500"
+                          title="No reviews scheduled in the next 7 days."
+                        >
+                          <Info className="h-3.5 w-3.5 text-zinc-600" aria-hidden="true" />
+                          No upcoming reviews
+                        </span>
+                      ) : (
+                        <p className="mt-2 text-xs text-zinc-400">Reviews next 7 days</p>
+                      )}
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-slate-950/80 p-4">
+                      <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                        <span>Next review</span>
+                        <Clock className="h-4 w-4 text-zinc-500" aria-hidden="true" />
+                      </div>
+                      <p className="mt-2 text-sm font-semibold text-white">
+                        {nextReviewAt ? formatDateWithWeekday(nextReviewAt) : "--"}
+                      </p>
+                      {nextReviewAt ? (
+                        <p className="mt-1 text-xs text-zinc-400">{formatRelativeToNow(nextReviewAt)}</p>
+                      ) : (
+                        <span
+                          className="mt-1 inline-flex items-center gap-1 text-xs text-zinc-500"
+                          title="Once a topic is due this will show the next review time."
+                        >
+                          <Info className="h-3.5 w-3.5 text-zinc-600" aria-hidden="true" />
+                          No upcoming reviews
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-xs text-zinc-400">
+                      <Clock className="h-3.5 w-3.5 text-zinc-500" aria-hidden="true" />
+                      <span>{nextReviewLabel}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="gap-2 text-white/80 hover:text-white"
+                        onClick={() => toggleSubjectExpansion(subject.id)}
+                        aria-expanded={isExpanded}
+                        aria-controls={`subject-topics-${subject.id}`}
+                      >
+                        <ListChecks className="h-4 w-4" aria-hidden="true" />
+                        {isExpanded ? "Hide topics" : `View topics (${subjectTopics.length})`}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {isExpanded ? (
+                    <div
+                      id={`subject-topics-${subject.id}`}
+                      className="mt-4 space-y-3 rounded-2xl border border-white/10 bg-slate-950/80 p-4"
+                    >
+                      {subjectTopics.length === 0 ? (
+                        <div className="flex items-center gap-2 text-sm text-zinc-400">
+                          <Info className="h-4 w-4 text-zinc-500" aria-hidden="true" />
+                          No topics assigned yet.
+                        </div>
+                      ) : (
+                        subjectTopics.map((topic) => {
+                          const status = computeTopicStatus(topic, startMs, endMs);
+                          const statusMeta = STATUS_META[status];
+                          const nextDateLabel = formatDateWithWeekday(topic.nextReviewDate);
+                          const nextRelative = formatRelativeToNow(topic.nextReviewDate);
+                          return (
+                            <div
+                              key={topic.id}
+                              className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-slate-950/90 p-4 md:flex-row md:items-center md:justify-between"
+                            >
+                              <div className="min-w-0 space-y-1">
+                                <p className="text-sm font-semibold text-white">{topic.title}</p>
+                                <p className="text-xs text-zinc-400">
+                                  Next {nextDateLabel} • {nextRelative}
+                                </p>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span
+                                  className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${statusMeta.tone}`}
+                                >
+                                  {statusMeta.label}
+                                </span>
+                                <Button
+                                  asChild
+                                  size="sm"
+                                  variant="outline"
+                                  className="gap-2 border-white/10 bg-white/5 text-white hover:border-white/30 hover:bg-white/10"
+                                >
+                                  <Link href={`/subjects/${topic.id}/history`}>
+                                    <Clock className="h-4 w-4" aria-hidden="true" /> Review history
+                                  </Link>
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+
+        {sortedSubjects.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-white/10 bg-slate-950/60 p-10 text-center text-sm text-zinc-400">
+            <p className="mx-auto max-w-sm">
+              You haven’t created any subjects yet. Use the <span className="font-semibold text-white">New Subject</span> button to get started.
+            </p>
+          </div>
+        ) : null}
+      </section>
+
+      {isCreateOpen ? (
+        <div
+          id="create-subject-drawer"
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex"
+        >
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur"
+            onClick={() => setIsCreateOpen(false)}
+            aria-hidden="true"
+          />
+          <aside className="relative ml-auto flex h-full w-full max-w-md flex-col overflow-y-auto bg-slate-950/95 p-6 shadow-2xl shadow-black/50">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <h2 className="text-2xl font-semibold text-white">Create a subject</h2>
+                <p className="text-sm text-zinc-400">
+                  Subjects group related topics and enforce exam date cutoffs.
+                </p>
+              </div>
+              <Button type="button" variant="ghost" size="icon" onClick={() => setIsCreateOpen(false)}>
+                <X className="h-5 w-5" aria-hidden="true" />
+                <span className="sr-only">Close</span>
+              </Button>
+            </div>
+
+            <form className="mt-8 space-y-5" onSubmit={handleCreateSubject}>
+              <div className="space-y-2">
+                <Label htmlFor="new-subject-name">Name</Label>
+                <Input
+                  id="new-subject-name"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="e.g., Organic Chemistry"
+                  className="h-11 rounded-xl border-white/10 bg-white/5 text-white"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-subject-exam">Exam date (optional)</Label>
+                <Input
+                  id="new-subject-exam"
+                  type="date"
+                  value={examDate}
+                  min={toDateInputValue(new Date().toISOString())}
+                  onChange={(event) => setExamDate(event.target.value)}
+                  className="h-11 rounded-xl border-white/10 bg-white/5 text-white"
+                />
+                <p className="text-xs text-zinc-500">
+                  Set the exam date for this subject to optimise your review schedule. No reviews will be scheduled after the exam.
+                </p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Icon</Label>
+                  <IconPicker value={icon} onChange={setIcon} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Color</Label>
+                  <ColorPicker value={color} onChange={setColor} />
                 </div>
               </div>
-            </div>
-            <Button type="submit" className="w-full gap-2">
-              <Plus className="h-4 w-4" /> Create subject
-            </Button>
-          </form>
-        </aside>
-      </section>
+              <div className="rounded-2xl border border-white/10 bg-slate-950/80 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Live preview</p>
+                <div className="mt-3 flex items-start gap-3">
+                  <span
+                    className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/5"
+                    style={{ backgroundColor: `${color}22`, color }}
+                    aria-hidden="true"
+                  >
+                    <IconPreview name={icon} className="h-5 w-5" />
+                  </span>
+                  <div className="space-y-1 text-xs text-zinc-300">
+                    <p className="text-sm font-semibold text-white">{name || "Untitled subject"}</p>
+                    <p>{examDate ? formatFullDate(examDate) : "No exam date"}</p>
+                    <p className="text-[11px] text-zinc-500">Topics created in this subject will use this identity.</p>
+                  </div>
+                </div>
+              </div>
+              <Button type="submit" size="lg" className="w-full gap-2">
+                <Plus className="h-4 w-4" aria-hidden="true" /> Create subject
+              </Button>
+            </form>
+          </aside>
+        </div>
+      ) : null}
     </main>
   );
 };
