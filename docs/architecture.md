@@ -2,7 +2,7 @@
 
 ## System context
 
-The Spaced Repetition App is a local-first Next.js 14 application. All data is stored in the browser via Zustand's `localStorage` persistence, so the runtime consists solely of the Next.js server (during development) or static assets served by a CDN or Node.js server in production.
+The Spaced Repetition App is a local-first Next.js 14 application. All data is stored in the browser via Zustand's `persist` middleware backed by `localStorage`, so the runtime consists solely of the Next.js server (during development) or static assets served by a CDN or Node.js server in production.
 
 ```
 ┌───────────┐        ┌────────────────────────┐
@@ -40,7 +40,7 @@ erDiagram
   }
 ```
 
-Subjects own identity (icon/colour) and optional exam dates. Topics inherit that identity and store their interval history. Review events capture started/completed milestones and power the dashboard streaks.
+Subjects define identity (icon/colour) and optional exam dates. Topics reference those subjects, track scheduling metadata, and link to their review history. Review events record each started or completed milestone and power the dashboard streaks.
 
 ## Key modules
 
@@ -97,16 +97,16 @@ Every primary tab shares persisted filters (especially the Subjects dropdown) so
 
 ```mermaid
 flowchart TD
-  A[Pointer down] --> B{Dragged > threshold?}
-  B -- No --> C[Ignore (click)]
-  B -- Yes --> D[Show selection rectangle]
-  D --> E[Pointer up]
-  E --> F{Shift held?}
-  F -- No --> G[Compute X-only range]
-  F -- Yes --> H[Compute X+Y range]
-  G --> I[Push to zoom stack & apply]
-  H --> I[Push to zoom stack & apply]
-  I --> J[Update axes, markers, tooltips]
+  A[Pointer down] --> B{Dragged > threshold?};
+  B -- No --> C[Ignore (click)];
+  B -- Yes --> D[Show selection rectangle];
+  D --> E[Pointer up];
+  E --> F{Shift held?};
+  F -- No --> G[Compute X-only range];
+  F -- Yes --> H[Compute X+Y range];
+  G --> I[Push to zoom stack & apply];
+  H --> I[Push to zoom stack & apply];
+  I --> J[Update axes, markers, tooltips];
 ```
 
 ### Zoom state machine
@@ -133,10 +133,10 @@ stateDiagram-v2
 
 ```mermaid
 flowchart TD
-  S[Subjects page] -->|Expand| T[Topic list for Subject]
-  T -->|Edit history| H[History editor (topic)]
-  H -->|Save| R[Replay events to update S & next date]
-  R --> D[Dashboard/Calendar/Timeline refresh]
+  S[Subjects page] -->|Expand| T[Topic list for Subject];
+  T -->|Edit history| H[History editor (topic)];
+  H -->|Save| R[Replay events to update S & next date];
+  R --> D[Dashboard/Calendar/Timeline refresh];
 ```
 
 ### Replay & reschedule algorithm
@@ -159,8 +159,8 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-  A[Interval i: R_i(t)=exp(-t/S_i)] -->|review at t_{i+1}| B[(Stitch marker)]
-  B --> C[Interval i+1: R_{i+1}(t)=exp(-t/S_{i+1})]
+  A["Interval i: R_i(t)=exp(-t/S_i)"] -->|review at t_{i+1}| B((Stitch marker));
+  B --> C["Interval i+1: R_{i+1}(t)=exp(-t/S_{i+1})"];
 ```
 
 ### Timeline view modes
