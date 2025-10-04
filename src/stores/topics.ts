@@ -131,9 +131,11 @@ type TopicStore = TopicStoreState & {
 
 const DEFAULT_SUBJECT_ID = "subject-general";
 
+const DEFAULT_GENERAL_EXAM_DATE = "2026-08-01T00:00:00.000Z";
+
 const createDefaultCategory = (): LegacyCategory => ({
   id: DEFAULT_SUBJECT_ID,
-  label: "General",
+  label: "General Chemistry",
   color: "#38bdf8",
   icon: "Sparkles"
 });
@@ -142,18 +144,18 @@ const createDefaultSubject = (): Subject => {
   const now = new Date().toISOString();
   return {
     id: DEFAULT_SUBJECT_ID,
-    name: "General",
+    name: "General Chemistry",
     color: "#38bdf8",
     icon: "Sparkles",
-    examDate: null,
+    examDate: DEFAULT_GENERAL_EXAM_DATE,
     difficultyModifier: 1,
     createdAt: now,
     updatedAt: now
   };
 };
 
-type DemoSeedSubject = (typeof demoSeedData)["subjects"][number];
 type DemoSeedReview = (typeof demoSeedData)["reviews"][number];
+type DemoSeedTopic = (typeof demoSeedData)["topics"][number];
 
 type DemoSeedState = {
   subjects: Subject[];
@@ -173,32 +175,44 @@ const toDemoIso = (value: string | null | undefined) => {
   return date.toISOString();
 };
 
-const collectSubjectReviews = (subject: DemoSeedSubject, reviews: Map<string, DemoSeedReview[]>) => {
-  const bucket = reviews.get(subject.id) ?? [];
-  return bucket
-    .map((entry) => ({ ...entry }))
-    .sort(
-      (a, b) => new Date(toDemoIso(a.reviewDate)).getTime() - new Date(toDemoIso(b.reviewDate)).getTime()
-    );
-};
-
 const createDemoSeedState = (): DemoSeedState => {
-  const reviewsBySubject = new Map<string, DemoSeedReview[]>();
-  for (const review of demoSeedData.reviews) {
-    const list = reviewsBySubject.get(review.subjectId) ?? [];
+  const reviewsByTopic = new Map<string, DemoSeedReview[]>();
+  for (const review of demoSeedData.reviews ?? []) {
+    const topicId = review.topicId;
+    if (!topicId) continue;
+    const list = reviewsByTopic.get(topicId) ?? [];
     list.push(review);
-    reviewsBySubject.set(review.subjectId, list);
+    reviewsByTopic.set(topicId, list);
+  }
+
+  const topicsBySubject = new Map<string, DemoSeedTopic[]>();
+  for (const topic of demoSeedData.topics ?? []) {
+    const list = topicsBySubject.get(topic.subjectId) ?? [];
+    list.push(topic);
+    topicsBySubject.set(topic.subjectId, list);
   }
 
   const subjects: Subject[] = [];
   const categories: LegacyCategory[] = [];
   const topics: Topic[] = [];
 
-  for (const subjectSeed of demoSeedData.subjects) {
-    const subjectReviews = collectSubjectReviews(subjectSeed, reviewsBySubject);
-    const createdAt = subjectReviews.length > 0 ? toDemoIso(subjectReviews[0].reviewDate) : DEMO_SEED_FALLBACK_ISO;
-    const updatedAt =
-      subjectReviews.length > 0 ? toDemoIso(subjectReviews[subjectReviews.length - 1].reviewDate) : createdAt;
+  for (const subjectSeed of demoSeedData.subjects ?? []) {
+    const subjectTopics = topicsBySubject.get(subjectSeed.id) ?? [];
+    const subjectReviewDates: string[] = [];
+    for (const topicSeed of subjectTopics) {
+      const topicReviews = reviewsByTopic.get(topicSeed.id) ?? [];
+      for (const review of topicReviews) {
+        subjectReviewDates.push(toDemoIso(review.reviewDate));
+      }
+    }
+
+    let createdAt = DEMO_SEED_FALLBACK_ISO;
+    let updatedAt = DEMO_SEED_FALLBACK_ISO;
+    if (subjectReviewDates.length > 0) {
+      createdAt = subjectReviewDates.reduce((min, iso) => (iso < min ? iso : min), subjectReviewDates[0]);
+      updatedAt = subjectReviewDates.reduce((max, iso) => (iso > max ? iso : max), subjectReviewDates[0]);
+    }
+
     const examDate = subjectSeed.examDate ? toDemoIso(subjectSeed.examDate) : null;
 
     subjects.push({
@@ -219,102 +233,123 @@ const createDemoSeedState = (): DemoSeedState => {
       icon: subjectSeed.icon
     });
 
-    const topicId = `${subjectSeed.id}-timeline`;
-    const intervalCandidates = new Set<number>();
-    for (const review of subjectReviews) {
-      if (typeof review.interval === "number" && review.interval > 0) {
-        intervalCandidates.add(review.interval);
+    for (const topicSeed of subjectTopics) {
+      const topicReviews = (reviewsByTopic.get(topicSeed.id) ?? [])
+        .map((entry) => ({ ...entry }))
+        .sort(
+          (a, b) => new Date(toDemoIso(a.reviewDate)).getTime() - new Date(toDemoIso(b.reviewDate)).getTime()
+        );
+
+      const topicCreatedAt = topicReviews.length > 0 ? toDemoIso(topicReviews[0].reviewDate) : createdAt;
+
+      const intervalCandidates = new Set<number>();
+      for (const review of topicReviews) {
+        if (typeof review.interval === "number" && review.interval > 0) {
+          intervalCandidates.add(review.interval);
+        }
       }
-    }
 
-    const intervals =
-      intervalCandidates.size > 0
-        ? Array.from(intervalCandidates).sort((a, b) => a - b)
-        : [1, 3, 7, 14, 30, 45, 60];
+      const intervals =
+        intervalCandidates.size > 0
+          ? Array.from(intervalCandidates).sort((a, b) => a - b)
+          : [1, 3, 7, 14, 30, 45, 60];
 
-    let stability = DEFAULT_STABILITY_DAYS;
-    const reviewEvents: TopicEvent[] = [];
-    subjectReviews.forEach((review, index) => {
-      const reviewedAt = toDemoIso(review.reviewDate);
-      const intervalDays =
-        typeof review.interval === "number" && review.interval > 0
-          ? review.interval
-          : intervals[Math.min(index, intervals.length - 1)];
-      stability = Math.min(Math.max(stability + 3, STABILITY_MIN_DAYS), STABILITY_MAX_DAYS);
-      const nextReviewAt = addDays(reviewedAt, intervalDays);
-      reviewEvents.push({
-        id: review.id,
-        topicId,
-        type: "reviewed",
-        at: reviewedAt,
-        intervalDays,
-        notes: review.notes,
-        reviewKind: "scheduled",
-        reviewQuality: 1,
-        resultingStability: stability,
-        targetRetrievability: DEFAULT_RETRIEVABILITY_TARGET,
-        nextReviewAt
+      let stability = DEFAULT_STABILITY_DAYS;
+      const reviewEvents: TopicEvent[] = [];
+      topicReviews.forEach((review, index) => {
+        const reviewedAt = toDemoIso(review.reviewDate);
+        const intervalDays =
+          typeof review.interval === "number" && review.interval > 0
+            ? review.interval
+            : intervals[Math.min(index, intervals.length - 1)];
+        stability = Math.min(Math.max(stability + 3, STABILITY_MIN_DAYS), STABILITY_MAX_DAYS);
+        const nextReviewAt = addDays(reviewedAt, intervalDays);
+        reviewEvents.push({
+          id: review.id,
+          topicId: topicSeed.id,
+          type: "reviewed",
+          at: reviewedAt,
+          intervalDays,
+          notes: review.notes,
+          reviewKind: "scheduled",
+          reviewQuality: 1,
+          resultingStability: stability,
+          targetRetrievability: DEFAULT_RETRIEVABILITY_TARGET,
+          nextReviewAt
+        });
       });
-    });
 
-    const events: TopicEvent[] = [
-      {
-        id: `${topicId}-started`,
-        topicId,
-        type: "started",
-        at: createdAt,
-        backfill: reviewEvents.length > 0 ? true : undefined
-      },
-      ...reviewEvents
-    ];
+      const events: TopicEvent[] = [
+        {
+          id: `${topicSeed.id}-started`,
+          topicId: topicSeed.id,
+          type: "started",
+          at: topicCreatedAt,
+          backfill: reviewEvents.length > 0 ? true : undefined
+        },
+        ...reviewEvents
+      ];
 
-    const lastReview = reviewEvents[reviewEvents.length - 1] ?? null;
-    const intervalForProjection = intervals[Math.min(reviewEvents.length, intervals.length - 1)] ?? intervals[0];
-    const nextReviewDate = lastReview
-      ? lastReview.nextReviewAt ?? addDays(lastReview.at, intervalForProjection)
-      : addDays(createdAt, intervals[0]);
+      const lastReview = reviewEvents[reviewEvents.length - 1] ?? null;
+      const intervalForProjection = intervals[Math.min(reviewEvents.length, intervals.length - 1)] ?? intervals[0];
+      const nextReviewDate = lastReview
+        ? lastReview.nextReviewAt ?? addDays(lastReview.at, intervalForProjection)
+        : addDays(topicCreatedAt, intervals[0]);
 
-    topics.push({
-      id: topicId,
-      title: `${subjectSeed.name} review timeline`,
-      notes: `Demo history entries for ${subjectSeed.name}.`,
-      subjectId: subjectSeed.id,
-      subjectLabel: subjectSeed.name,
-      color: subjectSeed.color,
-      categoryId: subjectSeed.id,
-      categoryLabel: subjectSeed.name,
-      icon: subjectSeed.icon,
-      reminderTime: null,
-      intervals,
-      intervalIndex: Math.min(reviewEvents.length, intervals.length - 1),
-      nextReviewDate,
-      lastReviewedAt: lastReview ? lastReview.at : null,
-      lastReviewedOn: lastReview ? lastReview.at : null,
-      stability,
-      retrievabilityTarget: DEFAULT_RETRIEVABILITY_TARGET,
-      reviewsCount: reviewEvents.length,
-      subjectDifficultyModifier: 1,
-      autoAdjustPreference: "ask",
-      createdAt,
-      startedAt: createdAt,
-      startedOn: createdAt,
-      events,
-      reviseNowLastUsedAt: null
-    });
+      topics.push({
+        id: topicSeed.id,
+        title: topicSeed.title,
+        notes: topicSeed.notes ?? `Demo history entries for ${topicSeed.title}.`,
+        subjectId: subjectSeed.id,
+        subjectLabel: subjectSeed.name,
+        color: topicSeed.color ?? subjectSeed.color,
+        categoryId: subjectSeed.id,
+        categoryLabel: subjectSeed.name,
+        icon: topicSeed.icon ?? subjectSeed.icon,
+        reminderTime: null,
+        intervals,
+        intervalIndex: Math.min(reviewEvents.length, intervals.length - 1),
+        nextReviewDate,
+        lastReviewedAt: lastReview ? lastReview.at : null,
+        lastReviewedOn: lastReview ? lastReview.at : null,
+        stability,
+        retrievabilityTarget: DEFAULT_RETRIEVABILITY_TARGET,
+        reviewsCount: reviewEvents.length,
+        subjectDifficultyModifier: 1,
+        autoAdjustPreference: "ask",
+        createdAt: topicCreatedAt,
+        startedAt: topicCreatedAt,
+        startedOn: topicCreatedAt,
+        events,
+        reviseNowLastUsedAt: null
+      });
+    }
   }
 
   return { subjects, topics, categories };
 };
 
 const createSeededDefaults = () => {
-  const { subjects, topics, categories } = createDemoSeedState();
+  const { subjects: seededSubjects, topics, categories: seededCategories } = createDemoSeedState();
   const defaultSubject = createDefaultSubject();
   const defaultCategory = createDefaultCategory();
 
+  const subjectMap = new Map<string, Subject>();
+  subjectMap.set(defaultSubject.id, defaultSubject);
+  for (const subject of seededSubjects) {
+    subjectMap.set(subject.id, subject);
+  }
+
+  const categoryMap = new Map<string, LegacyCategory>();
+  categoryMap.set(defaultCategory.id, defaultCategory);
+  for (const category of seededCategories) {
+    categoryMap.set(category.id, category);
+  }
+
   return {
-    subjects: [defaultSubject, ...subjects],
+    subjects: Array.from(subjectMap.values()),
     topics,
-    categories: [defaultCategory, ...categories]
+    categories: Array.from(categoryMap.values())
   };
 };
 
