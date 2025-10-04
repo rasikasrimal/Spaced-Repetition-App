@@ -6,7 +6,7 @@ We aim to keep the `main` branch secure with timely dependency updates and secur
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability, please email `security@spacedrepetition.app` with the details. Include:
+If you discover a security vulnerability, please email `rasikasrimal.contact@gmail.com` with the details. Include:
 
 - A description of the vulnerability and potential impact.
 - Steps to reproduce the issue.
