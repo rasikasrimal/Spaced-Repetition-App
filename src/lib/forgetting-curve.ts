@@ -4,18 +4,31 @@ export const DEFAULT_RETRIEVABILITY_TARGET = 0.7;
 export const DEFAULT_STABILITY_DAYS = 1;
 export const STABILITY_MIN_DAYS = 0.25;
 export const STABILITY_MAX_DAYS = 3650;
-export const STABILITY_ADJUSTMENT_ALPHA = 1.0;
+
+const STABILITY_GROWTH_FACTOR = 0.5;
+const STABILITY_STREAK_FACTOR = 0.14;
+const STABILITY_STREAK_BONUS = 0.45;
+const STABILITY_PARTIAL_SUCCESS_FACTOR = 0.6;
+const STABILITY_LAPSE_PENALTY = 0.55;
+
+export const DEFAULT_RETENTION_FLOOR = 0.2;
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
-export const computeRetrievability = (stabilityDays: number, elapsedMs: number): number => {
+export const computeRetrievability = (
+  stabilityDays: number,
+  elapsedMs: number,
+  floor = DEFAULT_RETENTION_FLOOR
+): number => {
   const safeStability = Math.max(stabilityDays, STABILITY_MIN_DAYS);
   const elapsedDays = Math.max(0, elapsedMs) / DAY_IN_MS;
-  const retention = Math.exp(-elapsedDays / safeStability);
+  const safeFloor = clamp(floor, 0, 0.95);
+  const decayPortion = 1 - safeFloor;
+  const retention = safeFloor + decayPortion * Math.exp(-elapsedDays / safeStability);
   if (!Number.isFinite(retention)) {
     return 0;
   }
-  return clamp(retention, 0, 1);
+  return clamp(retention, safeFloor, 1);
 };
 
 export const computeIntervalDays = (
@@ -30,15 +43,39 @@ export const computeIntervalDays = (
 
 export type ReviewQuality = 0 | 0.5 | 1;
 
-export const updateStability = (
-  stabilityDays: number,
-  quality: ReviewQuality,
-  alpha = STABILITY_ADJUSTMENT_ALPHA,
+export interface StabilityUpdateOptions {
+  previousStability: number;
+  elapsedDays: number;
+  quality: ReviewQuality;
+  reviewCount: number;
+  min?: number;
+  max?: number;
+}
+
+export const updateStability = ({
+  previousStability,
+  elapsedDays,
+  quality,
+  reviewCount,
   min = STABILITY_MIN_DAYS,
   max = STABILITY_MAX_DAYS
-): number => {
-  const delta = alpha * (quality - 0.5);
-  const next = stabilityDays * (1 + delta);
+}: StabilityUpdateOptions): number => {
+  const safePrevious = clamp(previousStability, min, max);
+  const safeElapsed = Math.max(elapsedDays, STABILITY_MIN_DAYS / 24);
+
+  if (quality === 0) {
+    const penalized = safePrevious * STABILITY_LAPSE_PENALTY;
+    return clamp(Math.max(penalized, STABILITY_MIN_DAYS), min, max);
+  }
+
+  const spacingTerm = Math.log1p(safeElapsed);
+  const streakTerm = Math.log1p(Math.max(reviewCount - 1, 0));
+  const qualityScale = quality === 1 ? 1 : STABILITY_PARTIAL_SUCCESS_FACTOR;
+  const spacingGrowth = 1 + STABILITY_GROWTH_FACTOR * qualityScale * spacingTerm;
+  const streakGrowth = 1 + STABILITY_STREAK_FACTOR * qualityScale * streakTerm;
+  const streakBonus = STABILITY_STREAK_BONUS * qualityScale * streakTerm;
+
+  const next = safePrevious * spacingGrowth * streakGrowth + streakBonus;
   return clamp(next, min, max);
 };
 

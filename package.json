@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test:curve": "tsx --test tests/forgetting-curve.test.ts",
     "test:visual": "playwright test"
   },
   "dependencies": {
@@ -38,6 +39,8 @@
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.4",
     "tailwindcss-animate": "^1.0.7",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.19.1",
     "typescript": "^5.4.5"
   }
 }
