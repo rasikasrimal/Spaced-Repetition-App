@@ -8,6 +8,7 @@ import {
   nowInTimeZone,
   startOfDayInTimeZone
 } from "@/lib/date";
+import demoSeedData from "../data/demo-seed-data.json";
 import {
   AutoAdjustPreference,
   ReviewKind,
@@ -148,6 +149,172 @@ const createDefaultSubject = (): Subject => {
     difficultyModifier: 1,
     createdAt: now,
     updatedAt: now
+  };
+};
+
+type DemoSeedSubject = (typeof demoSeedData)["subjects"][number];
+type DemoSeedReview = (typeof demoSeedData)["reviews"][number];
+
+type DemoSeedState = {
+  subjects: Subject[];
+  topics: Topic[];
+  categories: LegacyCategory[];
+};
+
+const DEMO_SEED_FALLBACK_ISO = "2025-01-01T00:00:00.000Z";
+
+const toDemoIso = (value: string | null | undefined) => {
+  if (!value) return DEMO_SEED_FALLBACK_ISO;
+  const candidate = value.includes("T") ? value : `${value}T00:00:00.000Z`;
+  const date = new Date(candidate);
+  if (Number.isNaN(date.getTime())) {
+    return DEMO_SEED_FALLBACK_ISO;
+  }
+  return date.toISOString();
+};
+
+const collectSubjectReviews = (subject: DemoSeedSubject, reviews: Map<string, DemoSeedReview[]>) => {
+  const bucket = reviews.get(subject.id) ?? [];
+  return bucket
+    .map((entry) => ({ ...entry }))
+    .sort(
+      (a, b) => new Date(toDemoIso(a.reviewDate)).getTime() - new Date(toDemoIso(b.reviewDate)).getTime()
+    );
+};
+
+const createDemoSeedState = (): DemoSeedState => {
+  const reviewsBySubject = new Map<string, DemoSeedReview[]>();
+  for (const review of demoSeedData.reviews) {
+    const list = reviewsBySubject.get(review.subjectId) ?? [];
+    list.push(review);
+    reviewsBySubject.set(review.subjectId, list);
+  }
+
+  const subjects: Subject[] = [];
+  const categories: LegacyCategory[] = [];
+  const topics: Topic[] = [];
+
+  for (const subjectSeed of demoSeedData.subjects) {
+    const subjectReviews = collectSubjectReviews(subjectSeed, reviewsBySubject);
+    const createdAt = subjectReviews.length > 0 ? toDemoIso(subjectReviews[0].reviewDate) : DEMO_SEED_FALLBACK_ISO;
+    const updatedAt =
+      subjectReviews.length > 0 ? toDemoIso(subjectReviews[subjectReviews.length - 1].reviewDate) : createdAt;
+    const examDate = subjectSeed.examDate ? toDemoIso(subjectSeed.examDate) : null;
+
+    subjects.push({
+      id: subjectSeed.id,
+      name: subjectSeed.name,
+      color: subjectSeed.color,
+      icon: subjectSeed.icon,
+      examDate,
+      difficultyModifier: 1,
+      createdAt,
+      updatedAt
+    });
+
+    categories.push({
+      id: subjectSeed.id,
+      label: subjectSeed.name,
+      color: subjectSeed.color,
+      icon: subjectSeed.icon
+    });
+
+    const topicId = `${subjectSeed.id}-timeline`;
+    const intervalCandidates = new Set<number>();
+    for (const review of subjectReviews) {
+      if (typeof review.interval === "number" && review.interval > 0) {
+        intervalCandidates.add(review.interval);
+      }
+    }
+
+    const intervals =
+      intervalCandidates.size > 0
+        ? Array.from(intervalCandidates).sort((a, b) => a - b)
+        : [1, 3, 7, 14, 30, 45, 60];
+
+    let stability = DEFAULT_STABILITY_DAYS;
+    const reviewEvents: TopicEvent[] = [];
+    subjectReviews.forEach((review, index) => {
+      const reviewedAt = toDemoIso(review.reviewDate);
+      const intervalDays =
+        typeof review.interval === "number" && review.interval > 0
+          ? review.interval
+          : intervals[Math.min(index, intervals.length - 1)];
+      stability = Math.min(Math.max(stability + 3, STABILITY_MIN_DAYS), STABILITY_MAX_DAYS);
+      const nextReviewAt = addDays(reviewedAt, intervalDays);
+      reviewEvents.push({
+        id: review.id,
+        topicId,
+        type: "reviewed",
+        at: reviewedAt,
+        intervalDays,
+        notes: review.notes,
+        reviewKind: "scheduled",
+        reviewQuality: 1,
+        resultingStability: stability,
+        targetRetrievability: DEFAULT_RETRIEVABILITY_TARGET,
+        nextReviewAt
+      });
+    });
+
+    const events: TopicEvent[] = [
+      {
+        id: `${topicId}-started`,
+        topicId,
+        type: "started",
+        at: createdAt,
+        backfill: reviewEvents.length > 0 ? true : undefined
+      },
+      ...reviewEvents
+    ];
+
+    const lastReview = reviewEvents[reviewEvents.length - 1] ?? null;
+    const intervalForProjection = intervals[Math.min(reviewEvents.length, intervals.length - 1)] ?? intervals[0];
+    const nextReviewDate = lastReview
+      ? lastReview.nextReviewAt ?? addDays(lastReview.at, intervalForProjection)
+      : addDays(createdAt, intervals[0]);
+
+    topics.push({
+      id: topicId,
+      title: `${subjectSeed.name} review timeline`,
+      notes: `Demo history entries for ${subjectSeed.name}.`,
+      subjectId: subjectSeed.id,
+      subjectLabel: subjectSeed.name,
+      color: subjectSeed.color,
+      categoryId: subjectSeed.id,
+      categoryLabel: subjectSeed.name,
+      icon: subjectSeed.icon,
+      reminderTime: null,
+      intervals,
+      intervalIndex: Math.min(reviewEvents.length, intervals.length - 1),
+      nextReviewDate,
+      lastReviewedAt: lastReview ? lastReview.at : null,
+      lastReviewedOn: lastReview ? lastReview.at : null,
+      stability,
+      retrievabilityTarget: DEFAULT_RETRIEVABILITY_TARGET,
+      reviewsCount: reviewEvents.length,
+      subjectDifficultyModifier: 1,
+      autoAdjustPreference: "ask",
+      createdAt,
+      startedAt: createdAt,
+      startedOn: createdAt,
+      events,
+      reviseNowLastUsedAt: null
+    });
+  }
+
+  return { subjects, topics, categories };
+};
+
+const createSeededDefaults = () => {
+  const { subjects, topics, categories } = createDemoSeedState();
+  const defaultSubject = createDefaultSubject();
+  const defaultCategory = createDefaultCategory();
+
+  return {
+    subjects: [defaultSubject, ...subjects],
+    topics,
+    categories: [defaultCategory, ...categories]
   };
 };
 
@@ -425,7 +592,7 @@ const createReviewedEvent = (
   nextReviewAt
 });
 
-const VERSION = 7;
+const VERSION = 8;
 type PersistedState = TopicStoreState & { version?: number; categories?: LegacyCategory[] };
 
 type TopicHistoryEntry = {
@@ -608,16 +775,41 @@ const migrate = (persistedState: unknown, from: number): PersistedState => {
     }));
   }
 
+  const nonDefaultSubjects = persisted.subjects.filter((subject) => subject.id !== DEFAULT_SUBJECT_ID);
+  if (nonDefaultSubjects.length === 0 && (persisted.topics?.length ?? 0) === 0) {
+    const seed = createDemoSeedState();
+    const generalSubject =
+      persisted.subjects.find((subject) => subject.id === DEFAULT_SUBJECT_ID) ?? createDefaultSubject();
+    const subjectMap = new Map<string, Subject>();
+    subjectMap.set(generalSubject.id, generalSubject);
+    for (const subject of seed.subjects) {
+      subjectMap.set(subject.id, subject);
+    }
+    persisted.subjects = Array.from(subjectMap.values());
+
+    const generalCategory =
+      persisted.categories?.find((category) => category.id === DEFAULT_SUBJECT_ID) ?? createDefaultCategory();
+    const categoryMap = new Map<string, LegacyCategory>();
+    categoryMap.set(generalCategory.id, generalCategory);
+    for (const category of seed.categories) {
+      categoryMap.set(category.id, category);
+    }
+    persisted.categories = Array.from(categoryMap.values());
+    persisted.topics = seed.topics;
+  }
+
   return persisted;
 };
 
 export const useTopicStore = create<TopicStore>()(
   persist(
-    (set, get) => ({
-      topics: [],
-      subjects: [createDefaultSubject()],
-      categories: [createDefaultCategory()],
-      reviseNowMetrics: createDefaultReviseMetrics(),
+    (set, get) => {
+      const seeded = createSeededDefaults();
+      return {
+        topics: seeded.topics,
+        subjects: seeded.subjects,
+        categories: seeded.categories,
+        reviseNowMetrics: createDefaultReviseMetrics(),
       addSubject: (payload) => {
         const name = payload.name.trim();
         if (!name) {
@@ -1406,10 +1598,10 @@ export const useTopicStore = create<TopicStore>()(
             };
           })
         }));
-
         return results;
       }
-    }),
+    };
+  },
     {
       name: "spaced-repetition-store",
       version: VERSION,
