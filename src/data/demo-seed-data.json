@@ -51,750 +51,1454 @@
   ],
   "topics": [
     {
-      "id": "topic-general-hydro-carbon",
+      "id": "topic-general-atomic-structure",
       "subjectId": "subject-general",
-      "title": "Hydro Carbon",
-      "notes": "General chemistry hydrocarbon fundamentals and safety checks.",
+      "title": "Atomic Structure",
+      "notes": "Atomic structure and periodic trends.",
       "color": "#38bdf8",
       "icon": "Sparkles"
     },
     {
-      "id": "topic-inorganic-hydro-carbon",
+      "id": "topic-general-chemical-bonding",
+      "subjectId": "subject-general",
+      "title": "Chemical Bonding",
+      "notes": "Chemical bonding: ionic, covalent, metallic, intermolecular forces.",
+      "color": "#38bdf8",
+      "icon": "Sparkles"
+    },
+    {
+      "id": "topic-general-chemical-equations",
+      "subjectId": "subject-general",
+      "title": "Chemical Equations",
+      "notes": "Chemical equations: balancing, mole concept, stoichiometry.",
+      "color": "#38bdf8",
+      "icon": "Sparkles"
+    },
+    {
+      "id": "topic-general-states-of-matter",
+      "subjectId": "subject-general",
+      "title": "States of Matter",
+      "notes": "States of matter and gas laws.",
+      "color": "#38bdf8",
+      "icon": "Sparkles"
+    },
+    {
+      "id": "topic-general-energetics",
+      "subjectId": "subject-general",
+      "title": "Energetics",
+      "notes": "Energetics: enthalpy changes, calorimetry.",
+      "color": "#38bdf8",
+      "icon": "Sparkles"
+    },
+    {
+      "id": "topic-general-equilibrium",
+      "subjectId": "subject-general",
+      "title": "Chemical Equilibrium",
+      "notes": "Chemical equilibrium and Le Chatelier’s principle.",
+      "color": "#38bdf8",
+      "icon": "Sparkles"
+    },
+    {
+      "id": "topic-general-redox",
+      "subjectId": "subject-general",
+      "title": "Redox Reactions",
+      "notes": "Redox reactions and electrochemistry.",
+      "color": "#38bdf8",
+      "icon": "Sparkles"
+    },
+    {
+      "id": "topic-general-rates",
+      "subjectId": "subject-general",
+      "title": "Rates of Reaction",
+      "notes": "Rates of reaction and collision theory.",
+      "color": "#38bdf8",
+      "icon": "Sparkles"
+    },
+    {
+      "id": "topic-inorganic-periodicity",
       "subjectId": "sub-inorganic",
-      "title": "Hydro Carbon",
-      "notes": "Hydrocarbon coordination and ligand field behaviour in inorganic systems.",
+      "title": "Periodicity",
+      "notes": "Periodicity: properties across periods and groups.",
       "color": "#f97316",
       "icon": "Microscope"
     },
     {
-      "id": "topic-organic-benzene",
+      "id": "topic-inorganic-group2",
+      "subjectId": "sub-inorganic",
+      "title": "Group 2",
+      "notes": "Group 2: reactions, trends, uses.",
+      "color": "#f97316",
+      "icon": "Microscope"
+    },
+    {
+      "id": "topic-inorganic-group7",
+      "subjectId": "sub-inorganic",
+      "title": "Group 7",
+      "notes": "Group 7 (halogens): reactivity, halide ions, disproportionation.",
+      "color": "#f97316",
+      "icon": "Microscope"
+    },
+    {
+      "id": "topic-inorganic-transition",
+      "subjectId": "sub-inorganic",
+      "title": "Transition Metals",
+      "notes": "Transition metals: oxidation states, complexes, catalysis.",
+      "color": "#f97316",
+      "icon": "Microscope"
+    },
+    {
+      "id": "topic-inorganic-period3",
+      "subjectId": "sub-inorganic",
+      "title": "Period 3 Oxides",
+      "notes": "Period 3 oxides and chlorides, acid-base behavior.",
+      "color": "#f97316",
+      "icon": "Microscope"
+    },
+    {
+      "id": "topic-inorganic-qualitative",
+      "subjectId": "sub-inorganic",
+      "title": "Qualitative Analysis",
+      "notes": "Qualitative analysis: identifying ions through chemical tests.",
+      "color": "#f97316",
+      "icon": "Microscope"
+    },
+    {
+      "id": "topic-organic-structure",
       "subjectId": "sub-organic",
-      "title": "Benzene",
-      "notes": "Aromatic substitution pathways, spectroscopy, and exam rehearsal.",
+      "title": "Structure and Bonding",
+      "notes": "Structure and bonding of organic molecules.",
       "color": "#ef4444",
       "icon": "FlaskConical"
+    },
+    {
+      "id": "topic-organic-alkanes",
+      "subjectId": "sub-organic",
+      "title": "Alkanes, Alkenes, Alkynes",
+      "notes": "Alkanes, alkenes, alkynes: reactions and mechanisms.",
+      "color": "#ef4444",
+      "icon": "FlaskConical"
+    },
+    {
+      "id": "topic-organic-haloalkanes",
+      "subjectId": "sub-organic",
+      "title": "Haloalkanes",
+      "notes": "Haloalkanes: nucleophilic substitution and elimination.",
+      "color": "#ef4444",
+      "icon": "FlaskConical"
+    },
+    {
+      "id": "topic-organic-alcohols",
+      "subjectId": "sub-organic",
+      "title": "Alcohols and Phenols",
+      "notes": "Alcohols and phenols synthetic routes.",
+      "color": "#ef4444",
+      "icon": "FlaskConical"
+    },
+    {
+      "id": "topic-organic-carbonyl",
+      "subjectId": "sub-organic",
+      "title": "Aldehydes and Ketones",
+      "notes": "Aldehydes and ketones: nucleophilic addition, redox.",
+      "color": "#ef4444",
+      "icon": "FlaskConical"
+    },
+    {
+      "id": "topic-organic-carboxylic",
+      "subjectId": "sub-organic",
+      "title": "Carboxylic Acids",
+      "notes": "Carboxylic acids and derivatives.",
+      "color": "#ef4444",
+      "icon": "FlaskConical"
+    },
+    {
+      "id": "topic-organic-aromatic",
+      "subjectId": "sub-organic",
+      "title": "Aromatic Chemistry",
+      "notes": "Aromatic chemistry and electrophilic substitution.",
+      "color": "#ef4444",
+      "icon": "FlaskConical"
+    },
+    {
+      "id": "topic-organic-amines",
+      "subjectId": "sub-organic",
+      "title": "Amines and Biomolecules",
+      "notes": "Amines, amino acids, proteins, polymers.",
+      "color": "#ef4444",
+      "icon": "FlaskConical"
+    },
+    {
+      "id": "topic-organic-spectroscopy",
+      "subjectId": "sub-organic",
+      "title": "Spectroscopy",
+      "notes": "Spectroscopy: IR, NMR, mass spectrometry.",
+      "color": "#ef4444",
+      "icon": "FlaskConical"
+    },
+    {
+      "id": "topic-pure-algebra",
+      "subjectId": "sub-pure-math",
+      "title": "Algebra",
+      "notes": "Algebra: polynomials, inequalities, series and sequences.",
+      "color": "#3b82f6",
+      "icon": "BookOpen"
+    },
+    {
+      "id": "topic-pure-functions",
+      "subjectId": "sub-pure-math",
+      "title": "Functions and Graphs",
+      "notes": "Functions and graphs: domain, range, transformations.",
+      "color": "#3b82f6",
+      "icon": "BookOpen"
+    },
+    {
+      "id": "topic-pure-trigonometry",
+      "subjectId": "sub-pure-math",
+      "title": "Trigonometry",
+      "notes": "Trigonometry: identities, equations, radians, graphs.",
+      "color": "#3b82f6",
+      "icon": "BookOpen"
     },
     {
       "id": "topic-pure-calculus",
       "subjectId": "sub-pure-math",
       "title": "Calculus",
-      "notes": "Proof-driven calculus covering limits, sequences, and analysis.",
+      "notes": "Calculus: differentiation, integration, applications.",
       "color": "#3b82f6",
       "icon": "BookOpen"
     },
     {
-      "id": "topic-applied-derivative",
+      "id": "topic-pure-geometry",
+      "subjectId": "sub-pure-math",
+      "title": "Coordinate Geometry",
+      "notes": "Coordinate geometry: lines, circles, conics.",
+      "color": "#3b82f6",
+      "icon": "BookOpen"
+    },
+    {
+      "id": "topic-pure-vectors",
+      "subjectId": "sub-pure-math",
+      "title": "Vectors",
+      "notes": "Vectors in 2D and 3D, scalar products, planes.",
+      "color": "#3b82f6",
+      "icon": "BookOpen"
+    },
+    {
+      "id": "topic-pure-proof",
+      "subjectId": "sub-pure-math",
+      "title": "Proof Techniques",
+      "notes": "Proof methods including contradiction and induction.",
+      "color": "#3b82f6",
+      "icon": "BookOpen"
+    },
+    {
+      "id": "topic-applied-statistics",
       "subjectId": "sub-applied-math",
-      "title": "Derivative",
-      "notes": "Modelling-heavy derivative problems with optimisation scenarios.",
+      "title": "Statistics",
+      "notes": "Statistics: probability, distributions, hypothesis testing.",
       "color": "#0ea5e9",
       "icon": "Code"
     },
     {
-      "id": "topic-physics-calculus",
+      "id": "topic-applied-mechanics",
+      "subjectId": "sub-applied-math",
+      "title": "Mechanics",
+      "notes": "Mechanics: kinematics, forces, moments, projectiles.",
+      "color": "#0ea5e9",
+      "icon": "Code"
+    },
+    {
+      "id": "topic-physics-mechanics",
       "subjectId": "sub-physics",
-      "title": "Calculus",
-      "notes": "Calculus refreshers supporting physics simulations and analysis.",
+      "title": "Mechanics",
+      "notes": "Mechanics: motion, forces, energy, momentum.",
+      "color": "#a855f7",
+      "icon": "Brain"
+    },
+    {
+      "id": "topic-physics-materials",
+      "subjectId": "sub-physics",
+      "title": "Materials",
+      "notes": "Materials: stress-strain, Young modulus.",
+      "color": "#a855f7",
+      "icon": "Brain"
+    },
+    {
+      "id": "topic-physics-waves",
+      "subjectId": "sub-physics",
+      "title": "Waves",
+      "notes": "Waves: superposition, diffraction, refraction.",
+      "color": "#a855f7",
+      "icon": "Brain"
+    },
+    {
+      "id": "topic-physics-electricity",
+      "subjectId": "sub-physics",
+      "title": "Electricity",
+      "notes": "Electricity: circuits, power, resistance.",
+      "color": "#a855f7",
+      "icon": "Brain"
+    },
+    {
+      "id": "topic-physics-fields",
+      "subjectId": "sub-physics",
+      "title": "Fields",
+      "notes": "Fields: gravitational, electric, magnetic.",
+      "color": "#a855f7",
+      "icon": "Brain"
+    },
+    {
+      "id": "topic-physics-nuclear",
+      "subjectId": "sub-physics",
+      "title": "Nuclear Physics",
+      "notes": "Nuclear physics: radioactivity, fission, fusion.",
+      "color": "#a855f7",
+      "icon": "Brain"
+    },
+    {
+      "id": "topic-physics-quantum",
+      "subjectId": "sub-physics",
+      "title": "Quantum Physics",
+      "notes": "Quantum physics: photoelectric effect, duality.",
+      "color": "#a855f7",
+      "icon": "Brain"
+    },
+    {
+      "id": "topic-physics-thermal",
+      "subjectId": "sub-physics",
+      "title": "Thermal Physics",
+      "notes": "Thermal physics and ideal gases.",
+      "color": "#a855f7",
+      "icon": "Brain"
+    },
+    {
+      "id": "topic-physics-oscillations",
+      "subjectId": "sub-physics",
+      "title": "Oscillations",
+      "notes": "Oscillations: SHM and resonance.",
       "color": "#a855f7",
       "icon": "Brain"
     }
   ],
   "reviews": [
     {
-      "id": "applied-01",
-      "subjectId": "sub-applied-math",
+      "id": "topic-general-atomic-structure-r1",
+      "subjectId": "subject-general",
+      "reviewDate": "2025-01-04",
+      "interval": 1,
+      "notes": "Reviewed electron configurations across the first four periods.",
+      "topicId": "topic-general-atomic-structure"
+    },
+    {
+      "id": "topic-general-atomic-structure-r2",
+      "subjectId": "subject-general",
+      "reviewDate": "2025-02-14",
+      "interval": 41,
+      "notes": "Compared periodic trends for ionisation energy and atomic radius.",
+      "topicId": "topic-general-atomic-structure"
+    },
+    {
+      "id": "topic-general-atomic-structure-r3",
+      "subjectId": "subject-general",
+      "reviewDate": "2025-04-10",
+      "interval": 55,
+      "notes": "Worked past questions on successive ionisation energies.",
+      "topicId": "topic-general-atomic-structure"
+    },
+    {
+      "id": "topic-general-atomic-structure-r4",
+      "subjectId": "subject-general",
+      "reviewDate": "2025-06-20",
+      "interval": 71,
+      "notes": "Drilled anomalous electron configurations for transition metals.",
+      "topicId": "topic-general-atomic-structure"
+    },
+    {
+      "id": "topic-general-chemical-bonding-r1",
+      "subjectId": "subject-general",
       "reviewDate": "2025-01-12",
       "interval": 1,
-      "notes": "Vectors and kinematics word problems.",
-      "topicId": "topic-applied-derivative"
+      "notes": "Mapped ionic vs covalent bonding case studies.",
+      "topicId": "topic-general-chemical-bonding"
     },
     {
-      "id": "applied-02",
-      "subjectId": "sub-applied-math",
-      "reviewDate": "2025-02-22",
-      "interval": 41,
-      "notes": "Differential equations modeling practice.",
-      "topicId": "topic-applied-derivative"
-    },
-    {
-      "id": "applied-03",
-      "subjectId": "sub-applied-math",
-      "reviewDate": "2025-04-01",
-      "interval": 38,
-      "notes": "Fourier series setup for heat equations.",
-      "topicId": "topic-applied-derivative"
-    },
-    {
-      "id": "applied-04",
-      "subjectId": "sub-applied-math",
-      "reviewDate": "2025-05-18",
+      "id": "topic-general-chemical-bonding-r2",
+      "subjectId": "subject-general",
+      "reviewDate": "2025-02-28",
       "interval": 47,
-      "notes": "Laplace transform tables memorised.",
-      "topicId": "topic-applied-derivative"
+      "notes": "Practised VSEPR geometries and polarity predictions.",
+      "topicId": "topic-general-chemical-bonding"
     },
     {
-      "id": "applied-05",
-      "subjectId": "sub-applied-math",
-      "reviewDate": "2025-07-01",
-      "interval": 44,
-      "notes": "Numerical methods stability check.",
-      "topicId": "topic-applied-derivative"
+      "id": "topic-general-chemical-bonding-r3",
+      "subjectId": "subject-general",
+      "reviewDate": "2025-04-25",
+      "interval": 56,
+      "notes": "Summarised metallic bonding and intermolecular forces.",
+      "topicId": "topic-general-chemical-bonding"
     },
     {
-      "id": "applied-06",
-      "subjectId": "sub-applied-math",
-      "reviewDate": "2025-08-20",
-      "interval": 50,
-      "notes": "Optimization with constraints case studies.",
-      "topicId": "topic-applied-derivative"
+      "id": "topic-general-chemical-bonding-r4",
+      "subjectId": "subject-general",
+      "reviewDate": "2025-07-05",
+      "interval": 71,
+      "notes": "Did mixed bonding mechanism flashcards.",
+      "topicId": "topic-general-chemical-bonding"
     },
     {
-      "id": "applied-07",
-      "subjectId": "sub-applied-math",
-      "reviewDate": "2025-10-02",
-      "interval": 43,
-      "notes": "Control theory past exam synthesis.",
-      "topicId": "topic-applied-derivative"
-    },
-    {
-      "id": "inorg-01",
-      "subjectId": "sub-inorganic",
-      "reviewDate": "2025-01-03",
+      "id": "topic-general-chemical-equations-r1",
+      "subjectId": "subject-general",
+      "reviewDate": "2025-01-24",
       "interval": 1,
-      "notes": "Periodic trends and effective nuclear charge recap.",
-      "topicId": "topic-inorganic-hydro-carbon"
+      "notes": "Balanced combustion and redox equations by inspection.",
+      "topicId": "topic-general-chemical-equations"
     },
     {
-      "id": "inorg-02",
-      "subjectId": "sub-inorganic",
-      "reviewDate": "2025-02-02",
-      "interval": 30,
-      "notes": "Coordination complex nomenclature drills.",
-      "topicId": "topic-inorganic-hydro-carbon"
+      "id": "topic-general-chemical-equations-r2",
+      "subjectId": "subject-general",
+      "reviewDate": "2025-03-12",
+      "interval": 47,
+      "notes": "Stoichiometry drills converting between mass and moles.",
+      "topicId": "topic-general-chemical-equations"
     },
     {
-      "id": "inorg-03",
-      "subjectId": "sub-inorganic",
-      "reviewDate": "2025-03-04",
-      "interval": 30,
-      "notes": "Crystal field splitting patterns mapped.",
-      "topicId": "topic-inorganic-hydro-carbon"
-    },
-    {
-      "id": "inorg-04",
-      "subjectId": "sub-inorganic",
-      "reviewDate": "2025-04-10",
-      "interval": 37,
-      "notes": "Transition metal redox practice set.",
-      "topicId": "topic-inorganic-hydro-carbon"
-    },
-    {
-      "id": "inorg-05",
-      "subjectId": "sub-inorganic",
+      "id": "topic-general-chemical-equations-r3",
+      "subjectId": "subject-general",
       "reviewDate": "2025-05-20",
-      "interval": 40,
-      "notes": "Ligand substitution mechanisms compared.",
-      "topicId": "topic-inorganic-hydro-carbon"
+      "interval": 69,
+      "notes": "Timed practice converting gas volume data into reacting masses.",
+      "topicId": "topic-general-chemical-equations"
     },
     {
-      "id": "inorg-06",
-      "subjectId": "sub-inorganic",
-      "reviewDate": "2025-07-01",
-      "interval": 42,
-      "notes": "Bioinorganic catalysis survey.",
-      "topicId": "topic-inorganic-hydro-carbon"
+      "id": "topic-general-chemical-equations-r4",
+      "subjectId": "subject-general",
+      "reviewDate": "2025-08-01",
+      "interval": 73,
+      "notes": "Full worksheet on limiting reagents and excess calculations.",
+      "topicId": "topic-general-chemical-equations"
     },
     {
-      "id": "inorg-07",
-      "subjectId": "sub-inorganic",
-      "reviewDate": "2025-08-15",
-      "interval": 45,
-      "notes": "Exam-style inorganic synthesis problems.",
-      "topicId": "topic-inorganic-hydro-carbon"
-    },
-    {
-      "id": "inorg-08",
-      "subjectId": "sub-inorganic",
-      "reviewDate": "2025-09-29",
-      "interval": 45,
-      "notes": "Summary review of inorganic spectroscopy signatures.",
-      "topicId": "topic-inorganic-hydro-carbon"
-    },
-    {
-      "id": "org-01",
-      "subjectId": "sub-organic",
-      "reviewDate": "2025-01-01",
+      "id": "topic-general-states-of-matter-r1",
+      "subjectId": "subject-general",
+      "reviewDate": "2025-02-05",
       "interval": 1,
-      "notes": "Studied hydrocarbons basics.",
-      "topicId": "topic-organic-benzene"
+      "notes": "Derived gas law relationships from kinetic theory.",
+      "topicId": "topic-general-states-of-matter"
     },
     {
-      "id": "org-02",
-      "subjectId": "sub-organic",
-      "reviewDate": "2025-01-05",
-      "interval": 4,
-      "notes": "Practiced alkanes naming rules.",
-      "topicId": "topic-organic-benzene"
-    },
-    {
-      "id": "org-03",
-      "subjectId": "sub-organic",
-      "reviewDate": "2025-01-19",
-      "interval": 14,
-      "notes": "Reviewed alkene addition reactions.",
-      "topicId": "topic-organic-benzene"
-    },
-    {
-      "id": "org-04",
-      "subjectId": "sub-organic",
-      "reviewDate": "2025-01-31",
-      "interval": 12,
-      "notes": "Compared E1/E2 vs SN1/SN2 decision rules.",
-      "topicId": "topic-organic-benzene"
-    },
-    {
-      "id": "org-05",
-      "subjectId": "sub-organic",
-      "reviewDate": "2025-02-10",
-      "interval": 10,
-      "notes": "Mapped aromatic substitution strategies.",
-      "topicId": "topic-organic-benzene"
-    },
-    {
-      "id": "org-06",
-      "subjectId": "sub-organic",
-      "reviewDate": "2025-02-15",
-      "interval": 5,
-      "notes": "Practiced chirality problems.",
-      "topicId": "topic-organic-benzene"
-    },
-    {
-      "id": "org-07",
-      "subjectId": "sub-organic",
-      "reviewDate": "2025-02-25",
-      "interval": 10,
-      "notes": "Case studies on stereoisomer resolution.",
-      "topicId": "topic-organic-benzene"
-    },
-    {
-      "id": "org-08",
-      "subjectId": "sub-organic",
-      "reviewDate": "2025-03-07",
-      "interval": 10,
-      "notes": "Cataloged oxidation-reduction reagent strengths.",
-      "topicId": "topic-organic-benzene"
-    },
-    {
-      "id": "org-09",
-      "subjectId": "sub-organic",
-      "reviewDate": "2025-03-17",
-      "interval": 10,
-      "notes": "Notebooked organometallic coupling tricks.",
-      "topicId": "topic-organic-benzene"
-    },
-    {
-      "id": "org-10",
-      "subjectId": "sub-organic",
-      "reviewDate": "2025-03-27",
-      "interval": 10,
-      "notes": "Refined protecting group playbook.",
-      "topicId": "topic-organic-benzene"
-    },
-    {
-      "id": "org-11",
-      "subjectId": "sub-organic",
-      "reviewDate": "2025-04-06",
-      "interval": 10,
-      "notes": "Reviewed carbohydrate ring conformations.",
-      "topicId": "topic-organic-benzene"
-    },
-    {
-      "id": "org-12",
-      "subjectId": "sub-organic",
-      "reviewDate": "2025-04-15",
-      "interval": 9,
-      "notes": "Worked NMR splitting puzzles.",
-      "topicId": "topic-organic-benzene"
-    },
-    {
-      "id": "org-13",
-      "subjectId": "sub-organic",
-      "reviewDate": "2025-04-25",
-      "interval": 10,
-      "notes": "Memorized aldehyde/ketone reactions.",
-      "topicId": "topic-organic-benzene"
-    },
-    {
-      "id": "org-14",
-      "subjectId": "sub-organic",
-      "reviewDate": "2025-05-05",
-      "interval": 10,
-      "notes": "Summarized carboxylic acid derivatives.",
-      "topicId": "topic-organic-benzene"
-    },
-    {
-      "id": "org-15",
-      "subjectId": "sub-organic",
-      "reviewDate": "2025-05-15",
-      "interval": 10,
-      "notes": "Practiced amide hydrolysis pathways.",
-      "topicId": "topic-organic-benzene"
-    },
-    {
-      "id": "org-16",
-      "subjectId": "sub-organic",
-      "reviewDate": "2025-05-25",
-      "interval": 10,
-      "notes": "Revisited peptide bond formation routes.",
-      "topicId": "topic-organic-benzene"
-    },
-    {
-      "id": "org-17",
-      "subjectId": "sub-organic",
-      "reviewDate": "2025-06-04",
-      "interval": 10,
-      "notes": "Focused on pericyclic reaction rules.",
-      "topicId": "topic-organic-benzene"
-    },
-    {
-      "id": "org-18",
-      "subjectId": "sub-organic",
-      "reviewDate": "2025-06-14",
-      "interval": 10,
-      "notes": "Analyzed radical reaction selectivity.",
-      "topicId": "topic-organic-benzene"
-    },
-    {
-      "id": "org-19",
-      "subjectId": "sub-organic",
-      "reviewDate": "2025-06-24",
-      "interval": 10,
-      "notes": "Mock retrosynthesis drills set A.",
-      "topicId": "topic-organic-benzene"
-    },
-    {
-      "id": "org-20",
-      "subjectId": "sub-organic",
-      "reviewDate": "2025-07-04",
-      "interval": 10,
-      "notes": "Mock retrosynthesis drills set B.",
-      "topicId": "topic-organic-benzene"
-    },
-    {
-      "id": "org-21",
-      "subjectId": "sub-organic",
-      "reviewDate": "2025-07-14",
-      "interval": 10,
-      "notes": "Solved multistep synthesis exam questions.",
-      "topicId": "topic-organic-benzene"
-    },
-    {
-      "id": "org-22",
-      "subjectId": "sub-organic",
-      "reviewDate": "2025-07-24",
-      "interval": 10,
-      "notes": "Reviewed spectroscopy problem set.",
-      "topicId": "topic-organic-benzene"
-    },
-    {
-      "id": "org-23",
-      "subjectId": "sub-organic",
-      "reviewDate": "2025-08-05",
-      "interval": 12,
-      "notes": "Solved IR/NMR questions.",
-      "topicId": "topic-organic-benzene"
-    },
-    {
-      "id": "org-24",
-      "subjectId": "sub-organic",
-      "reviewDate": "2025-08-15",
-      "interval": 10,
-      "notes": "Benchmarked spectroscopy interpretation speed.",
-      "topicId": "topic-organic-benzene"
-    },
-    {
-      "id": "org-25",
-      "subjectId": "sub-organic",
-      "reviewDate": "2025-08-25",
-      "interval": 10,
-      "notes": "Refined biomolecule reaction memory palace.",
-      "topicId": "topic-organic-benzene"
-    },
-    {
-      "id": "org-26",
-      "subjectId": "sub-organic",
-      "reviewDate": "2025-09-04",
-      "interval": 10,
-      "notes": "Linked reaction families into synthesis ladders.",
-      "topicId": "topic-organic-benzene"
-    },
-    {
-      "id": "org-27",
-      "subjectId": "sub-organic",
-      "reviewDate": "2025-09-14",
-      "interval": 10,
-      "notes": "Consolidated organometallic named reactions.",
-      "topicId": "topic-organic-benzene"
-    },
-    {
-      "id": "org-28",
-      "subjectId": "sub-organic",
-      "reviewDate": "2025-09-20",
-      "interval": 6,
-      "notes": "Focused on synthesis pathways.",
-      "topicId": "topic-organic-benzene"
-    },
-    {
-      "id": "org-29",
-      "subjectId": "sub-organic",
-      "reviewDate": "2025-09-27",
-      "interval": 7,
-      "notes": "Exam blueprint walkthrough with timings.",
-      "topicId": "topic-organic-benzene"
-    },
-    {
-      "id": "org-30",
-      "subjectId": "sub-organic",
-      "reviewDate": "2025-10-04",
-      "interval": 7,
-      "notes": "Exam-style organic chemistry mock test.",
-      "topicId": "topic-organic-benzene"
-    },
-    {
-      "id": "phy-01",
-      "subjectId": "sub-physics",
-      "reviewDate": "2025-01-01",
-      "interval": 1,
-      "notes": "Kinematics basics.",
-      "topicId": "topic-physics-calculus"
-    },
-    {
-      "id": "phy-02",
-      "subjectId": "sub-physics",
-      "reviewDate": "2025-01-25",
-      "interval": 24,
-      "notes": "Work and energy problems.",
-      "topicId": "topic-physics-calculus"
-    },
-    {
-      "id": "phy-03",
-      "subjectId": "sub-physics",
-      "reviewDate": "2025-02-15",
-      "interval": 21,
-      "notes": "Momentum and collisions workshop.",
-      "topicId": "topic-physics-calculus"
-    },
-    {
-      "id": "phy-04",
-      "subjectId": "sub-physics",
-      "reviewDate": "2025-03-08",
-      "interval": 21,
-      "notes": "Rotational dynamics drills.",
-      "topicId": "topic-physics-calculus"
-    },
-    {
-      "id": "phy-05",
-      "subjectId": "sub-physics",
-      "reviewDate": "2025-03-30",
-      "interval": 22,
-      "notes": "Simple harmonic motion lab recap.",
-      "topicId": "topic-physics-calculus"
-    },
-    {
-      "id": "phy-06",
-      "subjectId": "sub-physics",
-      "reviewDate": "2025-04-20",
-      "interval": 21,
-      "notes": "Wave interference simulations.",
-      "topicId": "topic-physics-calculus"
-    },
-    {
-      "id": "phy-07",
-      "subjectId": "sub-physics",
-      "reviewDate": "2025-05-01",
-      "interval": 11,
-      "notes": "Electric fields & Coulomb's law.",
-      "topicId": "topic-physics-calculus"
-    },
-    {
-      "id": "phy-08",
-      "subjectId": "sub-physics",
-      "reviewDate": "2025-05-25",
-      "interval": 24,
-      "notes": "Magnetic flux and Faraday experiments.",
-      "topicId": "topic-physics-calculus"
-    },
-    {
-      "id": "phy-09",
-      "subjectId": "sub-physics",
-      "reviewDate": "2025-06-15",
-      "interval": 21,
-      "notes": "Circuit analysis with Kirchhoff practice.",
-      "topicId": "topic-physics-calculus"
-    },
-    {
-      "id": "phy-10",
-      "subjectId": "sub-physics",
-      "reviewDate": "2025-07-05",
-      "interval": 20,
-      "notes": "Optics and wave-particle duality review.",
-      "topicId": "topic-physics-calculus"
-    },
-    {
-      "id": "phy-11",
-      "subjectId": "sub-physics",
-      "reviewDate": "2025-07-27",
-      "interval": 22,
-      "notes": "Electromagnetic waves problem set.",
-      "topicId": "topic-physics-calculus"
-    },
-    {
-      "id": "phy-12",
-      "subjectId": "sub-physics",
-      "reviewDate": "2025-08-10",
-      "interval": 14,
-      "notes": "AC circuits.",
-      "topicId": "topic-physics-calculus"
-    },
-    {
-      "id": "phy-13",
-      "subjectId": "sub-physics",
-      "reviewDate": "2025-08-30",
-      "interval": 20,
-      "notes": "Modern physics photoelectric effect.",
-      "topicId": "topic-physics-calculus"
-    },
-    {
-      "id": "phy-14",
-      "subjectId": "sub-physics",
-      "reviewDate": "2025-09-25",
-      "interval": 26,
-      "notes": "Nuclear physics overview.",
-      "topicId": "topic-physics-calculus"
-    },
-    {
-      "id": "phy-15",
-      "subjectId": "sub-physics",
-      "reviewDate": "2025-10-04",
-      "interval": 9,
-      "notes": "Physics exam-style revision.",
-      "topicId": "topic-physics-calculus"
-    },
-    {
-      "id": "pure-01",
-      "subjectId": "sub-pure-math",
-      "reviewDate": "2025-01-01",
-      "interval": 1,
-      "notes": "Set theory basics.",
-      "topicId": "topic-pure-calculus"
-    },
-    {
-      "id": "pure-02",
-      "subjectId": "sub-pure-math",
-      "reviewDate": "2025-01-15",
-      "interval": 14,
-      "notes": "Functions and mappings.",
-      "topicId": "topic-pure-calculus"
-    },
-    {
-      "id": "pure-03",
-      "subjectId": "sub-pure-math",
-      "reviewDate": "2025-01-31",
-      "interval": 16,
-      "notes": "Logic foundations and quantifiers.",
-      "topicId": "topic-pure-calculus"
-    },
-    {
-      "id": "pure-04",
-      "subjectId": "sub-pure-math",
-      "reviewDate": "2025-02-15",
-      "interval": 15,
-      "notes": "Reviewed number theory fundamentals.",
-      "topicId": "topic-pure-calculus"
-    },
-    {
-      "id": "pure-05",
-      "subjectId": "sub-pure-math",
-      "reviewDate": "2025-02-24",
-      "interval": 9,
-      "notes": "Modular arithmetic problem set.",
-      "topicId": "topic-pure-calculus"
-    },
-    {
-      "id": "pure-06",
-      "subjectId": "sub-pure-math",
-      "reviewDate": "2025-03-05",
-      "interval": 9,
-      "notes": "Transfinite induction warm-ups.",
-      "topicId": "topic-pure-calculus"
-    },
-    {
-      "id": "pure-07",
-      "subjectId": "sub-pure-math",
+      "id": "topic-general-states-of-matter-r2",
+      "subjectId": "subject-general",
       "reviewDate": "2025-03-25",
-      "interval": 20,
-      "notes": "Real analysis epsilon proofs.",
-      "topicId": "topic-pure-calculus"
+      "interval": 48,
+      "notes": "Solved mixed ideal gas and real gas scenarios.",
+      "topicId": "topic-general-states-of-matter"
     },
     {
-      "id": "pure-08",
-      "subjectId": "sub-pure-math",
-      "reviewDate": "2025-04-14",
-      "interval": 20,
-      "notes": "Topology of \u211d open/closed sets.",
-      "topicId": "topic-pure-calculus"
-    },
-    {
-      "id": "pure-09",
-      "subjectId": "sub-pure-math",
-      "reviewDate": "2025-04-25",
-      "interval": 11,
-      "notes": "Uniform continuity concept map.",
-      "topicId": "topic-pure-calculus"
-    },
-    {
-      "id": "pure-10",
-      "subjectId": "sub-pure-math",
-      "reviewDate": "2025-05-04",
-      "interval": 9,
-      "notes": "Sequence convergence and Cauchy tests.",
-      "topicId": "topic-pure-calculus"
-    },
-    {
-      "id": "pure-11",
-      "subjectId": "sub-pure-math",
-      "reviewDate": "2025-05-24",
-      "interval": 20,
-      "notes": "Group theory axioms drill.",
-      "topicId": "topic-pure-calculus"
-    },
-    {
-      "id": "pure-12",
-      "subjectId": "sub-pure-math",
-      "reviewDate": "2025-06-13",
-      "interval": 20,
-      "notes": "Ring homomorphism properties.",
-      "topicId": "topic-pure-calculus"
-    },
-    {
-      "id": "pure-13",
-      "subjectId": "sub-pure-math",
-      "reviewDate": "2025-06-25",
-      "interval": 12,
-      "notes": "Vector spaces and matrices.",
-      "topicId": "topic-pure-calculus"
-    },
-    {
-      "id": "pure-14",
-      "subjectId": "sub-pure-math",
-      "reviewDate": "2025-07-05",
-      "interval": 10,
-      "notes": "Matrix decompositions practice.",
-      "topicId": "topic-pure-calculus"
-    },
-    {
-      "id": "pure-15",
-      "subjectId": "sub-pure-math",
-      "reviewDate": "2025-07-15",
-      "interval": 10,
-      "notes": "Linear transformations and rank-nullity.",
-      "topicId": "topic-pure-calculus"
-    },
-    {
-      "id": "pure-16",
-      "subjectId": "sub-pure-math",
-      "reviewDate": "2025-08-04",
-      "interval": 20,
-      "notes": "Inner product spaces practice.",
-      "topicId": "topic-pure-calculus"
-    },
-    {
-      "id": "pure-17",
-      "subjectId": "sub-pure-math",
-      "reviewDate": "2025-08-24",
-      "interval": 20,
-      "notes": "Eigenvalues and diagonalization drills.",
-      "topicId": "topic-pure-calculus"
-    },
-    {
-      "id": "pure-18",
-      "subjectId": "sub-pure-math",
-      "reviewDate": "2025-09-13",
-      "interval": 20,
-      "notes": "Field extensions overview.",
-      "topicId": "topic-pure-calculus"
-    },
-    {
-      "id": "pure-19",
-      "subjectId": "sub-pure-math",
-      "reviewDate": "2025-09-25",
-      "interval": 12,
-      "notes": "Past exam-style math proofs.",
-      "topicId": "topic-pure-calculus"
-    },
-    {
-      "id": "pure-20",
-      "subjectId": "sub-pure-math",
-      "reviewDate": "2025-10-04",
-      "interval": 9,
-      "notes": "Summary review before mock test.",
-      "topicId": "topic-pure-calculus"
-    },
-    {
-      "id": "gen-01",
+      "id": "topic-general-states-of-matter-r3",
       "subjectId": "subject-general",
-      "reviewDate": "2025-01-07",
+      "reviewDate": "2025-06-05",
+      "interval": 72,
+      "notes": "Compared phase diagrams for water and carbon dioxide.",
+      "topicId": "topic-general-states-of-matter"
+    },
+    {
+      "id": "topic-general-energetics-r1",
+      "subjectId": "subject-general",
+      "reviewDate": "2025-02-18",
       "interval": 1,
-      "notes": "Stoichiometry warm-up set.",
-      "topicId": "topic-general-hydro-carbon"
+      "notes": "Calorimetry practice calculating enthalpy of neutralisation.",
+      "topicId": "topic-general-energetics"
     },
     {
-      "id": "gen-02",
+      "id": "topic-general-energetics-r2",
       "subjectId": "subject-general",
-      "reviewDate": "2025-02-12",
-      "interval": 36,
-      "notes": "Thermochemistry problem set.",
-      "topicId": "topic-general-hydro-carbon"
+      "reviewDate": "2025-04-08",
+      "interval": 49,
+      "notes": "Constructed Hess cycles for combustion reactions.",
+      "topicId": "topic-general-energetics"
     },
     {
-      "id": "gen-03",
+      "id": "topic-general-energetics-r3",
       "subjectId": "subject-general",
-      "reviewDate": "2025-03-20",
-      "interval": 36,
-      "notes": "Gas laws conceptual questions.",
-      "topicId": "topic-general-hydro-carbon"
+      "reviewDate": "2025-06-28",
+      "interval": 81,
+      "notes": "Applied bond enthalpy data to reaction feasibility.",
+      "topicId": "topic-general-energetics"
     },
     {
-      "id": "gen-04",
+      "id": "topic-general-equilibrium-r1",
       "subjectId": "subject-general",
-      "reviewDate": "2025-05-01",
-      "interval": 42,
-      "notes": "Equilibrium constant calculations.",
-      "topicId": "topic-general-hydro-carbon"
+      "reviewDate": "2025-03-05",
+      "interval": 1,
+      "notes": "Explored Le Chatelier shifts using industrial ammonia synthesis.",
+      "topicId": "topic-general-equilibrium"
     },
     {
-      "id": "gen-05",
+      "id": "topic-general-equilibrium-r2",
+      "subjectId": "subject-general",
+      "reviewDate": "2025-04-30",
+      "interval": 56,
+      "notes": "Calculated Kc values from equilibrium concentration tables.",
+      "topicId": "topic-general-equilibrium"
+    },
+    {
+      "id": "topic-general-equilibrium-r3",
+      "subjectId": "subject-general",
+      "reviewDate": "2025-07-18",
+      "interval": 79,
+      "notes": "Graphically analysed pressure changes on gaseous equilibria.",
+      "topicId": "topic-general-equilibrium"
+    },
+    {
+      "id": "topic-general-equilibrium-r4",
+      "subjectId": "subject-general",
+      "reviewDate": "2025-09-15",
+      "interval": 59,
+      "notes": "Past paper questions on equilibrium constants and ICE tables.",
+      "topicId": "topic-general-equilibrium"
+    },
+    {
+      "id": "topic-general-redox-r1",
+      "subjectId": "subject-general",
+      "reviewDate": "2025-03-18",
+      "interval": 1,
+      "notes": "Practised assigning oxidation numbers in complex ions.",
+      "topicId": "topic-general-redox"
+    },
+    {
+      "id": "topic-general-redox-r2",
+      "subjectId": "subject-general",
+      "reviewDate": "2025-05-15",
+      "interval": 58,
+      "notes": "Balanced acidic and alkaline redox half-equations.",
+      "topicId": "topic-general-redox"
+    },
+    {
+      "id": "topic-general-redox-r3",
+      "subjectId": "subject-general",
+      "reviewDate": "2025-08-05",
+      "interval": 82,
+      "notes": "Reviewed electrochemical cell notation and standard potentials.",
+      "topicId": "topic-general-redox"
+    },
+    {
+      "id": "topic-general-rates-r1",
+      "subjectId": "subject-general",
+      "reviewDate": "2025-04-02",
+      "interval": 1,
+      "notes": "Investigated effect of temperature on rate via collision theory.",
+      "topicId": "topic-general-rates"
+    },
+    {
+      "id": "topic-general-rates-r2",
       "subjectId": "subject-general",
       "reviewDate": "2025-06-12",
-      "interval": 42,
-      "notes": "Acid-base titration curve analysis.",
-      "topicId": "topic-general-hydro-carbon"
+      "interval": 71,
+      "notes": "Interpreted rate vs concentration graphs for multi-step reactions.",
+      "topicId": "topic-general-rates"
     },
     {
-      "id": "gen-06",
+      "id": "topic-general-rates-r3",
       "subjectId": "subject-general",
+      "reviewDate": "2025-09-25",
+      "interval": 105,
+      "notes": "Mock exam questions on catalysts and rate-determining steps.",
+      "topicId": "topic-general-rates"
+    },
+    {
+      "id": "topic-inorganic-periodicity-r1",
+      "subjectId": "sub-inorganic",
+      "reviewDate": "2025-01-05",
+      "interval": 1,
+      "notes": "Charted periodic trends in atomic radius and first IE.",
+      "topicId": "topic-inorganic-periodicity"
+    },
+    {
+      "id": "topic-inorganic-periodicity-r2",
+      "subjectId": "sub-inorganic",
+      "reviewDate": "2025-02-22",
+      "interval": 48,
+      "notes": "Explained anomalies within period 3 first ionisation energies.",
+      "topicId": "topic-inorganic-periodicity"
+    },
+    {
+      "id": "topic-inorganic-periodicity-r3",
+      "subjectId": "sub-inorganic",
+      "reviewDate": "2025-04-18",
+      "interval": 55,
+      "notes": "Summarised metallic vs non-metallic behaviour across a period.",
+      "topicId": "topic-inorganic-periodicity"
+    },
+    {
+      "id": "topic-inorganic-periodicity-r4",
+      "subjectId": "sub-inorganic",
+      "reviewDate": "2025-07-01",
+      "interval": 74,
+      "notes": "Practised prediction questions on oxide structures.",
+      "topicId": "topic-inorganic-periodicity"
+    },
+    {
+      "id": "topic-inorganic-group2-r1",
+      "subjectId": "sub-inorganic",
+      "reviewDate": "2025-01-18",
+      "interval": 1,
+      "notes": "Reviewed thermal stability trends in group 2 carbonates.",
+      "topicId": "topic-inorganic-group2"
+    },
+    {
+      "id": "topic-inorganic-group2-r2",
+      "subjectId": "sub-inorganic",
+      "reviewDate": "2025-03-10",
+      "interval": 51,
+      "notes": "Mechanised calculations involving group 2 sulfates solubility.",
+      "topicId": "topic-inorganic-group2"
+    },
+    {
+      "id": "topic-inorganic-group2-r3",
+      "subjectId": "sub-inorganic",
+      "reviewDate": "2025-05-05",
+      "interval": 56,
+      "notes": "Wrote quick-reference sheets for group 2 uses.",
+      "topicId": "topic-inorganic-group2"
+    },
+    {
+      "id": "topic-inorganic-group2-r4",
+      "subjectId": "sub-inorganic",
       "reviewDate": "2025-07-25",
-      "interval": 43,
-      "notes": "Electrochemistry cell potentials.",
-      "topicId": "topic-general-hydro-carbon"
+      "interval": 81,
+      "notes": "Past paper data analysis on group 2 reactivity with water.",
+      "topicId": "topic-inorganic-group2"
     },
     {
-      "id": "gen-07",
-      "subjectId": "subject-general",
-      "reviewDate": "2025-09-05",
+      "id": "topic-inorganic-group7-r1",
+      "subjectId": "sub-inorganic",
+      "reviewDate": "2025-02-01",
+      "interval": 1,
+      "notes": "Compared oxidising power of halogens through displacement reactions.",
+      "topicId": "topic-inorganic-group7"
+    },
+    {
+      "id": "topic-inorganic-group7-r2",
+      "subjectId": "sub-inorganic",
+      "reviewDate": "2025-03-25",
+      "interval": 52,
+      "notes": "Memorised colours of halogens in different solvents.",
+      "topicId": "topic-inorganic-group7"
+    },
+    {
+      "id": "topic-inorganic-group7-r3",
+      "subjectId": "sub-inorganic",
+      "reviewDate": "2025-05-30",
+      "interval": 66,
+      "notes": "Practised halide ion tests using silver nitrate questions.",
+      "topicId": "topic-inorganic-group7"
+    },
+    {
+      "id": "topic-inorganic-group7-r4",
+      "subjectId": "sub-inorganic",
+      "reviewDate": "2025-08-12",
+      "interval": 74,
+      "notes": "Answered structured questions on disproportionation of chlorine.",
+      "topicId": "topic-inorganic-group7"
+    },
+    {
+      "id": "topic-inorganic-transition-r1",
+      "subjectId": "sub-inorganic",
+      "reviewDate": "2025-02-15",
+      "interval": 1,
+      "notes": "Summarised d-block electronic configurations and stability.",
+      "topicId": "topic-inorganic-transition"
+    },
+    {
+      "id": "topic-inorganic-transition-r2",
+      "subjectId": "sub-inorganic",
+      "reviewDate": "2025-04-20",
+      "interval": 64,
+      "notes": "Worked ligand substitution mechanism comparisons.",
+      "topicId": "topic-inorganic-transition"
+    },
+    {
+      "id": "topic-inorganic-transition-r3",
+      "subjectId": "sub-inorganic",
+      "reviewDate": "2025-07-05",
+      "interval": 76,
+      "notes": "Mapped colour trends to crystal field splitting diagrams.",
+      "topicId": "topic-inorganic-transition"
+    },
+    {
+      "id": "topic-inorganic-transition-r4",
+      "subjectId": "sub-inorganic",
+      "reviewDate": "2025-09-20",
+      "interval": 77,
+      "notes": "Case studies of transition metal catalysts in industry.",
+      "topicId": "topic-inorganic-transition"
+    },
+    {
+      "id": "topic-inorganic-period3-r1",
+      "subjectId": "sub-inorganic",
+      "reviewDate": "2025-03-05",
+      "interval": 1,
+      "notes": "Balanced reactions of period 3 oxides with water and acids.",
+      "topicId": "topic-inorganic-period3"
+    },
+    {
+      "id": "topic-inorganic-period3-r2",
+      "subjectId": "sub-inorganic",
+      "reviewDate": "2025-05-10",
+      "interval": 66,
+      "notes": "Explained amphoteric behaviour with Al2O3 examples.",
+      "topicId": "topic-inorganic-period3"
+    },
+    {
+      "id": "topic-inorganic-period3-r3",
+      "subjectId": "sub-inorganic",
+      "reviewDate": "2025-07-30",
+      "interval": 81,
+      "notes": "Practised qualitative observations for P4O10 hydrolysis.",
+      "topicId": "topic-inorganic-period3"
+    },
+    {
+      "id": "topic-inorganic-qualitative-r1",
+      "subjectId": "sub-inorganic",
+      "reviewDate": "2025-03-22",
+      "interval": 1,
+      "notes": "Rehearsed ion test sequences for unknown solutions.",
+      "topicId": "topic-inorganic-qualitative"
+    },
+    {
+      "id": "topic-inorganic-qualitative-r2",
+      "subjectId": "sub-inorganic",
+      "reviewDate": "2025-06-01",
+      "interval": 71,
+      "notes": "Timed spot test walkthroughs for lab practical prep.",
+      "topicId": "topic-inorganic-qualitative"
+    },
+    {
+      "id": "topic-inorganic-qualitative-r3",
+      "subjectId": "sub-inorganic",
+      "reviewDate": "2025-08-22",
+      "interval": 82,
+      "notes": "Compiled flow charts for anion and cation identification.",
+      "topicId": "topic-inorganic-qualitative"
+    },
+    {
+      "id": "topic-organic-structure-r1",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-01-01",
+      "interval": 1,
+      "notes": "Studied sigma and pi bonding in organic frameworks.",
+      "topicId": "topic-organic-structure"
+    },
+    {
+      "id": "topic-organic-structure-r2",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-02-01",
+      "interval": 31,
+      "notes": "Mapped hybridisation changes across functional groups.",
+      "topicId": "topic-organic-structure"
+    },
+    {
+      "id": "topic-organic-structure-r3",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-03-15",
       "interval": 42,
-      "notes": "Colligative properties revision.",
-      "topicId": "topic-general-hydro-carbon"
+      "notes": "Worked resonance and inductive effect problems.",
+      "topicId": "topic-organic-structure"
+    },
+    {
+      "id": "topic-organic-structure-r4",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-05-01",
+      "interval": 47,
+      "notes": "Summarised conformational analysis of cyclohexane.",
+      "topicId": "topic-organic-structure"
+    },
+    {
+      "id": "topic-organic-alkanes-r1",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-01-08",
+      "interval": 1,
+      "notes": "Practised alkanes naming and combustion pathways.",
+      "topicId": "topic-organic-alkanes"
+    },
+    {
+      "id": "topic-organic-alkanes-r2",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-02-12",
+      "interval": 35,
+      "notes": "Compared radical substitution mechanisms.",
+      "topicId": "topic-organic-alkanes"
+    },
+    {
+      "id": "topic-organic-alkanes-r3",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-04-05",
+      "interval": 52,
+      "notes": "Analysed electrophilic additions to alkenes.",
+      "topicId": "topic-organic-alkanes"
+    },
+    {
+      "id": "topic-organic-alkanes-r4",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-06-10",
+      "interval": 66,
+      "notes": "Solved synthesis routes combining alkyne chemistry.",
+      "topicId": "topic-organic-alkanes"
+    },
+    {
+      "id": "topic-organic-haloalkanes-r1",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-01-18",
+      "interval": 1,
+      "notes": "Reviewed SN1 vs SN2 decision trees.",
+      "topicId": "topic-organic-haloalkanes"
+    },
+    {
+      "id": "topic-organic-haloalkanes-r2",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-03-01",
+      "interval": 42,
+      "notes": "Timed elimination vs substitution exam questions.",
+      "topicId": "topic-organic-haloalkanes"
+    },
+    {
+      "id": "topic-organic-haloalkanes-r3",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-04-25",
+      "interval": 55,
+      "notes": "Mapped solvent effects on reaction pathways.",
+      "topicId": "topic-organic-haloalkanes"
+    },
+    {
+      "id": "topic-organic-haloalkanes-r4",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-07-01",
+      "interval": 67,
+      "notes": "Past paper data interpreting halogenoalkane rates.",
+      "topicId": "topic-organic-haloalkanes"
+    },
+    {
+      "id": "topic-organic-alcohols-r1",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-02-01",
+      "interval": 1,
+      "notes": "Distinguished primary, secondary, tertiary alcohol tests.",
+      "topicId": "topic-organic-alcohols"
+    },
+    {
+      "id": "topic-organic-alcohols-r2",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-03-22",
+      "interval": 49,
+      "notes": "Practised esterification mechanism write-ups.",
+      "topicId": "topic-organic-alcohols"
+    },
+    {
+      "id": "topic-organic-alcohols-r3",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-05-20",
+      "interval": 59,
+      "notes": "Revised phenol reactions with electrophilic substitution.",
+      "topicId": "topic-organic-alcohols"
+    },
+    {
+      "id": "topic-organic-alcohols-r4",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-08-01",
+      "interval": 73,
+      "notes": "Mock planning question on multi-step syntheses involving alcohols.",
+      "topicId": "topic-organic-alcohols"
+    },
+    {
+      "id": "topic-organic-carbonyl-r1",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-02-15",
+      "interval": 1,
+      "notes": "Revisited nucleophilic addition reagents for aldehydes.",
+      "topicId": "topic-organic-carbonyl"
+    },
+    {
+      "id": "topic-organic-carbonyl-r2",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-04-02",
+      "interval": 46,
+      "notes": "Completed Fehling and Tollens test comparisons.",
+      "topicId": "topic-organic-carbonyl"
+    },
+    {
+      "id": "topic-organic-carbonyl-r3",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-06-05",
+      "interval": 64,
+      "notes": "Solved carbonyl IR data interpretation exercises.",
+      "topicId": "topic-organic-carbonyl"
+    },
+    {
+      "id": "topic-organic-carbonyl-r4",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-08-15",
+      "interval": 71,
+      "notes": "Attempted synoptic questions linking carbonyl and amine chemistry.",
+      "topicId": "topic-organic-carbonyl"
+    },
+    {
+      "id": "topic-organic-carboxylic-r1",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-02-25",
+      "interval": 1,
+      "notes": "Reviewed acid chloride preparations and hydrolysis routes.",
+      "topicId": "topic-organic-carboxylic"
+    },
+    {
+      "id": "topic-organic-carboxylic-r2",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-04-18",
+      "interval": 52,
+      "notes": "Tabulated nucleophilic acyl substitution mechanisms.",
+      "topicId": "topic-organic-carboxylic"
+    },
+    {
+      "id": "topic-organic-carboxylic-r3",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-06-28",
+      "interval": 71,
+      "notes": "Compared base and acid hydrolysis of esters.",
+      "topicId": "topic-organic-carboxylic"
+    },
+    {
+      "id": "topic-organic-carboxylic-r4",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-09-05",
+      "interval": 69,
+      "notes": "Designed exam-style synthesis map involving amides.",
+      "topicId": "topic-organic-carboxylic"
+    },
+    {
+      "id": "topic-organic-aromatic-r1",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-03-05",
+      "interval": 1,
+      "notes": "Annotated electrophilic substitution mechanisms on benzene.",
+      "topicId": "topic-organic-aromatic"
+    },
+    {
+      "id": "topic-organic-aromatic-r2",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-05-01",
+      "interval": 57,
+      "notes": "Explored directing effects of substituents.",
+      "topicId": "topic-organic-aromatic"
+    },
+    {
+      "id": "topic-organic-aromatic-r3",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-07-12",
+      "interval": 72,
+      "notes": "Practised nitration and Friedel-Crafts problems.",
+      "topicId": "topic-organic-aromatic"
+    },
+    {
+      "id": "topic-organic-aromatic-r4",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-09-20",
+      "interval": 70,
+      "notes": "Synoptic review linking benzene to azo dye synthesis.",
+      "topicId": "topic-organic-aromatic"
+    },
+    {
+      "id": "topic-organic-amines-r1",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-03-18",
+      "interval": 1,
+      "notes": "Compared amine basicity trends and salt formation.",
+      "topicId": "topic-organic-amines"
+    },
+    {
+      "id": "topic-organic-amines-r2",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-05-15",
+      "interval": 58,
+      "notes": "Reviewed amino acid zwitterion behaviour in buffers.",
+      "topicId": "topic-organic-amines"
+    },
+    {
+      "id": "topic-organic-amines-r3",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-07-30",
+      "interval": 76,
+      "notes": "Summarised peptide bond hydrolysis and protein structure.",
+      "topicId": "topic-organic-amines"
+    },
+    {
+      "id": "topic-organic-amines-r4",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-10-02",
+      "interval": 64,
+      "notes": "Past paper synoptic on polymer chemistry and amide linkages.",
+      "topicId": "topic-organic-amines"
+    },
+    {
+      "id": "topic-organic-spectroscopy-r1",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-03-25",
+      "interval": 1,
+      "notes": "Solved IR spectra for carbonyl-containing compounds.",
+      "topicId": "topic-organic-spectroscopy"
+    },
+    {
+      "id": "topic-organic-spectroscopy-r2",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-06-01",
+      "interval": 68,
+      "notes": "Interpreted 1H NMR splitting patterns.",
+      "topicId": "topic-organic-spectroscopy"
+    },
+    {
+      "id": "topic-organic-spectroscopy-r3",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-08-10",
+      "interval": 70,
+      "notes": "Matched mass spec fragments to potential structures.",
+      "topicId": "topic-organic-spectroscopy"
+    },
+    {
+      "id": "topic-organic-spectroscopy-r4",
+      "subjectId": "sub-organic",
+      "reviewDate": "2025-10-04",
+      "interval": 55,
+      "notes": "Full organic mock using combined spectroscopic data.",
+      "topicId": "topic-organic-spectroscopy"
+    },
+    {
+      "id": "topic-pure-algebra-r1",
+      "subjectId": "sub-pure-math",
+      "reviewDate": "2025-01-03",
+      "interval": 1,
+      "notes": "Solved inequality systems and sequence convergence questions.",
+      "topicId": "topic-pure-algebra"
+    },
+    {
+      "id": "topic-pure-algebra-r2",
+      "subjectId": "sub-pure-math",
+      "reviewDate": "2025-02-10",
+      "interval": 38,
+      "notes": "Expanded generating functions for recurrence relations.",
+      "topicId": "topic-pure-algebra"
+    },
+    {
+      "id": "topic-pure-algebra-r3",
+      "subjectId": "sub-pure-math",
+      "reviewDate": "2025-04-05",
+      "interval": 54,
+      "notes": "Practised binomial expansions with parameterised terms.",
+      "topicId": "topic-pure-algebra"
+    },
+    {
+      "id": "topic-pure-algebra-r4",
+      "subjectId": "sub-pure-math",
+      "reviewDate": "2025-06-15",
+      "interval": 71,
+      "notes": "Past paper section on polynomial factor theorems.",
+      "topicId": "topic-pure-algebra"
+    },
+    {
+      "id": "topic-pure-functions-r1",
+      "subjectId": "sub-pure-math",
+      "reviewDate": "2025-01-12",
+      "interval": 1,
+      "notes": "Sketched modulus transformations and piecewise graphs.",
+      "topicId": "topic-pure-functions"
+    },
+    {
+      "id": "topic-pure-functions-r2",
+      "subjectId": "sub-pure-math",
+      "reviewDate": "2025-03-01",
+      "interval": 48,
+      "notes": "Worked composition and inverse function proofs.",
+      "topicId": "topic-pure-functions"
+    },
+    {
+      "id": "topic-pure-functions-r3",
+      "subjectId": "sub-pure-math",
+      "reviewDate": "2025-05-10",
+      "interval": 70,
+      "notes": "Analysed asymptotic behaviour for rational functions.",
+      "topicId": "topic-pure-functions"
+    },
+    {
+      "id": "topic-pure-trigonometry-r1",
+      "subjectId": "sub-pure-math",
+      "reviewDate": "2025-01-22",
+      "interval": 1,
+      "notes": "Derived compound angle identities from Euler form.",
+      "topicId": "topic-pure-trigonometry"
+    },
+    {
+      "id": "topic-pure-trigonometry-r2",
+      "subjectId": "sub-pure-math",
+      "reviewDate": "2025-03-18",
+      "interval": 55,
+      "notes": "Solved trigonometric equations in radians for multiple ranges.",
+      "topicId": "topic-pure-trigonometry"
+    },
+    {
+      "id": "topic-pure-trigonometry-r3",
+      "subjectId": "sub-pure-math",
+      "reviewDate": "2025-06-01",
+      "interval": 75,
+      "notes": "Graph sketching practice for trig transformations.",
+      "topicId": "topic-pure-trigonometry"
+    },
+    {
+      "id": "topic-pure-calculus-r1",
+      "subjectId": "sub-pure-math",
+      "reviewDate": "2025-02-05",
+      "interval": 1,
+      "notes": "Differentiated implicit relations and parametric curves.",
+      "topicId": "topic-pure-calculus"
+    },
+    {
+      "id": "topic-pure-calculus-r2",
+      "subjectId": "sub-pure-math",
+      "reviewDate": "2025-03-25",
+      "interval": 48,
+      "notes": "Integrated by parts and substitution under timed conditions.",
+      "topicId": "topic-pure-calculus"
+    },
+    {
+      "id": "topic-pure-calculus-r3",
+      "subjectId": "sub-pure-math",
+      "reviewDate": "2025-06-20",
+      "interval": 87,
+      "notes": "Applied differential equations to logistic growth models.",
+      "topicId": "topic-pure-calculus"
+    },
+    {
+      "id": "topic-pure-calculus-r4",
+      "subjectId": "sub-pure-math",
+      "reviewDate": "2025-09-05",
+      "interval": 77,
+      "notes": "Optimisation problems combining calculus and inequalities.",
+      "topicId": "topic-pure-calculus"
+    },
+    {
+      "id": "topic-pure-geometry-r1",
+      "subjectId": "sub-pure-math",
+      "reviewDate": "2025-02-20",
+      "interval": 1,
+      "notes": "Analysed circle theorems using vector methods.",
+      "topicId": "topic-pure-geometry"
+    },
+    {
+      "id": "topic-pure-geometry-r2",
+      "subjectId": "sub-pure-math",
+      "reviewDate": "2025-04-30",
+      "interval": 69,
+      "notes": "Solved conic section classification problems.",
+      "topicId": "topic-pure-geometry"
+    },
+    {
+      "id": "topic-pure-geometry-r3",
+      "subjectId": "sub-pure-math",
+      "reviewDate": "2025-07-20",
+      "interval": 81,
+      "notes": "Worked intersection problems between lines and conics.",
+      "topicId": "topic-pure-geometry"
+    },
+    {
+      "id": "topic-pure-vectors-r1",
+      "subjectId": "sub-pure-math",
+      "reviewDate": "2025-03-10",
+      "interval": 1,
+      "notes": "Resolved vector proofs for plane intersections.",
+      "topicId": "topic-pure-vectors"
+    },
+    {
+      "id": "topic-pure-vectors-r2",
+      "subjectId": "sub-pure-math",
+      "reviewDate": "2025-05-25",
+      "interval": 76,
+      "notes": "Computed scalar triple products and volumes.",
+      "topicId": "topic-pure-vectors"
+    },
+    {
+      "id": "topic-pure-vectors-r3",
+      "subjectId": "sub-pure-math",
+      "reviewDate": "2025-08-10",
+      "interval": 77,
+      "notes": "Past paper on vector equations of lines and planes.",
+      "topicId": "topic-pure-vectors"
+    },
+    {
+      "id": "topic-pure-proof-r1",
+      "subjectId": "sub-pure-math",
+      "reviewDate": "2025-03-25",
+      "interval": 1,
+      "notes": "Contradiction proofs on number theory propositions.",
+      "topicId": "topic-pure-proof"
+    },
+    {
+      "id": "topic-pure-proof-r2",
+      "subjectId": "sub-pure-math",
+      "reviewDate": "2025-06-05",
+      "interval": 72,
+      "notes": "Induction proofs for summation identities.",
+      "topicId": "topic-pure-proof"
+    },
+    {
+      "id": "topic-pure-proof-r3",
+      "subjectId": "sub-pure-math",
+      "reviewDate": "2025-08-25",
+      "interval": 81,
+      "notes": "Wrote structured proofs for analysis convergence.",
+      "topicId": "topic-pure-proof"
+    },
+    {
+      "id": "topic-pure-proof-r4",
+      "subjectId": "sub-pure-math",
+      "reviewDate": "2025-10-04",
+      "interval": 40,
+      "notes": "Mock exam essay on proof communication and rigor.",
+      "topicId": "topic-pure-proof"
+    },
+    {
+      "id": "topic-applied-statistics-r1",
+      "subjectId": "sub-applied-math",
+      "reviewDate": "2025-01-06",
+      "interval": 1,
+      "notes": "Reviewed binomial and normal approximation conditions.",
+      "topicId": "topic-applied-statistics"
+    },
+    {
+      "id": "topic-applied-statistics-r2",
+      "subjectId": "sub-applied-math",
+      "reviewDate": "2025-02-20",
+      "interval": 45,
+      "notes": "Practised hypothesis tests with p-values and critical regions.",
+      "topicId": "topic-applied-statistics"
+    },
+    {
+      "id": "topic-applied-statistics-r3",
+      "subjectId": "sub-applied-math",
+      "reviewDate": "2025-04-15",
+      "interval": 54,
+      "notes": "Analysed correlation and regression datasets.",
+      "topicId": "topic-applied-statistics"
+    },
+    {
+      "id": "topic-applied-statistics-r4",
+      "subjectId": "sub-applied-math",
+      "reviewDate": "2025-06-25",
+      "interval": 71,
+      "notes": "Worked combined probability distributions exam set.",
+      "topicId": "topic-applied-statistics"
+    },
+    {
+      "id": "topic-applied-statistics-r5",
+      "subjectId": "sub-applied-math",
+      "reviewDate": "2025-09-05",
+      "interval": 72,
+      "notes": "Interpreted real data reports focusing on test conclusions.",
+      "topicId": "topic-applied-statistics"
+    },
+    {
+      "id": "topic-applied-mechanics-r1",
+      "subjectId": "sub-applied-math",
+      "reviewDate": "2025-01-18",
+      "interval": 1,
+      "notes": "Resolved forces on connected particles.",
+      "topicId": "topic-applied-mechanics"
+    },
+    {
+      "id": "topic-applied-mechanics-r2",
+      "subjectId": "sub-applied-math",
+      "reviewDate": "2025-03-05",
+      "interval": 46,
+      "notes": "Projectile motion modelling with air resistance adjustments.",
+      "topicId": "topic-applied-mechanics"
+    },
+    {
+      "id": "topic-applied-mechanics-r3",
+      "subjectId": "sub-applied-math",
+      "reviewDate": "2025-05-12",
+      "interval": 68,
+      "notes": "Energy and power calculations for lifting systems.",
+      "topicId": "topic-applied-mechanics"
+    },
+    {
+      "id": "topic-applied-mechanics-r4",
+      "subjectId": "sub-applied-math",
+      "reviewDate": "2025-07-22",
+      "interval": 71,
+      "notes": "Analysed friction-limited motion on rough inclined planes.",
+      "topicId": "topic-applied-mechanics"
+    },
+    {
+      "id": "topic-applied-mechanics-r5",
+      "subjectId": "sub-applied-math",
+      "reviewDate": "2025-09-30",
+      "interval": 70,
+      "notes": "Past paper on work-energy principle for complex systems.",
+      "topicId": "topic-applied-mechanics"
+    },
+    {
+      "id": "topic-physics-mechanics-r1",
+      "subjectId": "sub-physics",
+      "reviewDate": "2025-01-01",
+      "interval": 1,
+      "notes": "Reviewed SUVAT applications and free-body diagrams.",
+      "topicId": "topic-physics-mechanics"
+    },
+    {
+      "id": "topic-physics-mechanics-r2",
+      "subjectId": "sub-physics",
+      "reviewDate": "2025-03-15",
+      "interval": 73,
+      "notes": "Solved momentum conservation problems for collisions.",
+      "topicId": "topic-physics-mechanics"
+    },
+    {
+      "id": "topic-physics-mechanics-r3",
+      "subjectId": "sub-physics",
+      "reviewDate": "2025-06-05",
+      "interval": 82,
+      "notes": "Rotational dynamics derivations for rigid bodies.",
+      "topicId": "topic-physics-mechanics"
+    },
+    {
+      "id": "topic-physics-mechanics-r4",
+      "subjectId": "sub-physics",
+      "reviewDate": "2025-08-25",
+      "interval": 81,
+      "notes": "Multi-step mechanics mock covering energy transfers.",
+      "topicId": "topic-physics-mechanics"
+    },
+    {
+      "id": "topic-physics-materials-r1",
+      "subjectId": "sub-physics",
+      "reviewDate": "2025-01-28",
+      "interval": 1,
+      "notes": "Compared stress-strain curves for metals and polymers.",
+      "topicId": "topic-physics-materials"
+    },
+    {
+      "id": "topic-physics-materials-r2",
+      "subjectId": "sub-physics",
+      "reviewDate": "2025-05-10",
+      "interval": 102,
+      "notes": "Calculated Young modulus from experimental data.",
+      "topicId": "topic-physics-materials"
+    },
+    {
+      "id": "topic-physics-waves-r1",
+      "subjectId": "sub-physics",
+      "reviewDate": "2025-02-15",
+      "interval": 1,
+      "notes": "Investigated interference conditions in double-slit setups.",
+      "topicId": "topic-physics-waves"
+    },
+    {
+      "id": "topic-physics-waves-r2",
+      "subjectId": "sub-physics",
+      "reviewDate": "2025-07-01",
+      "interval": 136,
+      "notes": "Analysed diffraction grating intensity patterns.",
+      "topicId": "topic-physics-waves"
+    },
+    {
+      "id": "topic-physics-electricity-r1",
+      "subjectId": "sub-physics",
+      "reviewDate": "2025-03-05",
+      "interval": 1,
+      "notes": "Reduced complex resistor networks using Kirchhoff's laws.",
+      "topicId": "topic-physics-electricity"
+    },
+    {
+      "id": "topic-physics-electricity-r2",
+      "subjectId": "sub-physics",
+      "reviewDate": "2025-07-18",
+      "interval": 135,
+      "notes": "Designed data-logging circuits with op-amps.",
+      "topicId": "topic-physics-electricity"
+    },
+    {
+      "id": "topic-physics-fields-r1",
+      "subjectId": "sub-physics",
+      "reviewDate": "2025-04-01",
+      "interval": 1,
+      "notes": "Mapped gravitational field strength near spherical masses.",
+      "topicId": "topic-physics-fields"
+    },
+    {
+      "id": "topic-physics-fields-r2",
+      "subjectId": "sub-physics",
+      "reviewDate": "2025-09-05",
+      "interval": 157,
+      "notes": "Solved electric potential problems with equipotential diagrams.",
+      "topicId": "topic-physics-fields"
+    },
+    {
+      "id": "topic-physics-nuclear-r1",
+      "subjectId": "sub-physics",
+      "reviewDate": "2025-04-25",
+      "interval": 1,
+      "notes": "Modelled decay chains and half-life calculations.",
+      "topicId": "topic-physics-nuclear"
+    },
+    {
+      "id": "topic-physics-nuclear-r2",
+      "subjectId": "sub-physics",
+      "reviewDate": "2025-08-30",
+      "interval": 127,
+      "notes": "Compared fission reactor control rod strategies.",
+      "topicId": "topic-physics-nuclear"
+    },
+    {
+      "id": "topic-physics-quantum-r1",
+      "subjectId": "sub-physics",
+      "reviewDate": "2025-05-22",
+      "interval": 1,
+      "notes": "Derived photoelectric equation from photon model.",
+      "topicId": "topic-physics-quantum"
+    },
+    {
+      "id": "topic-physics-quantum-r2",
+      "subjectId": "sub-physics",
+      "reviewDate": "2025-09-20",
+      "interval": 121,
+      "notes": "Solved particle in a box energy level problems.",
+      "topicId": "topic-physics-quantum"
+    },
+    {
+      "id": "topic-physics-thermal-r1",
+      "subjectId": "sub-physics",
+      "reviewDate": "2025-06-15",
+      "interval": 1,
+      "notes": "Connected kinetic theory to macroscopic gas laws.",
+      "topicId": "topic-physics-thermal"
+    },
+    {
+      "id": "topic-physics-thermal-r2",
+      "subjectId": "sub-physics",
+      "reviewDate": "2025-09-28",
+      "interval": 105,
+      "notes": "Evaluated entropy changes during reversible expansions.",
+      "topicId": "topic-physics-thermal"
+    },
+    {
+      "id": "topic-physics-oscillations-r1",
+      "subjectId": "sub-physics",
+      "reviewDate": "2025-07-25",
+      "interval": 1,
+      "notes": "Explored SHM solutions for spring-mass systems.",
+      "topicId": "topic-physics-oscillations"
+    },
+    {
+      "id": "topic-physics-oscillations-r2",
+      "subjectId": "sub-physics",
+      "reviewDate": "2025-10-04",
+      "interval": 71,
+      "notes": "Resonance case studies comparing damping regimes.",
+      "topicId": "topic-physics-oscillations"
     }
   ]
 }
