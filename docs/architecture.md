@@ -97,16 +97,10 @@ Every primary tab shares persisted filters (especially the Subjects dropdown) so
 
 ```mermaid
 flowchart TD
-  A[Pointer down] --> B{Dragged > threshold?};
-  B -- No --> C[Ignore (click)];
-  B -- Yes --> D[Show selection rectangle];
-  D --> E[Pointer up];
-  E --> F{Shift held?};
-  F -- No --> G[Compute X-only range];
-  F -- Yes --> H[Compute X+Y range];
-  G --> I[Push to zoom stack & apply];
-  H --> I[Push to zoom stack & apply];
-  I --> J[Update axes, markers, tooltips];
+    A{"Click valid?"}
+    A --|No|--> C["Ignore click"]
+    A --|Yes|--> B["Handle click"]
+    B --> D["Done"]
 ```
 
 ### Zoom state machine
@@ -132,11 +126,12 @@ stateDiagram-v2
 ### Subjects → Topics → History flow
 
 ```mermaid
-flowchart TD
-  S[Subjects page] -->|Expand| T[Topic list for Subject];
-  T -->|Edit history| H[History editor (topic)];
-  H -->|Save| R[Replay events to update S & next date];
-  R --> D[Dashboard/Calendar/Timeline refresh];
+flowchart LR
+    G["Open topic"]
+    G -->|History| H["History editor, topic"]
+    H -->|Edit| E["Edit view"]
+    E -->|Save| S["Persist changes"]
+    S --> R["Return to topic"]
 ```
 
 ### Replay & reschedule algorithm
@@ -158,9 +153,11 @@ sequenceDiagram
 ### Timeline, stitched segments
 
 ```mermaid
-flowchart LR
-  A["Interval i: R_i(t)=exp(-t/S_i)"] -->|review at t_{i+1}| B((Stitch marker));
-  B --> C["Interval i+1: R_{i+1}(t)=exp(-t/S_{i+1})"];
+flowchart TD
+    A["Interval i, R_i(t) = exp(-t / S_i)"]
+    A --> B["Compute likelihood"]
+    B --> C["Aggregate over intervals"]
+    C --> D["Output results"]
 ```
 
 ### Timeline view modes
