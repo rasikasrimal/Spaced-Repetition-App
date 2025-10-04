@@ -3,10 +3,13 @@
 import * as React from "react";
 import { startOfDayInTimeZone } from "@/lib/date";
 
+export type TimelinePoint = { t: number; r: number; opacity: number };
+
 export type TimelineSegment = {
   id: string;
-  points: { t: number; r: number }[];
+  points: TimelinePoint[];
   isHistorical: boolean;
+  fade: { from: number; to: number };
   checkpoint?: { t: number; target: number };
 };
 
@@ -21,7 +24,6 @@ export type TimelineStitch = {
 export type TimelineNowPoint = {
   t: number;
   r: number;
-  zeroHorizon: number;
   notes?: string;
 };
 
@@ -29,7 +31,7 @@ export type TimelineSeries = {
   topicId: string;
   topicTitle: string;
   color: string;
-  points: { t: number; r: number }[];
+  points: TimelinePoint[];
   segments: TimelineSegment[];
   stitches: TimelineStitch[];
   events: {
@@ -122,6 +124,8 @@ interface TimelineChartProps {
   onRequestStepBack?: () => void;
   onTooSmallSelection?: () => void;
   keyboardSelection?: KeyboardBand | null;
+  showOpacityFade?: boolean;
+  showReviewLines?: boolean;
 }
 
 const PADDING_X = 48;
@@ -172,7 +176,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       onViewportChange,
       fullDomain,
       fullYDomain,
-      height = 320,
+      height = 400,
       showGrid = true,
       examMarkers = [],
       showTodayLine = true,
@@ -183,13 +187,40 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       temporaryPan = false,
       onRequestStepBack,
       onTooSmallSelection,
-      keyboardSelection
+      keyboardSelection,
+      showOpacityFade = true,
+      showReviewLines = false
     },
     ref
   ) => {
     const containerRef = React.useRef<HTMLDivElement | null>(null);
     const svgRef = React.useRef<SVGSVGElement | null>(null);
     React.useImperativeHandle(ref, () => svgRef.current as SVGSVGElement);
+
+    const gradientPrefix = React.useId();
+
+    const makeGradientId = React.useCallback(
+      (topicId: string, segmentId: string) =>
+        `${gradientPrefix}-${topicId}-${segmentId}`.replace(/[^a-zA-Z0-9_-]/g, "-"),
+      [gradientPrefix]
+    );
+
+    React.useEffect(() => {
+      const element = containerRef.current;
+      if (!element) return;
+
+      const handleWheelCapture = (event: WheelEvent) => {
+        if (!containerRef.current) return;
+        if (!containerRef.current.contains(event.target as Node)) return;
+        event.preventDefault();
+      };
+
+      element.addEventListener("wheel", handleWheelCapture, { passive: false });
+
+      return () => {
+        element.removeEventListener("wheel", handleWheelCapture);
+      };
+    }, []);
 
     const [width, setWidth] = React.useState(960);
     const [isPanning, setIsPanning] = React.useState(false);
@@ -289,6 +320,55 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       },
       [yDomain, ySpan, plotHeight, height]
     );
+
+    const segmentGradients = React.useMemo(() => {
+      if (!showOpacityFade) return [] as React.ReactNode[];
+      const defs: React.ReactNode[] = [];
+      for (const line of series) {
+        for (const segment of line.segments) {
+          if (segment.points.length === 0) continue;
+          const gradientId = makeGradientId(line.topicId, segment.id);
+          const fromTime = Number.isFinite(segment.fade.from)
+            ? segment.fade.from
+            : segment.points[0]?.t ?? segment.points[segment.points.length - 1]?.t;
+          const toTime = Number.isFinite(segment.fade.to) ? segment.fade.to : fromTime;
+          if (!Number.isFinite(fromTime) || !Number.isFinite(toTime)) continue;
+          const startTime = Math.min(fromTime, toTime);
+          const endTime = Math.max(fromTime, toTime);
+          let x1 = scaleX(startTime);
+          let x2 = scaleX(endTime);
+          if (!Number.isFinite(x1) || !Number.isFinite(x2)) continue;
+          if (x1 === x2) {
+            x2 = x1 + 0.001;
+          }
+          const reversed = toTime < fromTime;
+          defs.push(
+            <linearGradient
+              key={gradientId}
+              id={gradientId}
+              gradientUnits="userSpaceOnUse"
+              x1={x1}
+              y1={0}
+              x2={x2}
+              y2={0}
+            >
+              {reversed ? (
+                <>
+                  <stop offset="0%" stopColor={line.color} stopOpacity={1} />
+                  <stop offset="100%" stopColor={line.color} stopOpacity={0} />
+                </>
+              ) : (
+                <>
+                  <stop offset="0%" stopColor={line.color} stopOpacity={0} />
+                  <stop offset="100%" stopColor={line.color} stopOpacity={1} />
+                </>
+              )}
+            </linearGradient>
+          );
+        }
+      }
+      return defs;
+    }, [series, scaleX, makeGradientId, showOpacityFade]);
 
     const todayPosition = React.useMemo(() => {
       const now = Date.now();
@@ -798,39 +878,46 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
 
     const paths = series.map((line) => (
       <g key={line.topicId}>
-        {line.segments.map((segment) => (
-          <path
-            key={segment.id}
-            d={segment.points
-              .map((point, index) => `${index === 0 ? "M" : "L"} ${scaleX(point.t)} ${scaleY(point.r)}`)
-              .join(" ")}
-            fill="none"
-            stroke={line.color}
-            strokeWidth={segment.isHistorical ? 1.5 : 2.5}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeOpacity={segment.isHistorical ? 0.4 : 1}
-          />
-        ))}
-        {line.stitches.map((stitch) => {
-          const x = scaleX(stitch.t);
-          const yTop = scaleY(Math.min(1, Math.max(yDomain[0], stitch.to)));
-          const yBottom = scaleY(Math.max(yDomain[0], Math.min(yDomain[1], stitch.from)));
+        {line.segments.map((segment) => {
+          if (segment.points.length === 0) return null;
+          const gradientId = makeGradientId(line.topicId, segment.id);
+          const strokeColor = showOpacityFade ? `url(#${gradientId})` : line.color;
           return (
-            <line
-              key={stitch.id}
-              x1={x}
-              x2={x}
-              y1={yTop}
-              y2={yBottom}
-              stroke={line.color}
-              strokeWidth={1.5}
-              strokeDasharray="2 2"
-              opacity={0.8}
-              pointerEvents="none"
+            <path
+              key={segment.id}
+              d={segment.points
+                .map((point, index) => `${index === 0 ? "M" : "L"} ${scaleX(point.t)} ${scaleY(point.r)}`)
+                .join(" ")}
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth={segment.isHistorical ? 1.5 : 2.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeOpacity={showOpacityFade ? undefined : 1}
             />
           );
         })}
+        {showReviewLines
+          ? line.stitches.map((stitch) => {
+            const x = scaleX(stitch.t);
+            const yTop = scaleY(Math.min(1, Math.max(yDomain[0], stitch.to)));
+            const yBottom = scaleY(Math.max(yDomain[0], Math.min(yDomain[1], stitch.from)));
+            return (
+              <line
+                key={stitch.id}
+                x1={x}
+                x2={x}
+                y1={yTop}
+                y2={yBottom}
+                stroke={line.color}
+                strokeWidth={1.5}
+                strokeDasharray="2 2"
+                opacity={0.8}
+                pointerEvents="none"
+              />
+            );
+          })
+          : null}
         {line.events.map((event) => {
           const x = scaleX(event.t);
           let yValue = 1;
@@ -925,19 +1012,13 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
             const x = scaleX(line.nowPoint!.t);
             const y = scaleY(line.nowPoint!.r);
             const handleFocus = () => {
-              const zeroNote = `Would trend to 0% near ${tooltipDateFormatter.format(
-                new Date(line.nowPoint!.zeroHorizon)
-              )}`;
-              const combinedNotes = line.nowPoint!.notes
-                ? `${line.nowPoint!.notes} · ${zeroNote}`
-                : zeroNote;
               setTooltip({
                 x,
                 y: scaleY(Math.min(line.nowPoint!.r + 0.1, yDomain[1])),
                 topic: line.topicTitle,
                 time: line.nowPoint!.t,
                 retention: line.nowPoint!.r,
-                notes: combinedNotes
+                notes: line.nowPoint!.notes
               });
             };
             return (
@@ -1149,6 +1230,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
           }}
           style={{ cursor }}
         >
+          {segmentGradients.length > 0 ? <defs>{segmentGradients}</defs> : null}
           <rect width={width} height={height} fill="transparent" />
           <rect
             x={PADDING_X}
