@@ -135,6 +135,7 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
     if (!isModal) return;
     setIsMounted(true);
   }, [isModal]);
+
   React.useEffect(() => {
     if (!isModal || !open) return;
     previouslyFocused.current = document.activeElement as HTMLElement | null;
@@ -202,7 +203,7 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
   }, [isModal, open]);
 
   React.useEffect(() => {
-    if (!isModal || !open) return;
+    if (isModal && !open) return;
     const events = (topic.events ?? [])
       .filter((event) => event.type === "reviewed")
       .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
