@@ -113,7 +113,7 @@ const getExamUrgencyMeta = (daysLeft: number | null): ExamUrgencyMeta => {
   if (daysLeft <= 7) {
     return {
       label: "Urgent",
-      badgeClass: "bg-error/20 text-error/20",
+      badgeClass: "bg-error/20 text-error",
       description: "Exam is around the corner. Prioritise these reviews.",
       accentClass: "ring-1 ring-inset ring-error/40"
     };
@@ -122,7 +122,7 @@ const getExamUrgencyMeta = (daysLeft: number | null): ExamUrgencyMeta => {
   if (daysLeft <= 30) {
     return {
       label: "Next up",
-      badgeClass: "bg-warn/20 text-warn/20",
+      badgeClass: "bg-warn/15 text-warn",
       description: "Exam is approaching. Keep momentum steady.",
       accentClass: "ring-1 ring-inset ring-warn/40"
     };
@@ -130,7 +130,7 @@ const getExamUrgencyMeta = (daysLeft: number | null): ExamUrgencyMeta => {
 
   return {
     label: "Plenty of time",
-    badgeClass: "bg-success/20 text-success/20",
+    badgeClass: "bg-success/15 text-success",
     description: "Planned well ahead. Maintain a consistent cadence.",
     accentClass: "ring-1 ring-inset ring-success/40"
   };
@@ -401,8 +401,8 @@ const SubjectAdminPage: React.FC = () => {
                 ? "Exam today"
                 : `Exam in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`;
             const examInfoClassName = cn(
-              "subject-exam-info text-sm",
-              daysLeft === null ? undefined : daysLeft <= 7 ? "subject-exam-soon" : "subject-exam-far"
+              "subject-exam-info text-sm text-muted-foreground dark:text-zinc-300",
+              daysLeft !== null && daysLeft <= 7 ? "subject-exam-soon" : undefined
             );
 
             if (isEditing) {
@@ -518,7 +518,7 @@ const SubjectAdminPage: React.FC = () => {
                         <div className="space-y-2 text-sm text-muted-foreground">
                           <div className="flex flex-wrap items-center gap-2">
                             <span
-                              className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${urgencyMeta.badgeClass}`}
+                              className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide transition-colors duration-200 ${urgencyMeta.badgeClass}`}
                             >
                               <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
                               {examBadgeText}
