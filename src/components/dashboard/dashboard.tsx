@@ -55,7 +55,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
   const resolvedTimezone = timezone || "Asia/Colombo";
   const zonedNow = useZonedNow(resolvedTimezone);
 
-  const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all");
+  const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("due-today");
   const { subjectFilter, setSubjectFilter } = usePersistedSubjectFilter();
 
   useIsomorphicLayoutEffect(() => {
@@ -227,13 +227,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
   }, []);
 
   return (
-    <section className="flex flex-col gap-8 lg:gap-10">
+    <section className="flex flex-col gap-10">
       <DailySummarySection
         dueCount={filteredDueCount}
         upcomingCount={filteredUpcomingCount}
         streak={streak}
         nextTopic={filteredNextTopic}
       />
+
+      <div className="space-y-6">
+        <SectionDivider />
+        <ProgressTodayModule
+          completed={completedCount}
+          total={totalToday}
+          completionPercent={completionPercent}
+        />
+        <SectionDivider />
+      </div>
 
       <TopicList
         id="dashboard-topic-list"
@@ -248,8 +258,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
         subjectFilter={resolvedSubjectFilter}
         onSubjectFilterChange={handleSubjectFilterChange}
       />
-
-      <ProgressTodayModule completed={completedCount} total={totalToday} completionPercent={completionPercent} />
     </section>
   );
 };
@@ -263,33 +271,42 @@ const ProgressTodayModule = ({
   total: number;
   completionPercent: number;
 }) => {
-  const safeTotal = total === 0 ? completed : total;
-  const safePercent = Number.isFinite(completionPercent) ? Math.max(0, Math.min(100, completionPercent)) : 0;
-  const isComplete = safePercent >= 100;
-  const summaryText = `${completed}/${safeTotal} reviews completed • ${safePercent}% complete. Keep up the rhythm — every checkmark keeps your memory sharp.`;
+  const plannedTotal = total;
+  const displayPercent = Number.isFinite(completionPercent)
+    ? Math.max(0, Math.min(100, completionPercent))
+    : 0;
+  const isComplete = displayPercent >= 100;
+  const hasScheduledReviews = plannedTotal > 0;
+  const ratioHeading = hasScheduledReviews
+    ? `${completed}/${plannedTotal} reviews completed`
+    : `${completed} reviews completed`;
+  const summaryText = hasScheduledReviews
+    ? `You’ve completed ${completed} of ${plannedTotal} scheduled reviews for today.`
+    : "No reviews are scheduled today. Add a topic to keep the rhythm going.";
+  const encouragement = hasScheduledReviews
+    ? isComplete
+      ? "Great work! You're on track for your streak."
+      : "Keep going to finish today’s queue and boost your streak."
+    : "Plan your next review to keep the momentum strong.";
 
   return (
     <section className="progress-summary rounded-3xl border border-inverse/10 bg-card/60 px-6 py-8 md:px-8">
       <div className="space-y-5">
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Progress today</p>
-          <h2 className="text-3xl font-semibold text-fg">
-            {completed}/{safeTotal} reviews completed
-          </h2>
+          <h2 className="text-2xl font-semibold text-fg">{ratioHeading}</h2>
           <p className="text-sm text-muted-foreground">{summaryText}</p>
         </div>
         <div className="space-y-1">
-          <p className="text-sm font-semibold text-fg">{safePercent}% complete</p>
-          <p className="text-sm text-muted-foreground">
-            {isComplete
-              ? "Great work! You\u2019ve completed today\u2019s reviews."
-              : "Finish today to extend your streak."}
-          </p>
+          <p className="text-base font-semibold text-success">{displayPercent}% complete</p>
+          <p className="text-sm font-medium text-success">{encouragement}</p>
         </div>
       </div>
     </section>
   );
 };
+
+const SectionDivider = () => <div role="separator" className="border-t border-border/60" />;
 
 const DailySummarySection = ({
   dueCount,
@@ -309,7 +326,7 @@ const DailySummarySection = ({
       ? "You\u2019re all caught up. Check back tomorrow or add a topic."
       : `You have ${dueCount} topic${dueCount === 1 ? "" : "s"} ready for review. Finish them to extend your streak.`;
   const nextLine = nextTopic
-    ? `Next up: ${nextTopic.title} • ${nextRelative} (${nextDateLabel})`
+    ? `Next up: ${nextTopic.title} â€¢ ${nextRelative} (${nextDateLabel})`
     : "Next up: Add a topic to plan your next review.";
 
   return (

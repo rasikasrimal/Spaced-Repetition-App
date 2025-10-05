@@ -24,6 +24,8 @@ import {
   DAY_MS,
   DEFAULT_RETRIEVABILITY_TARGET,
   DEFAULT_STABILITY_DAYS,
+  REVIEW_TRIGGER_MAX,
+  REVIEW_TRIGGER_MIN,
   STABILITY_MAX_DAYS,
   STABILITY_MIN_DAYS,
   computeIntervalDays,
@@ -129,6 +131,7 @@ type TopicStore = TopicStoreState & {
   setAutoAdjustPreference: (id: string, preference: AutoAdjustPreference) => void;
   trackReviseNowBlocked: () => void;
   autoSkipOverdueTopics: (timeZone: string) => AutoSkipResult[];
+  applyReviewTrigger: (trigger: number) => void;
 };
 
 const DEFAULT_SUBJECT_ID = "subject-general";
@@ -1737,6 +1740,64 @@ export const useTopicStore = create<TopicStore>()(
           })
         }));
         return results;
+      },
+      applyReviewTrigger: (trigger) => {
+        const safeTrigger = Math.min(Math.max(trigger, REVIEW_TRIGGER_MIN), REVIEW_TRIGGER_MAX);
+        const now = new Date();
+        set((state) => {
+          const updated = state.topics.map((topic) => {
+            const subject = findSubjectById(state.subjects, topic.subjectId ?? null);
+            const subjectDifficulty = resolveDifficultyModifier(
+              subject?.difficultyModifier ?? topic.subjectDifficultyModifier
+            );
+            const effectiveStability = Math.max(topic.stability * subjectDifficulty, STABILITY_MIN_DAYS);
+            const anchorIso = topic.lastReviewedAt ?? topic.startedAt ?? topic.startedOn ?? topic.createdAt;
+            const anchorDate = anchorIso ? new Date(anchorIso) : now;
+            const referenceDate = Number.isFinite(anchorDate.getTime()) ? anchorDate : now;
+            const intervalDays = computeIntervalDays(effectiveStability, safeTrigger);
+            const nextReviewDate = scheduleNextReviewDate({
+              topicId: topic.id,
+              referenceDate,
+              intervalDays,
+              topics: state.topics,
+              timeZone: DEFAULT_TIME_ZONE,
+              examDate: subject?.examDate ?? null,
+              minimumDate: now
+            });
+
+            let events = topic.events;
+            if (Array.isArray(events) && events.length > 0) {
+              let latestIndex = -1;
+              let latestTime = Number.NEGATIVE_INFINITY;
+              events.forEach((event, index) => {
+                if (event.type !== "reviewed") return;
+                const eventTime = new Date(event.at).getTime();
+                if (!Number.isFinite(eventTime)) return;
+                if (eventTime >= latestTime) {
+                  latestTime = eventTime;
+                  latestIndex = index;
+                }
+              });
+              if (latestIndex >= 0) {
+                const nextEvents = [...events];
+                nextEvents[latestIndex] = {
+                  ...nextEvents[latestIndex],
+                  targetRetrievability: safeTrigger,
+                  nextReviewAt: nextReviewDate
+                };
+                events = ensureEventsSorted(nextEvents);
+              }
+            }
+
+            return {
+              ...topic,
+              retrievabilityTarget: safeTrigger,
+              nextReviewDate,
+              events
+            };
+          });
+          return { topics: updated };
+        });
       }
     };
   },

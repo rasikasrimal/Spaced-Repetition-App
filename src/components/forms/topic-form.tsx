@@ -42,6 +42,7 @@ import { AutoAdjustPreference, Subject } from "@/types/topic";
 import { daysBetween, formatFullDate } from "@/lib/date";
 
 import { IconPreview } from "@/components/icon-preview";
+import { useReviewPreferencesStore } from "@/stores/review-preferences";
 
 
 
@@ -272,6 +273,8 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
     topics: state.topics
 
   }));
+
+  const reviewTrigger = useReviewPreferencesStore((state) => state.reviewTrigger);
 
 
 
@@ -675,7 +678,9 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
 
       intervals: intervals.length > 0 ? intervals : [...defaultIntervals],
 
-      autoAdjustPreference
+      autoAdjustPreference,
+
+      retrievabilityTarget: reviewTrigger
 
     };
 
