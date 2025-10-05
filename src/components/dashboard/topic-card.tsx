@@ -4,6 +4,7 @@ import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { IconPreview } from "@/components/icon-preview";
 import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { QuickRevisionDialog } from "@/components/dashboard/quick-revision-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -453,9 +454,12 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
                   </span>
                 ) : null}
                 {examDateLabel ? (
-                  <span className="exam-date inline-flex items-center gap-2 rounded-full bg-warn/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide">
-                    <CalendarClock className="h-3.5 w-3.5" /> Exam {examDateLabel}
-                  </span>
+                  <StatusBadge
+                    type="exam"
+                    className="exam-date"
+                    label={`Exam ${examDateLabel}`}
+                    date={subject?.examDate ?? undefined}
+                  />
                 ) : null}
               </div>
             </div>
