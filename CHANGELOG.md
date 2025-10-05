@@ -15,3 +15,9 @@
 - Improved visibility under light/dark themes.
 - Standardized exam badge color palette (amber tones).
 - Added hover/focus transitions and accessibility attributes.
+
+### Dashboard UI & Chart Refinements
+- Default the dashboard status filter to "Due today" and persist the preference across sessions.
+- Unify the filter button group with uppercase primary styling, horizontal scroll, and accessible focus rings.
+- Introduced a hoverable review-load chart with lighter grid lines, accent gradients, and responsive tooltips.
+- Tidied the search, filters, and chart layout so controls remain on a single row and the clear-filters action uses muted inline text.

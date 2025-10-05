@@ -16,6 +16,15 @@ body.dark * {
   border-color: #262a30;
 }
 
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 body.light .icon {
   color: #9aa0a6;
 }
@@ -117,6 +126,13 @@ body.light .bg-accent\/25 { background-color: rgba(33, 206, 153, 0.25); }
 body.dark .bg-accent\/25 { background-color: rgba(61, 234, 149, 0.25); }
 body.light .bg-accent\/90 { background-color: rgba(33, 206, 153, 0.9); }
 body.dark .bg-accent\/90 { background-color: rgba(61, 234, 149, 0.9); }
+
+body.light .bg-primary\/10 { background-color: rgba(33, 206, 153, 0.1); }
+body.dark .bg-primary\/10 { background-color: rgba(61, 234, 149, 0.1); }
+body.light .bg-primary\/15 { background-color: rgba(33, 206, 153, 0.15); }
+body.dark .bg-primary\/15 { background-color: rgba(61, 234, 149, 0.15); }
+body.light .hover\:bg-primary\/15:hover { background-color: rgba(33, 206, 153, 0.15); }
+body.dark .hover\:bg-primary\/15:hover { background-color: rgba(61, 234, 149, 0.15); }
 
 /* subject revision tables */
 .subject-table-card {
@@ -413,6 +429,9 @@ body.dark .text-accent-foreground { color: #0f1115; }
 body.light .text-accent-foreground\/80 { color: rgba(255, 255, 255, 0.8); }
 body.dark .text-accent-foreground\/80 { color: rgba(15, 17, 21, 0.8); }
 
+body.light .text-primary { color: #0f766e; }
+body.dark .text-primary { color: #5eead4; }
+
 body.light .text-success\/20 { color: rgba(33, 206, 153, 0.2); }
 body.dark .text-success\/20 { color: rgba(61, 234, 149, 0.2); }
 body.light .text-success\/40 { color: rgba(33, 206, 153, 0.4); }
@@ -459,6 +478,9 @@ body.dark .border-accent\/30 { border-color: rgba(61, 234, 149, 0.3); }
 body.light .border-accent\/40 { border-color: rgba(33, 206, 153, 0.4); }
 body.dark .border-accent\/40 { border-color: rgba(61, 234, 149, 0.4); }
 
+body.light .border-primary { border-color: rgba(15, 118, 110, 0.6); }
+body.dark .border-primary { border-color: rgba(94, 234, 212, 0.6); }
+
 body.light .border-success\/20 { border-color: rgba(33, 206, 153, 0.2); }
 body.dark .border-success\/20 { border-color: rgba(61, 234, 149, 0.2); }
 body.light .border-success\/40 { border-color: rgba(33, 206, 153, 0.4); }
@@ -490,6 +512,11 @@ body.light .ring-accent\/60 { --tw-ring-color: rgba(33, 206, 153, 0.6); }
 body.dark .ring-accent\/60 { --tw-ring-color: rgba(61, 234, 149, 0.6); }
 body.light .ring-accent\/80 { --tw-ring-color: rgba(33, 206, 153, 0.8); }
 body.dark .ring-accent\/80 { --tw-ring-color: rgba(61, 234, 149, 0.8); }
+
+body.light .ring-primary\/50 { --tw-ring-color: rgba(15, 118, 110, 0.5); }
+body.dark .ring-primary\/50 { --tw-ring-color: rgba(94, 234, 212, 0.5); }
+body.light .focus-visible\:ring-primary\/50:focus-visible { --tw-ring-color: rgba(15, 118, 110, 0.5); }
+body.dark .focus-visible\:ring-primary\/50:focus-visible { --tw-ring-color: rgba(94, 234, 212, 0.5); }
 
 body.light .ring-success\/40 { --tw-ring-color: rgba(33, 206, 153, 0.4); }
 body.dark .ring-success\/40 { --tw-ring-color: rgba(61, 234, 149, 0.4); }

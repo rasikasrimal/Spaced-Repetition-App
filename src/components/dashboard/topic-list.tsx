@@ -34,7 +34,8 @@ import {
   formatRelativeToNow,
   formatTime,
   getDayKeyInTimeZone,
-  nextStartOfDayInTimeZone
+  nextStartOfDayInTimeZone,
+  startOfDayInTimeZone
 } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import { FALLBACK_SUBJECT_COLOR } from "@/lib/colors";
@@ -65,6 +66,15 @@ export const NO_SUBJECT_KEY = "__none";
 
 const SEARCH_STORAGE_KEY = "dashboard-topic-search";
 const SORT_STORAGE_KEY = "dashboard-topic-sort";
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+const REVIEW_CHART_DAYS = 14;
+
+type ReviewLoadPoint = {
+  iso: string;
+  label: string;
+  axisLabel: string;
+  count: number;
+};
 
 const STATUS_META: Record<
   TopicStatus,
@@ -237,7 +247,7 @@ export function TopicList({
   }, [clearSearch]);
 
   const handleResetFilters = React.useCallback(() => {
-    onStatusFilterChange("all");
+    onStatusFilterChange("due-today");
     onSubjectFilterChange(null);
     setSubjectOpen(false);
   }, [onStatusFilterChange, onSubjectFilterChange]);
@@ -294,7 +304,7 @@ export function TopicList({
 
   const filterDescriptions = React.useMemo(() => {
     const descriptions: string[] = [];
-    if (statusFilter !== "all") {
+    if (statusFilter !== "due-today") {
       descriptions.push(`Status ${STATUS_META[statusFilter].label}`);
     }
     if (subjectFilter !== null) {
@@ -350,6 +360,47 @@ export function TopicList({
       });
   }, [items, searchQuery, statusFilter, subjectFilter, sortOption]);
 
+  const dueNowCount = React.useMemo(
+    () => filteredItems.filter((item) => item.status !== "upcoming").length,
+    [filteredItems]
+  );
+
+  const reviewChartData = React.useMemo(() => {
+    const baseStart = startOfDayInTimeZone(zonedNow, timezone);
+    if (Number.isNaN(baseStart.getTime())) {
+      return [] as ReviewLoadPoint[];
+    }
+
+    const buckets = Array.from({ length: REVIEW_CHART_DAYS }, (_, index) => {
+      const bucketDate = new Date(baseStart.getTime() + index * DAY_IN_MS);
+      return {
+        iso: bucketDate.toISOString(),
+        label: formatInTimeZone(bucketDate, timezone, {
+          weekday: "short",
+          month: "short",
+          day: "numeric"
+        }),
+        axisLabel: formatInTimeZone(bucketDate, timezone, { weekday: "short" }),
+        count: 0
+      } satisfies ReviewLoadPoint;
+    });
+
+    const counts = new Array(REVIEW_CHART_DAYS).fill(0);
+
+    for (const item of filteredItems) {
+      const nextReviewStart = startOfDayInTimeZone(item.topic.nextReviewDate, timezone);
+      if (Number.isNaN(nextReviewStart.getTime())) continue;
+      const diff = Math.round((nextReviewStart.getTime() - baseStart.getTime()) / DAY_IN_MS);
+      const bucketIndex = Math.min(Math.max(diff, 0), REVIEW_CHART_DAYS - 1);
+      counts[bucketIndex] += 1;
+    }
+
+    return buckets.map((bucket, index) => ({
+      ...bucket,
+      count: counts[index]
+    }));
+  }, [filteredItems, timezone, zonedNow]);
+
   const [editingId, setEditingId] = React.useState<string | null>(null);
 
   const totalFilteredCount = filteredItems.length;
@@ -391,8 +442,8 @@ export function TopicList({
       className="rounded-[32px] border border-inverse/5 bg-card/50 p-5 backdrop-blur xl:p-8"
     >
       <div className="flex flex-col gap-5 xl:gap-6">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:gap-8">
-          <div role="search" className="w-full xl:flex-1 xl:min-w-0">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div role="search" className="w-full lg:max-w-2xl lg:flex-1 lg:min-w-0">
             <label htmlFor="dashboard-topic-search" className="sr-only">
               Search topics
             </label>
@@ -472,184 +523,186 @@ export function TopicList({
               </p>
             </div>
           </div>
-          <div className="flex flex-col gap-3 xl:flex-1">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <Button
-                type="button"
-                onClick={onCreateTopic}
-                className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition hover:bg-accent/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
-              >
-                <Sparkles className="h-4 w-4" aria-hidden="true" /> Add topic
-              </Button>
+          <div className="flex flex-none items-start justify-end">
+            <Button
+              type="button"
+              onClick={onCreateTopic}
+              className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition hover:bg-accent/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+            >
+              <Sparkles className="h-4 w-4" aria-hidden="true" /> Add topic
+            </Button>
+          </div>
+        </div>
 
-              <div className="flex flex-1 flex-wrap items-center gap-2 text-xs text-muted-foreground xl:flex-nowrap xl:justify-end xl:gap-3">
-                <div
-                  className="flex items-center gap-1 rounded-full border border-inverse/10 bg-card/60 p-1"
-                  role="group"
-                  aria-label="Filter by status"
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div
+              className="flex min-w-0 gap-2 overflow-x-auto whitespace-nowrap scrollbar-none scroll-smooth snap-x snap-mandatory"
+              role="group"
+              aria-label="Filter by status"
+            >
+              {statusFilters.map(({ value, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => onStatusFilterChange(value)}
+                  aria-pressed={statusFilter === value}
+                  className={cn(
+                    "flex-shrink-0 snap-start rounded-md border px-3 py-1.5 text-sm font-medium uppercase tracking-wide transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
+                    statusFilter === value
+                      ? "border-primary bg-primary/10 text-primary font-semibold hover:bg-primary/15"
+                      : "border-transparent text-muted-foreground hover:bg-accent/20 hover:text-fg"
+                  )}
                 >
-                  {statusFilters.map(({ value, label }) => (
-                    <Button
-                      key={value}
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => onStatusFilterChange(value)}
-                      aria-pressed={statusFilter === value}
-                      className={cn(
-                        "rounded-full px-3 py-1 text-xs transition",
-                        statusFilter === value
-                          ? "bg-accent text-accent-foreground hover:bg-accent/90"
-                          : "text-muted-foreground hover:text-fg"
-                      )}
-                    >
-                      {label}
-                    </Button>
-                  ))}
-                </div>
+                  {label}
+                </button>
+              ))}
+            </div>
 
-                <Popover open={subjectOpen} onOpenChange={setSubjectOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="inline-flex items-center gap-2 rounded-full border-inverse/15 bg-card/60 px-3 py-1 text-xs text-fg/80 hover:border-inverse/25 hover:text-fg"
-                    >
-                      <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-                      {subjectsLabel}
-                      <ChevronDown className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-72 rounded-2xl border border-inverse/10 bg-card/95 p-3 text-sm text-fg">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Subjects</span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          className="text-xs font-medium text-accent hover:underline"
-                          onClick={() => {
-                            onSubjectFilterChange(null);
-                            setSubjectOpen(false);
-                          }}
-                        >
-                          Select all
-                        </button>
-                        <button
-                          type="button"
-                          className="text-xs font-medium text-muted-foreground hover:underline"
-                          onClick={() => onSubjectFilterChange(new Set<string>())}
-                        >
-                          Clear all
-                        </button>
-                      </div>
+            <div className="flex flex-none items-center gap-2 whitespace-nowrap">
+              <Popover open={subjectOpen} onOpenChange={setSubjectOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="inline-flex items-center gap-2 rounded-full border-inverse/15 bg-card/60 px-3 py-1 text-xs text-fg/80 hover:border-inverse/25 hover:text-fg"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                    {subjectsLabel}
+                    <ChevronDown className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72 rounded-2xl border border-inverse/10 bg-card/95 p-3 text-sm text-fg">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Subjects</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="text-xs font-medium text-accent hover:underline"
+                        onClick={() => {
+                          onSubjectFilterChange(null);
+                          setSubjectOpen(false);
+                        }}
+                      >
+                        Select all
+                      </button>
+                      <button
+                        type="button"
+                        className="text-xs font-medium text-muted-foreground hover:underline"
+                        onClick={() => onSubjectFilterChange(new Set<string>())}
+                      >
+                        Clear all
+                      </button>
                     </div>
-                    <div className="mt-3">
-                      <label htmlFor="subject-filter-search" className="sr-only">
-                        Search subjects
-                      </label>
-                      <div className="relative">
-                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/80" aria-hidden="true" />
-                        <Input
-                          id="subject-filter-search"
-                          type="search"
-                          value={subjectSearch}
-                          onChange={(event) => setSubjectSearch(event.target.value)}
-                          placeholder="Search subjects"
-                          className="h-9 w-full rounded-xl border-inverse/10 bg-bg/80 pl-9 pr-3 text-xs text-fg placeholder:text-muted-foreground/80 focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/40"
-                        />
-                      </div>
+                  </div>
+                  <div className="mt-3">
+                    <label htmlFor="subject-filter-search" className="sr-only">
+                      Search subjects
+                    </label>
+                    <div className="relative">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/80" aria-hidden="true" />
+                      <Input
+                        id="subject-filter-search"
+                        type="search"
+                        value={subjectSearch}
+                        onChange={(event) => setSubjectSearch(event.target.value)}
+                        placeholder="Search subjects"
+                        className="h-9 w-full rounded-xl border-inverse/10 bg-bg/80 pl-9 pr-3 text-xs text-fg placeholder:text-muted-foreground/80 focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/40"
+                      />
                     </div>
-                    <div className="mt-3 max-h-64 space-y-1 overflow-y-auto">
-                      {subjectOptions.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">No subjects yet.</p>
-                      ) : filteredSubjectOptions.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">No matching subjects.</p>
-                      ) : (
-                        filteredSubjectOptions.map((option) => {
-                          const isChecked = subjectFilter === null ? true : subjectFilter.has(option.id);
-                          return (
-                            <button
-                              key={option.id}
-                              type="button"
-                              onClick={() => toggleSubject(option.id)}
-                              role="menuitemcheckbox"
-                              aria-checked={isChecked}
-                              className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition hover:bg-inverse/10"
-                            >
-                              <span className="flex items-center gap-2">
-                                <span className="flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: option.color }} />
-                                {option.name}
+                  </div>
+                  <div className="mt-3 max-h-64 space-y-1 overflow-y-auto">
+                    {subjectOptions.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No subjects yet.</p>
+                    ) : filteredSubjectOptions.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No matching subjects.</p>
+                    ) : (
+                      filteredSubjectOptions.map((option) => {
+                        const isChecked = subjectFilter === null ? true : subjectFilter.has(option.id);
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => toggleSubject(option.id)}
+                            role="menuitemcheckbox"
+                            aria-checked={isChecked}
+                            className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition hover:bg-inverse/10"
+                          >
+                            <span className="flex items-center gap-2">
+                              <span className="flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: option.color }} />
+                              {option.name}
+                            </span>
+                            <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                              {option.count}
+                              <span
+                                className={cn(
+                                  "flex h-5 w-5 items-center justify-center rounded-full border",
+                                  isChecked
+                                    ? "border-accent bg-accent/20 text-accent"
+                                    : "border-inverse/20 text-muted-foreground/80"
+                                )}
+                              >
+                                {isChecked ? <Check className="h-3 w-3" aria-hidden="true" /> : null}
                               </span>
-                              <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                                {option.count}
-                                <span
-                                  className={cn(
-                                    "flex h-5 w-5 items-center justify-center rounded-full border",
-                                    isChecked
-                                      ? "border-accent bg-accent/20 text-accent"
-                                      : "border-inverse/20 text-muted-foreground/80"
-                                  )}
-                                >
-                                  {isChecked ? <Check className="h-3 w-3" aria-hidden="true" /> : null}
-                                </span>
-                              </span>
-                            </button>
-                          );
-                        })
-                      )}
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                            </span>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
 
-                <Popover open={sortOpen} onOpenChange={setSortOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="inline-flex items-center gap-2 rounded-full border-inverse/15 bg-card/60 px-3 py-1 text-xs text-fg/80 hover:border-inverse/25 hover:text-fg"
-                    >
-                      <ChevronDown className="h-3 w-3 text-muted-foreground" aria-hidden="true" /> Sort by: {sortLabels[sortOption]}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-56 rounded-2xl border border-inverse/10 bg-card/95 p-2 text-sm text-fg">
-                    <div className="space-y-1">
-                      {(Object.keys(sortLabels) as SortOption[]).map((value) => (
-                        <button
-                          key={value}
-                          type="button"
-                          onClick={() => {
-                            setSortOption(value);
-                            setSortOpen(false);
-                          }}
-                          className={cn(
-                            "flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left transition",
-                            sortOption === value ? "bg-accent/20 text-fg" : "hover:bg-inverse/10 hover:text-fg"
-                          )}
-                        >
-                          <span>{sortLabels[value]}</span>
-                          {sortOption === value ? <CheckCircle2 className="h-3.5 w-3.5 text-accent" aria-hidden="true" /> : null}
-                        </button>
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </div>
+              <Popover open={sortOpen} onOpenChange={setSortOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="inline-flex items-center gap-2 rounded-full border-inverse/15 bg-card/60 px-3 py-1 text-xs text-fg/80 hover:border-inverse/25 hover:text-fg"
+                  >
+                    <ChevronDown className="h-3 w-3 text-muted-foreground" aria-hidden="true" /> Sort by: {sortLabels[sortOption]}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 rounded-2xl border border-inverse/10 bg-card/95 p-2 text-sm text-fg">
+                  <div className="space-y-1">
+                    {(Object.keys(sortLabels) as SortOption[]).map((value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => {
+                          setSortOption(value);
+                          setSortOpen(false);
+                        }}
+                        className={cn(
+                          "flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left transition",
+                          sortOption === value ? "bg-accent/20 text-fg" : "hover:bg-inverse/10 hover:text-fg"
+                        )}
+                      >
+                        <span>{sortLabels[value]}</span>
+                        {sortOption === value ? <CheckCircle2 className="h-3.5 w-3.5 text-accent" aria-hidden="true" /> : null}
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </div>
+
+        <ReviewLoadChart data={reviewChartData} dueNowCount={dueNowCount} totalCount={totalFilteredCount} />
 
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground" aria-live="polite">
           <span>
             Showing {totalFilteredCount} of {items.length} topics
             {totalHiddenCount > 0 ? ` • ${totalHiddenCount} hidden by filters` : ""}
           </span>
-          {(searchInput || statusFilter !== "all" || subjectFilter !== null) && totalHiddenCount > 0 ? (
+          {searchInput || statusFilter !== "due-today" || subjectFilter !== null ? (
             <button
               type="button"
               onClick={handleResetFilters}
-              className="rounded-full border border-inverse/10 px-3 py-1 text-[11px] uppercase tracking-wide text-muted-foreground transition hover:border-inverse/30 hover:text-fg"
+              className="ml-auto text-xs font-medium text-muted-foreground transition hover:text-fg hover:underline"
             >
               Clear filters
             </button>
@@ -689,7 +742,7 @@ export function TopicList({
                   type="button"
                   variant="outline"
                   onClick={handleResetFilters}
-                  disabled={statusFilter === "all" && (subjectFilter === null || subjectFilter.size === totalSubjectOptions)}
+                  disabled={statusFilter === "due-today" && (subjectFilter === null || subjectFilter.size === totalSubjectOptions)}
                   className="rounded-full border-inverse/20 bg-transparent px-4 py-2 text-sm text-fg transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:opacity-40"
                 >
                   Reset filters
@@ -721,6 +774,211 @@ export function TopicList({
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+interface ReviewLoadChartProps {
+  data: ReviewLoadPoint[];
+  dueNowCount: number;
+  totalCount: number;
+}
+
+function ReviewLoadChart({ data, dueNowCount, totalCount }: ReviewLoadChartProps) {
+  const gradientId = React.useId();
+  const [hoverIndex, setHoverIndex] = React.useState<number | null>(null);
+  const [isHovered, setIsHovered] = React.useState(false);
+
+  const safeData = data.length > 0 ? data : Array.from({ length: REVIEW_CHART_DAYS }, (_, index) => ({
+    iso: `placeholder-${index}`,
+    label: "",
+    axisLabel: "",
+    count: 0
+  }));
+
+  const maxValue = React.useMemo(
+    () => safeData.reduce((acc, point) => Math.max(acc, point.count), 0),
+    [safeData]
+  );
+
+  const effectiveMax = maxValue === 0 ? 1 : maxValue;
+  const width = 100;
+  const height = 48;
+  const paddingX = 6;
+  const paddingY = 6;
+
+  const xForIndex = React.useCallback(
+    (index: number) => {
+      if (safeData.length <= 1) return paddingX;
+      const ratio = index / (safeData.length - 1);
+      return paddingX + ratio * (width - paddingX * 2);
+    },
+    [safeData.length]
+  );
+
+  const yForValue = React.useCallback(
+    (value: number) => {
+      const ratio = value / effectiveMax;
+      return height - paddingY - ratio * (height - paddingY * 2);
+    },
+    [effectiveMax]
+  );
+
+  const areaPath = React.useMemo(() => {
+    if (safeData.length === 0) return "";
+    const baseY = height - paddingY;
+    const segments = [`M ${xForIndex(0)} ${baseY}`, `L ${xForIndex(0)} ${yForValue(safeData[0].count)}`];
+    for (let index = 1; index < safeData.length; index += 1) {
+      segments.push(`L ${xForIndex(index)} ${yForValue(safeData[index].count)}`);
+    }
+    segments.push(`L ${xForIndex(safeData.length - 1)} ${baseY}`, "Z");
+    return segments.join(" ");
+  }, [safeData, xForIndex, yForValue, height, paddingY]);
+
+  const linePath = React.useMemo(() => {
+    if (safeData.length === 0) return "";
+    const commands: string[] = [];
+    for (let index = 0; index < safeData.length; index += 1) {
+      const point = safeData[index];
+      commands.push(`${index === 0 ? "M" : "L"} ${xForIndex(index)} ${yForValue(point.count)}`);
+    }
+    return commands.join(" ");
+  }, [safeData, xForIndex, yForValue]);
+
+  const handlePointerMove = React.useCallback(
+    (event: React.PointerEvent<SVGSVGElement>) => {
+      if (safeData.length === 0) return;
+      const bounds = event.currentTarget.getBoundingClientRect();
+      const ratio = bounds.width === 0 ? 0 : (event.clientX - bounds.left) / bounds.width;
+      const index = Math.round(ratio * (safeData.length - 1));
+      setHoverIndex(Math.max(0, Math.min(safeData.length - 1, index)));
+    },
+    [safeData.length]
+  );
+
+  const handlePointerEnter = React.useCallback(() => {
+    setIsHovered(true);
+  }, []);
+
+  const handlePointerLeave = React.useCallback(() => {
+    setIsHovered(false);
+    setHoverIndex(null);
+  }, []);
+
+  const hoveredPoint = hoverIndex !== null ? safeData[hoverIndex] : null;
+  const hoveredX = hoveredPoint !== null ? xForIndex(hoverIndex as number) : null;
+  const hoveredY = hoveredPoint !== null ? yForValue(hoveredPoint.count) : null;
+  const tooltipLeft = hoveredX !== null ? Math.max(0, Math.min(1, hoveredX / width)) * 100 : 0;
+
+  const labelStep = React.useMemo(() => {
+    if (safeData.length <= 1) return 1;
+    return Math.max(1, Math.ceil(safeData.length / 6));
+  }, [safeData.length]);
+
+  const srDescription = `Upcoming review load over the next ${safeData.length} days. ${dueNowCount} topics due now out of ${totalCount} filtered topics.`;
+
+  return (
+    <div className="group/chart relative mt-4 rounded-lg border border-border/40 bg-muted/30 p-4 shadow-sm transition-colors hover:bg-muted/40 dark:shadow-none">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Review load preview</p>
+        <span className="text-xs text-muted-foreground">{totalCount} topics filtered</span>
+      </div>
+      <p className="mt-1 text-[11px] text-muted-foreground">
+        Due now: <span className="font-semibold text-fg">{dueNowCount}</span>
+      </p>
+      <span className="sr-only">{srDescription}</span>
+      <div className="relative mt-3 w-full">
+        <svg
+          role="img"
+          aria-label="Area chart showing upcoming review counts"
+          viewBox={`0 0 ${width} ${height}`}
+          preserveAspectRatio="none"
+          className="h-36 w-full cursor-crosshair select-none text-accent transition-colors duration-200"
+          onPointerMove={handlePointerMove}
+          onPointerEnter={handlePointerEnter}
+          onPointerLeave={handlePointerLeave}
+        >
+          <defs>
+            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="currentColor" stopOpacity={0.35} />
+              <stop offset="100%" stopColor="currentColor" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          {Array.from({ length: 4 }).map((_, index) => {
+            const ratio = index / 3;
+            const y = paddingY + ratio * (height - paddingY * 2);
+            return (
+              <line
+                key={`grid-${index}`}
+                x1={paddingX}
+                x2={width - paddingX}
+                y1={y}
+                y2={y}
+                stroke="currentColor"
+                strokeWidth={0.5}
+                strokeOpacity={isHovered ? 0.8 : 0.6}
+                className="text-muted-foreground/60 transition-opacity duration-200"
+              />
+            );
+          })}
+          <path d={areaPath} fill={`url(#${gradientId})`} opacity={isHovered ? 0.9 : 0.75} />
+          <path
+            d={linePath}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={isHovered ? 2.5 : 2}
+            className="transition-all duration-200"
+            style={{ filter: isHovered ? "drop-shadow(0px 6px 12px rgba(33, 206, 153, 0.25))" : "none" }}
+          />
+          {hoveredPoint && hoveredX !== null ? (
+            <>
+              <line
+                x1={hoveredX}
+                x2={hoveredX}
+                y1={paddingY}
+                y2={height - paddingY}
+                stroke="currentColor"
+                strokeOpacity={0.35}
+                strokeWidth={1}
+              />
+              <circle cx={hoveredX} cy={hoveredY ?? height - paddingY} r={3} fill="currentColor" />
+            </>
+          ) : null}
+        </svg>
+        <div
+          className={cn(
+            "pointer-events-none absolute -translate-x-1/2 -translate-y-3 rounded-md bg-card/90 px-2 py-1 text-xs font-medium text-fg shadow-sm transition-opacity duration-150",
+            hoveredPoint ? "opacity-100" : "opacity-0"
+          )}
+          style={{ left: `${tooltipLeft}%`, top: 0 }}
+        >
+          {hoveredPoint ? (
+            <>
+              <span className="block text-[11px] text-muted-foreground">{hoveredPoint.label}</span>
+              <span className="block text-sm font-semibold text-accent">{hoveredPoint.count} topics</span>
+            </>
+          ) : null}
+        </div>
+      </div>
+      <div className="mt-2 flex items-center justify-between gap-1 text-[10px] text-muted-foreground/80">
+        {safeData.map((point, index) => {
+          const isEdge = index === 0 || index === safeData.length - 1;
+          const shouldShow = isEdge || index % labelStep === 0;
+          return (
+            <span
+              key={`${point.iso}-${index}`}
+              className={cn(
+                "flex-1 text-center",
+                index === 0 && "text-left",
+                index === safeData.length - 1 && "text-right"
+              )}
+              aria-hidden={!shouldShow}
+            >
+              {shouldShow ? point.axisLabel : "\u00a0"}
+            </span>
+          );
+        })}
       </div>
     </div>
   );

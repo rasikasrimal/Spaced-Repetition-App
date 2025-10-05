@@ -34,6 +34,7 @@ The Spaced Repetition App is a local-first study companion built with Next.js, T
 ### UI Enhancements
 
 - Exam date badges now adapt dynamically to theme mode and maintain color accessibility standards across pages.
+- The dashboard opens with the "Due today" status chip selected, scrollable primary filters, and a hover-aware review load chart that previews upcoming topics at a glance.
 
 ## Key concepts
 

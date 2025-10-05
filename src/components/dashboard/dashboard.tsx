@@ -55,7 +55,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
   const resolvedTimezone = timezone || "Asia/Colombo";
   const zonedNow = useZonedNow(resolvedTimezone);
 
-  const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all");
+  const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("due-today");
   const { subjectFilter, setSubjectFilter } = usePersistedSubjectFilter();
 
   useIsomorphicLayoutEffect(() => {
