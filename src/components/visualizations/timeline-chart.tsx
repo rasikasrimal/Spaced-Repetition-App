@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { softenColorTone } from "@/lib/colors";
 import { startOfDayInTimeZone } from "@/lib/date";
 
 export type TimelinePoint = { t: number; r: number; opacity: number };
@@ -33,6 +34,7 @@ export type TimelineSeries = {
   color: string;
   points: TimelinePoint[];
   segments: TimelineSegment[];
+  connectors: { id: string; from: TimelinePoint; to: TimelinePoint }[];
   stitches: TimelineStitch[];
   events: {
     id: string;
@@ -55,12 +57,6 @@ export type TimelineExamMarker = {
 
 type MarkerItem = TimelineExamMarker & { x: number };
 type MarkerCluster = { items: MarkerItem[]; x: number };
-type MarkerTooltip = {
-  x: number;
-  y: number;
-  title?: string;
-  items: { subjectName: string; dateISO: string; daysRemaining: number | null; color: string }[];
-};
 
 type TimelineViewport = {
   x: [number, number];
@@ -124,8 +120,10 @@ interface TimelineChartProps {
   onRequestStepBack?: () => void;
   onTooSmallSelection?: () => void;
   keyboardSelection?: KeyboardBand | null;
-  showOpacityFade?: boolean;
-  showReviewLines?: boolean;
+  showOpacityGradient?: boolean;
+  showReviewMarkers?: boolean;
+  showEventDots?: boolean;
+  showTopicLabels?: boolean;
 }
 
 const PADDING_X = 48;
@@ -160,6 +158,101 @@ const clampRange = (range: RangeTuple, bounds: RangeTuple | undefined, minSpan: 
   return [start, end];
 };
 
+type XYPoint = { x: number; y: number };
+
+const MONOTONE_EPSILON = 1e-6;
+
+const computeMonotoneTangents = (points: XYPoint[]): number[] => {
+  const count = points.length;
+  const tangents = new Array<number>(count).fill(0);
+  if (count < 2) {
+    return tangents;
+  }
+
+  const slopes: number[] = new Array(count - 1);
+  for (let index = 0; index < count - 1; index += 1) {
+    const current = points[index];
+    const next = points[index + 1];
+    const dx = next.x - current.x;
+    slopes[index] = Math.abs(dx) < MONOTONE_EPSILON ? 0 : (next.y - current.y) / dx;
+  }
+
+  tangents[0] = slopes[0] ?? 0;
+  tangents[count - 1] = slopes[slopes.length - 1] ?? 0;
+
+  for (let index = 1; index < count - 1; index += 1) {
+    const prev = slopes[index - 1];
+    const next = slopes[index];
+    if (prev === 0 || next === 0 || (prev < 0 && next > 0) || (prev > 0 && next < 0)) {
+      tangents[index] = 0;
+    } else {
+      tangents[index] = (prev + next) / 2;
+    }
+  }
+
+  for (let index = 0; index < slopes.length; index += 1) {
+    const slope = slopes[index];
+    if (slope === 0) {
+      tangents[index] = 0;
+      tangents[index + 1] = 0;
+      continue;
+    }
+    const a = tangents[index] / slope;
+    const b = tangents[index + 1] / slope;
+    const magnitude = Math.hypot(a, b);
+    if (magnitude > 3) {
+      const scale = 3 / magnitude;
+      tangents[index] = scale * a * slope;
+      tangents[index + 1] = scale * b * slope;
+    }
+  }
+
+  return tangents;
+};
+
+const buildMonotoneCommands = (points: XYPoint[], tangents: number[]): string[] => {
+  if (points.length === 0) return [];
+  const commands: string[] = [`M ${points[0].x} ${points[0].y}`];
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const current = points[index];
+    const next = points[index + 1];
+    const dx = next.x - current.x;
+    if (Math.abs(dx) < MONOTONE_EPSILON) {
+      commands.push(`L ${next.x} ${next.y}`);
+      continue;
+    }
+    const t0 = tangents[index];
+    const t1 = tangents[index + 1];
+    const x1 = current.x + dx / 3;
+    const y1 = current.y + (dx / 3) * t0;
+    const x2 = next.x - dx / 3;
+    const y2 = next.y - (dx / 3) * t1;
+    commands.push(`C ${x1} ${y1} ${x2} ${y2} ${next.x} ${next.y}`);
+  }
+  return commands;
+};
+
+const createSmoothPaths = (
+  points: TimelinePoint[],
+  scaleX: (time: number) => number,
+  scaleY: (value: number) => number,
+  baselineY: number
+): { line: string; area: string | null } | null => {
+  if (!points || points.length === 0) return null;
+  const coords = points.map((point) => ({ x: scaleX(point.t), y: scaleY(point.r) }));
+  if (coords.length === 1) {
+    const only = coords[0];
+    const linePath = `M ${only.x} ${only.y}`;
+    return { line: linePath, area: `${linePath} L ${only.x} ${baselineY} Z` };
+  }
+  const tangents = computeMonotoneTangents(coords);
+  const commands = buildMonotoneCommands(coords, tangents);
+  const linePath = commands.join(" ");
+  const closing = [`L ${coords[coords.length - 1].x} ${baselineY}`, `L ${coords[0].x} ${baselineY}`, "Z"];
+  const areaPath = [...commands, ...closing].join(" ");
+  return { line: linePath, area: areaPath };
+};
+
 const ensureSpan = (range: RangeTuple, minSpan: number): RangeTuple => {
   const span = range[1] - range[0];
   if (span >= minSpan) return range;
@@ -188,8 +281,10 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       onRequestStepBack,
       onTooSmallSelection,
       keyboardSelection,
-      showOpacityFade = true,
-      showReviewLines = false
+      showOpacityGradient = true,
+      showReviewMarkers = false,
+      showEventDots = true,
+      showTopicLabels = true
     },
     ref
   ) => {
@@ -202,6 +297,11 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
     const makeGradientId = React.useCallback(
       (topicId: string, segmentId: string) =>
         `${gradientPrefix}-${topicId}-${segmentId}`.replace(/[^a-zA-Z0-9_-]/g, "-"),
+      [gradientPrefix]
+    );
+
+    const makeAreaGradientId = React.useCallback(
+      (topicId: string) => `${gradientPrefix}-area-${topicId}`.replace(/[^a-zA-Z0-9_-]/g, "-"),
       [gradientPrefix]
     );
 
@@ -321,10 +421,26 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       [yDomain, ySpan, plotHeight, height]
     );
 
+    const baselineY = React.useMemo(() => scaleY(yDomain[0]), [scaleY, yDomain]);
+
+    const displayColorByTopic = React.useMemo(() => {
+      const map = new Map<string, string>();
+      for (const line of series) {
+        map.set(line.topicId, softenColorTone(line.color));
+      }
+      return map;
+    }, [series]);
+
+    const resolveDisplayColor = React.useCallback(
+      (line: TimelineSeries) => displayColorByTopic.get(line.topicId) ?? line.color,
+      [displayColorByTopic]
+    );
+
     const segmentGradients = React.useMemo(() => {
-      if (!showOpacityFade) return [] as React.ReactNode[];
+      if (!showOpacityGradient) return [] as React.ReactNode[];
       const defs: React.ReactNode[] = [];
       for (const line of series) {
+        const color = resolveDisplayColor(line);
         for (const segment of line.segments) {
           if (segment.points.length === 0) continue;
           const gradientId = makeGradientId(line.topicId, segment.id);
@@ -354,13 +470,13 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
             >
               {reversed ? (
                 <>
-                  <stop offset="0%" stopColor={line.color} stopOpacity={1} />
-                  <stop offset="100%" stopColor={line.color} stopOpacity={0} />
+                  <stop offset="0%" stopColor={color} stopOpacity={1} />
+                  <stop offset="100%" stopColor={color} stopOpacity={0} />
                 </>
               ) : (
                 <>
-                  <stop offset="0%" stopColor={line.color} stopOpacity={0} />
-                  <stop offset="100%" stopColor={line.color} stopOpacity={1} />
+                  <stop offset="0%" stopColor={color} stopOpacity={0} />
+                  <stop offset="100%" stopColor={color} stopOpacity={1} />
                 </>
               )}
             </linearGradient>
@@ -368,7 +484,67 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
         }
       }
       return defs;
-    }, [series, scaleX, makeGradientId, showOpacityFade]);
+    }, [series, scaleX, makeGradientId, showOpacityGradient, resolveDisplayColor]);
+
+    const connectorGradients = React.useMemo(() => {
+      if (!showOpacityGradient) return [] as React.ReactNode[];
+      const defs: React.ReactNode[] = [];
+      for (const line of series) {
+        const color = resolveDisplayColor(line);
+        for (const connector of line.connectors) {
+          const gradientId = makeGradientId(line.topicId, `connector-${connector.id}`);
+          let x1 = scaleX(connector.from.t);
+          let x2 = scaleX(connector.to.t);
+          if (!Number.isFinite(x1) || !Number.isFinite(x2)) continue;
+          if (x1 === x2) {
+            x2 = x1 + 0.001;
+          }
+          defs.push(
+            <linearGradient
+              key={gradientId}
+              id={gradientId}
+              gradientUnits="userSpaceOnUse"
+              x1={x1}
+              y1={0}
+              x2={x2}
+              y2={0}
+            >
+              <stop
+                offset="0%"
+                stopColor={color}
+                stopOpacity={clampValue(connector.from.opacity, 0, 1)}
+              />
+              <stop
+                offset="100%"
+                stopColor={color}
+                stopOpacity={clampValue(connector.to.opacity, 0, 1)}
+              />
+            </linearGradient>
+          );
+        }
+      }
+      return defs;
+    }, [series, scaleX, makeGradientId, showOpacityGradient, resolveDisplayColor]);
+
+    const areaGradients = React.useMemo(() => {
+      const defs: React.ReactNode[] = [];
+      for (const line of series) {
+        const color = resolveDisplayColor(line);
+        const gradientId = makeAreaGradientId(line.topicId);
+        defs.push(
+          <linearGradient key={gradientId} id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity={0.32} />
+            <stop offset="100%" stopColor={color} stopOpacity={0} />
+          </linearGradient>
+        );
+      }
+      return defs;
+    }, [series, makeAreaGradientId, resolveDisplayColor]);
+
+    const gradientDefs = React.useMemo(
+      () => [...areaGradients, ...segmentGradients, ...connectorGradients],
+      [areaGradients, segmentGradients, connectorGradients]
+    );
 
     const todayPosition = React.useMemo(() => {
       const now = Date.now();
@@ -446,79 +622,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       return results;
     }, [xDomain, plotWidth, timeZone, axisDayFormatter, axisMonthFormatter]);
 
-    const [tooltip, setTooltip] = React.useState<
-      | null
-      | {
-          x: number;
-          y: number;
-          topic: string;
-          time: number;
-          retention?: number;
-          type?: "started" | "reviewed" | "skipped" | "checkpoint";
-          intervalDays?: number;
-          notes?: string;
-        }
-    >(null);
-    const [markerTooltip, setMarkerTooltip] = React.useState<MarkerTooltip | null>(null);
-
-    const tooltipsSuspendedRef = React.useRef(false);
-
-    const hideTooltip = React.useCallback(() => setTooltip(null), []);
-    const hideMarkerTooltip = React.useCallback(() => setMarkerTooltip(null), []);
-
-    const handlePointerMove: React.PointerEventHandler<SVGRectElement> = (event) => {
-      if (tooltipsSuspendedRef.current) {
-        hideTooltip();
-        hideMarkerTooltip();
-        return;
-      }
-      const { offsetX } = event.nativeEvent;
-      if (offsetX < PADDING_X || offsetX > width - PADDING_X) {
-        hideTooltip();
-        hideMarkerTooltip();
-        return;
-      }
-      const ratio = clampValue((offsetX - PADDING_X) / plotWidth, 0, 1);
-      const time = xDomain[0] + ratio * domainSpan;
-      let best:
-        | null
-        | {
-            series: TimelineSeries;
-            point: { t: number; r: number };
-            distance: number;
-          } = null;
-
-      for (const line of series) {
-        if (line.points.length === 0) continue;
-        let left = 0;
-        let right = line.points.length - 1;
-        while (right - left > 1) {
-          const mid = (left + right) >> 1;
-          if (line.points[mid].t < time) left = mid;
-          else right = mid;
-        }
-        const candidates = [line.points[left], line.points[Math.min(right, line.points.length - 1)]];
-        for (const candidate of candidates) {
-          const x = scaleX(candidate.t);
-          const distance = Math.abs(x - offsetX);
-          if (!best || distance < best.distance) {
-            best = { series: line, point: candidate, distance };
-          }
-        }
-      }
-
-      if (best) {
-        setTooltip({
-          x: scaleX(best.point.t),
-          y: scaleY(best.point.r),
-          topic: best.series.topicTitle,
-          time: best.point.t,
-          retention: best.point.r
-        });
-      } else {
-        hideTooltip();
-      }
-    };
+    const handlePointerMove: React.PointerEventHandler<SVGRectElement> = () => {};
 
     const selectionRef = React.useRef<SelectionState | null>(null);
     const [selectionRect, setSelectionRect] = React.useState<SelectionState | null>(null);
@@ -552,7 +656,6 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       selectionRef.current = null;
       setSelectionRect(null);
       setSelectionLabel(null);
-      tooltipsSuspendedRef.current = false;
     }, []);
 
     const updateSelectionVisual = React.useCallback(
@@ -651,12 +754,9 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
           originClientX: event.clientX,
           startDomain: xDomain
         };
-        tooltipsSuspendedRef.current = true;
         setIsPanning(true);
-        hideTooltip();
-        hideMarkerTooltip();
       },
-      [hideMarkerTooltip, hideTooltip, xDomain]
+      [xDomain]
     );
 
     const updatePan = React.useCallback(
@@ -675,14 +775,10 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       [commitViewportChange, domainSpan, fullDomain, onViewportChange, plotWidth, yDomain]
     );
 
-    const endPan = React.useCallback(
-      () => {
-        panStateRef.current = null;
-        setIsPanning(false);
-        tooltipsSuspendedRef.current = false;
-      },
-      []
-    );
+    const endPan = React.useCallback(() => {
+      panStateRef.current = null;
+      setIsPanning(false);
+    }, []);
 
     const shouldPan = React.useCallback(
       (event: React.PointerEvent<SVGRectElement>) => {
@@ -703,10 +799,6 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       }
 
       (event.target as Element).setPointerCapture(event.pointerId);
-
-      tooltipsSuspendedRef.current = true;
-      hideTooltip();
-      hideMarkerTooltip();
 
       if (event.pointerType === "touch") {
         activeTouchesRef.current.set(event.pointerId, {
@@ -753,9 +845,6 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
               initialSpan: domainSpan,
               pushed: false
             };
-            tooltipsSuspendedRef.current = true;
-            hideTooltip();
-            hideMarkerTooltip();
           } else {
             const session = pinchStateRef.current;
             const ratio = clampValue(distance / session.initialDistance, 0.25, 4);
@@ -802,7 +891,6 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
         activeTouchesRef.current.delete(event.pointerId);
         if (activeTouchesRef.current.size < 2) {
           pinchStateRef.current = null;
-          tooltipsSuspendedRef.current = false;
         }
       }
 
@@ -818,8 +906,6 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
 
     const handlePointerLeave: React.PointerEventHandler<SVGRectElement> = () => {
       cancelSelection();
-      hideTooltip();
-      hideMarkerTooltip();
       endPan();
       pinchStateRef.current = null;
       activeTouchesRef.current.clear();
@@ -830,7 +916,6 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       endPan();
       pinchStateRef.current = null;
       activeTouchesRef.current.clear();
-      tooltipsSuspendedRef.current = false;
     };
 
     const handleWheel: React.WheelEventHandler<SVGSVGElement> = (event) => {
@@ -872,175 +957,241 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
 
     React.useEffect(() => () => clearWheelSession(), [clearWheelSession]);
 
-    React.useEffect(() => {
-      setMarkerTooltip(null);
-    }, [examMarkers, xDomain]);
-
-    const paths = series.map((line) => (
-      <g key={line.topicId}>
-        {line.segments.map((segment) => {
-          if (segment.points.length === 0) return null;
-          const gradientId = makeGradientId(line.topicId, segment.id);
-          const strokeColor = showOpacityFade ? `url(#${gradientId})` : line.color;
-          return (
-            <path
-              key={segment.id}
-              d={segment.points
-                .map((point, index) => `${index === 0 ? "M" : "L"} ${scaleX(point.t)} ${scaleY(point.r)}`)
-                .join(" ")}
-              fill="none"
-              stroke={strokeColor}
-              strokeWidth={segment.isHistorical ? 1.5 : 2.5}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeOpacity={showOpacityFade ? undefined : 1}
-            />
-          );
-        })}
-        {showReviewLines
-          ? line.stitches.map((stitch) => {
-            const x = scaleX(stitch.t);
-            const yTop = scaleY(Math.min(1, Math.max(yDomain[0], stitch.to)));
-            const yBottom = scaleY(Math.max(yDomain[0], Math.min(yDomain[1], stitch.from)));
-            return (
-              <line
-                key={stitch.id}
-                x1={x}
-                x2={x}
-                y1={yTop}
-                y2={yBottom}
-                stroke={line.color}
-                strokeWidth={1.5}
-                strokeDasharray="2 2"
-                opacity={0.8}
-                pointerEvents="none"
-              />
-            );
-          })
-          : null}
-        {line.events.map((event) => {
-          const x = scaleX(event.t);
-          let yValue = 1;
-          if (event.type === "checkpoint") {
-            const segment = line.segments.find((seg) => seg.checkpoint && seg.checkpoint.t === event.t);
-            if (segment?.checkpoint) {
-              yValue = segment.checkpoint.target;
+    const paths = series.map((line) => {
+      const color = resolveDisplayColor(line);
+      const areaGradientId = makeAreaGradientId(line.topicId);
+      return (
+        <g key={line.topicId}>
+          <g>
+            {line.segments.map((segment) => {
+              if (segment.points.length === 0) return null;
+              const gradientId = makeGradientId(line.topicId, segment.id);
+              const strokeColor = showOpacityGradient ? `url(#${gradientId})` : color;
+              const smooth = createSmoothPaths(segment.points, scaleX, scaleY, baselineY);
+              if (!smooth) return null;
+              return (
+                <React.Fragment key={segment.id}>
+                  {smooth.area ? (
+                    <path
+                      d={smooth.area}
+                      fill={`url(#${areaGradientId})`}
+                      opacity={segment.isHistorical ? 0.45 : 0.7}
+                      pointerEvents="none"
+                    />
+                  ) : null}
+                  <path
+                    d={smooth.line}
+                    fill="none"
+                    stroke={strokeColor}
+                    strokeWidth={segment.isHistorical ? 1.4 : 2.4}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </React.Fragment>
+              );
+            })}
+            {line.connectors.map((connector) => {
+              const fromX = scaleX(connector.from.t);
+              const fromY = scaleY(connector.from.r);
+              const toX = scaleX(connector.to.t);
+              const toY = scaleY(connector.to.r);
+              const gradientId = makeGradientId(line.topicId, `connector-${connector.id}`);
+              const strokeColor = showOpacityGradient ? `url(#${gradientId})` : color;
+              return (
+                <line
+                  key={connector.id}
+                  x1={fromX}
+                  y1={fromY}
+                  x2={toX}
+                  y2={toY}
+                  stroke={strokeColor}
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                />
+              );
+            })}
+          </g>
+          {showReviewMarkers
+            ? line.stitches.map((stitch) => {
+                const x = scaleX(stitch.t);
+                const yTop = scaleY(Math.min(1, Math.max(yDomain[0], stitch.to)));
+                const yBottom = scaleY(Math.max(yDomain[0], Math.min(yDomain[1], stitch.from)));
+                return (
+                  <line
+                    key={stitch.id}
+                    x1={x}
+                    x2={x}
+                    y1={yTop}
+                    y2={yBottom}
+                    stroke={color}
+                    strokeWidth={1.5}
+                    strokeDasharray="2 2"
+                    opacity={0.7}
+                    pointerEvents="none"
+                  />
+                );
+              })
+            : null}
+          {line.events.map((event) => {
+            const x = scaleX(event.t);
+            let yValue = 1;
+            if (event.type === "checkpoint") {
+              const segment = line.segments.find((seg) => seg.checkpoint && seg.checkpoint.t === event.t);
+              if (segment?.checkpoint) {
+                yValue = segment.checkpoint.target;
+              }
             }
-          }
-          const y = scaleY(Math.max(yDomain[0], Math.min(yDomain[1], yValue)));
-          const handleFocus = () =>
-            setTooltip({
-              x,
-              y: scaleY(Math.min(0.9, yDomain[1])),
-              topic: line.topicTitle,
-              time: event.t,
-              type: event.type,
-              intervalDays: event.intervalDays,
-              notes: event.notes
-            });
-          const transform = `translate(${x}, ${y})`;
-          if (event.type === "started") {
-            return (
-              <rect
-                key={event.id}
-                x={-5}
-                y={-5}
-                width={10}
-                height={10}
-                fill={line.color}
-                tabIndex={0}
-                transform={transform}
-                aria-label={`${line.topicTitle} started ${tooltipDateFormatter.format(new Date(event.t))}`}
-                onFocus={handleFocus}
-                onBlur={hideTooltip}
-                onMouseEnter={handleFocus}
-                onMouseLeave={hideTooltip}
-              />
-            );
-          }
-          if (event.type === "skipped") {
-            return (
-              <polygon
-                key={event.id}
-                points="0,-6 6,0 0,6 -6,0"
-                fill={line.color}
-                tabIndex={0}
-                transform={transform}
-                aria-label={`${line.topicTitle} skipped ${tooltipDateFormatter.format(new Date(event.t))}`}
-                onFocus={handleFocus}
-                onBlur={hideTooltip}
-                onMouseEnter={handleFocus}
-                onMouseLeave={hideTooltip}
-              />
-            );
-          }
-          if (event.type === "checkpoint") {
+            const y = scaleY(Math.max(yDomain[0], Math.min(yDomain[1], yValue)));
+            const transform = `translate(${x}, ${y})`;
+
+            if (event.type === "started") {
+              if (!showEventDots) return null;
+              return (
+                <rect
+                  key={event.id}
+                  x={-5}
+                  y={-5}
+                  width={10}
+                  height={10}
+                  fill={color}
+                  tabIndex={0}
+                  transform={transform}
+                  aria-label={`${line.topicTitle} started ${tooltipDateFormatter.format(new Date(event.t))}`}
+                />
+              );
+            }
+
+            if (!showReviewMarkers) {
+              return null;
+            }
+
+            if (event.type === "skipped") {
+              return (
+                <polygon
+                  key={event.id}
+                  points="0,-6 6,0 0,6 -6,0"
+                  fill={color}
+                  tabIndex={0}
+                  transform={transform}
+                  aria-label={`${line.topicTitle} skipped ${tooltipDateFormatter.format(new Date(event.t))}`}
+                />
+              );
+            }
+
+            if (event.type === "checkpoint") {
+              return (
+                <circle
+                  key={event.id}
+                  r={6}
+                  fill="white"
+                  stroke={color}
+                  strokeWidth={2}
+                  tabIndex={0}
+                  transform={transform}
+                  aria-label={`${line.topicTitle} checkpoint ${tooltipDateFormatter.format(new Date(event.t))}`}
+                />
+              );
+            }
+
             return (
               <circle
                 key={event.id}
-                r={6}
-                fill="white"
-                stroke={line.color}
-                strokeWidth={2}
+                r={4}
+                fill={color}
                 tabIndex={0}
                 transform={transform}
-                aria-label={`${line.topicTitle} checkpoint ${tooltipDateFormatter.format(new Date(event.t))}`}
-                onFocus={handleFocus}
-                onBlur={hideTooltip}
-                onMouseEnter={handleFocus}
-                onMouseLeave={hideTooltip}
+                aria-label={`${line.topicTitle} reviewed ${tooltipDateFormatter.format(new Date(event.t))}`}
               />
             );
+          })}
+          {line.nowPoint
+            ? (() => {
+                const point = line.nowPoint;
+                if (!point) return null;
+                const x = scaleX(point.t);
+                const y = scaleY(point.r);
+                return (
+                  <g key={`${line.topicId}-now`} transform={`translate(${x}, ${y})`}>
+                    <circle
+                      r={4}
+                      fill={color}
+                      stroke="white"
+                      strokeWidth={1.5}
+                      tabIndex={0}
+                      aria-label={`${line.topicTitle} retention now ${Math.round(line.nowPoint!.r * 100)}%`}
+                    />
+                  </g>
+                );
+              })()
+            : null}
+        </g>
+      );
+    });
+
+
+    const topicLabels = React.useMemo(
+      () => {
+        if (!showTopicLabels) return [] as { topicId: string; text: string; x: number; y: number }[];
+        const visibleSeries = series.filter(
+          (line) => line.nowPoint && line.nowPoint.t >= xDomain[0] && line.nowPoint.t <= xDomain[1]
+        );
+        if (visibleSeries.length === 0) return [];
+
+        const entries = visibleSeries.map((line) => {
+          const nowPoint = line.nowPoint!;
+          const x = scaleX(nowPoint.t);
+          const y = scaleY(nowPoint.r);
+          const retentionPercent = clampValue(Math.round(nowPoint.r * 100), 0, 100);
+          return {
+            topicId: line.topicId,
+            text: `${line.topicTitle} — ${retentionPercent}%`,
+            x,
+            y
+          };
+        });
+
+        const minY = PADDING_Y;
+        const maxY = height - PADDING_Y;
+        const minGap = 18;
+        const sorted = entries
+          .map((entry) => ({ ...entry }))
+          .sort((a, b) => a.y - b.y);
+
+        for (let index = 0; index < sorted.length; index += 1) {
+          const previous = index > 0 ? sorted[index - 1] : null;
+          const desired = clampValue(sorted[index].y, minY, maxY);
+          const adjusted = previous ? Math.max(desired, previous.y + minGap) : Math.max(minY, desired);
+          sorted[index].y = Math.min(adjusted, maxY);
+        }
+
+        for (let index = sorted.length - 2; index >= 0; index -= 1) {
+          const next = sorted[index + 1];
+          if (next.y - sorted[index].y < minGap) {
+            sorted[index].y = Math.max(minY, next.y - minGap);
           }
-          return (
-            <circle
-              key={event.id}
-              r={5}
-              fill={line.color}
-              tabIndex={0}
-              transform={transform}
-              aria-label={`${line.topicTitle} reviewed ${tooltipDateFormatter.format(new Date(event.t))}`}
-              onFocus={handleFocus}
-              onBlur={hideTooltip}
-              onMouseEnter={handleFocus}
-              onMouseLeave={hideTooltip}
-            />
-          );
-        })}
-        {line.nowPoint && line.nowPoint.t >= xDomain[0] && line.nowPoint.t <= xDomain[1] ? (
-          (() => {
-            const x = scaleX(line.nowPoint!.t);
-            const y = scaleY(line.nowPoint!.r);
-            const handleFocus = () => {
-              setTooltip({
-                x,
-                y: scaleY(Math.min(line.nowPoint!.r + 0.1, yDomain[1])),
-                topic: line.topicTitle,
-                time: line.nowPoint!.t,
-                retention: line.nowPoint!.r,
-                notes: line.nowPoint!.notes
-              });
-            };
-            return (
-              <g key={`${line.topicId}-now`} transform={`translate(${x}, ${y})`}>
-                <circle
-                  r={4}
-                  fill={line.color}
-                  stroke="white"
-                  strokeWidth={1.5}
-                  tabIndex={0}
-                  aria-label={`${line.topicTitle} retention now ${Math.round(line.nowPoint!.r * 100)}%`}
-                  onFocus={handleFocus}
-                  onBlur={hideTooltip}
-                  onMouseEnter={handleFocus}
-                  onMouseLeave={hideTooltip}
-                />
-              </g>
-            );
-          })()
-        ) : null}
-      </g>
-    ));
+        }
+
+        const labelXBase = todayPosition ?? sorted[0]?.x ?? PADDING_X;
+        const xPosition = clampValue(labelXBase + 8, PADDING_X + 4, width - PADDING_X + 40);
+
+        return sorted.map((entry) => ({
+          topicId: entry.topicId,
+          text: entry.text,
+          x: xPosition,
+          y: clampValue(entry.y, minY, maxY)
+        }));
+      },
+      [
+        showTopicLabels,
+        series,
+        xDomain,
+        scaleX,
+        scaleY,
+        todayPosition,
+        height,
+        width
+      ]
+    );
 
     const clampX = React.useCallback(
       (value: number) => clampValue(value, PADDING_X, width - PADDING_X),
@@ -1080,7 +1231,6 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
           const horizontalOffset = (index - (cluster.items.length - 1) / 2) * 6;
           const x = clampX(marker.x + horizontalOffset);
           const labelY = Math.max(12, PADDING_Y - 18 - index * 16);
-          const tooltipY = Math.max(8, labelY - 24);
           markerGraphics.push(
             <line
               key={`${marker.id}-line`}
@@ -1094,31 +1244,13 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
               opacity={0.85}
             />
           );
-          const tooltipItems = [
-            {
-              subjectName: marker.subjectName,
-              dateISO: marker.dateISO,
-              daysRemaining: marker.daysRemaining,
-              color: marker.color
-            }
-          ];
-          const handleFocus = () =>
-            setMarkerTooltip({
-              x,
-              y: tooltipY,
-              items: tooltipItems
-            });
           markerGraphics.push(
             <g
               key={`${marker.id}-label`}
               transform={`translate(${x}, ${labelY})`}
               tabIndex={0}
-              role="button"
+              role="img"
               aria-label={`Exam date for ${marker.subjectName}, ${examDateFormatter.format(new Date(marker.dateISO))}`}
-              onFocus={handleFocus}
-              onBlur={hideMarkerTooltip}
-              onMouseEnter={handleFocus}
-              onMouseLeave={hideMarkerTooltip}
             >
               <foreignObject x={-80} y={-18} width={160} height={26}>
                 <div className="pointer-events-none flex items-center gap-1 rounded-full bg-slate-900/90 px-3 py-1 text-[10px] font-medium text-white shadow-lg">
@@ -1154,32 +1286,13 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       const clusterX = clampX(cluster.x);
       const labelY = Math.max(12, PADDING_Y - 22);
       const label = `${cluster.items.length} exams`;
-      const tooltipY = Math.max(8, labelY - 24);
-      const tooltipItems = cluster.items.map((item) => ({
-        subjectName: item.subjectName,
-        dateISO: item.dateISO,
-        daysRemaining: item.daysRemaining,
-        color: item.color
-      }));
-      const handleClusterFocus = () =>
-        setMarkerTooltip({
-          x: clusterX,
-          y: tooltipY,
-          title: "Upcoming exams",
-          items: tooltipItems
-        });
-
       markerGraphics.push(
         <g
           key={`cluster-${clusterIndex}`}
           transform={`translate(${clusterX}, ${labelY})`}
           tabIndex={0}
-          role="button"
+          role="img"
           aria-label={`Upcoming exams: ${cluster.items.map((item) => item.subjectName).join(", ")}`}
-          onFocus={handleClusterFocus}
-          onBlur={hideMarkerTooltip}
-          onMouseEnter={handleClusterFocus}
-          onMouseLeave={hideMarkerTooltip}
         >
           <foreignObject x={-70} y={-18} width={140} height={26}>
             <div className="pointer-events-none flex items-center justify-center rounded-full bg-slate-900/90 px-3 py-1 text-[10px] font-semibold text-white shadow-lg">
@@ -1230,7 +1343,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
           }}
           style={{ cursor }}
         >
-          {segmentGradients.length > 0 ? <defs>{segmentGradients}</defs> : null}
+          {gradientDefs.length > 0 ? <defs>{gradientDefs}</defs> : null}
           <rect width={width} height={height} fill="transparent" />
           <rect
             x={PADDING_X}
@@ -1249,7 +1362,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
             onDoubleClick={() => onResetDomain?.()}
           />
           {showGrid ? (
-            <g className="stroke-white/10">
+            <g className="stroke-white/12">
               {yTicks.map((tick) => (
                 <g key={tick.value}>
                   <line
@@ -1257,12 +1370,12 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                     y1={tick.pixel}
                     x2={width - PADDING_X}
                     y2={tick.pixel}
-                    className="stroke-white/10"
+                    className="stroke-white/12"
                   />
                   <text
                     x={12}
                     y={tick.pixel + 4}
-                    className="fill-white/50 text-[10px]"
+                    className="fill-zinc-400 text-[10px]"
                   >
                     {tick.label}
                   </text>
@@ -1276,17 +1389,17 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
               y1={height - PADDING_Y}
               x2={width - PADDING_X}
               y2={height - PADDING_Y}
-              className="stroke-white/15"
+              className="stroke-white/12"
             />
             {ticks.map((tick) => {
               const x = scaleX(tick.time);
               return (
                 <g key={tick.time} transform={`translate(${x}, ${height - PADDING_Y})`}>
-                  <line y1={0} y2={6} className="stroke-white/30" />
+                  <line y1={0} y2={6} className="stroke-white/25" />
                   <text
                     y={18}
                     textAnchor="middle"
-                    className="fill-white/60 text-[10px]"
+                    className="fill-zinc-400 text-[10px]"
                   >
                     {tick.label}
                   </text>
@@ -1315,7 +1428,28 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
           )}
           {markerGraphics}
           {paths}
-          <text x={12} y={16} className="fill-white/40 text-[11px]">
+          {topicLabels.length > 0 ? (
+            <g aria-hidden="true">
+              {topicLabels.map((label) => (
+                <text
+                  key={`topic-label-${label.topicId}`}
+                  x={label.x}
+                  y={label.y}
+                  textAnchor="start"
+                  dominantBaseline="middle"
+                  fill="#FFFFFF"
+                  stroke="rgba(15,23,42,0.75)"
+                  strokeWidth={3}
+                  style={{ paintOrder: "stroke fill" }}
+                  fontSize={12}
+                  fontWeight={600}
+                >
+                  {label.text}
+                </text>
+              ))}
+            </g>
+          ) : null}
+          <text x={12} y={16} className="fill-zinc-400 text-[11px]">
             Retention
           </text>
           {keyboardOverlay ? (
@@ -1358,62 +1492,6 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
               ) : null}
             </g>
           ) : null}
-          {tooltip && (
-            <g transform={`translate(${tooltip.x}, ${tooltip.y})`} className="pointer-events-none">
-              <circle r={4} fill="#fff" />
-              <foreignObject x={8} y={-4} width={220} height={96}>
-                <div className="rounded-md bg-zinc-900/90 p-2 text-xs text-white shadow-lg">
-                  <div className="font-semibold" style={{ color: tooltip.type ? undefined : "inherit" }}>
-                    {tooltip.topic}
-                  </div>
-                  <div>{tooltipDateFormatter.format(new Date(tooltip.time))}</div>
-                  {typeof tooltip.retention !== "undefined" && (
-                    <div>Retention: {Math.round(tooltip.retention * 100)}%</div>
-                  )}
-                  {tooltip.type && (
-                    <div>
-                      Event: {tooltip.type === "started"
-                        ? "Started"
-                        : tooltip.type === "skipped"
-                        ? "Skipped"
-                        : tooltip.type === "checkpoint"
-                        ? "Checkpoint"
-                        : "Reviewed"}
-                    </div>
-                  )}
-                  {typeof tooltip.intervalDays !== "undefined" && (
-                    <div>Interval: {tooltip.intervalDays} day{tooltip.intervalDays === 1 ? "" : "s"}</div>
-                  )}
-                  {tooltip.notes && <div className="text-[11px] text-zinc-300">Notes: {tooltip.notes}</div>}
-                </div>
-              </foreignObject>
-            </g>
-          )}
-          {markerTooltip && (
-            <g transform={`translate(${markerTooltip.x}, ${markerTooltip.y})`} className="pointer-events-none">
-              <foreignObject x={8} y={-4} width={240} height={Math.max(80, markerTooltip.items.length * 36 + 20)}>
-                <div className="rounded-md bg-zinc-900/95 p-3 text-xs text-white shadow-lg">
-                  {markerTooltip.title ? (
-                    <div className="mb-1 font-semibold text-white">{markerTooltip.title}</div>
-                  ) : null}
-                  {markerTooltip.items.map((item) => {
-                    const days = item.daysRemaining ?? 0;
-                    const dayLabel = days === 0 ? "Exam today" : `${days} day${days === 1 ? "" : "s"} left`;
-                    return (
-                      <div key={`${item.subjectName}-${item.dateISO}`} className="mb-2 last:mb-0">
-                        <div className="flex items-center gap-2">
-                          <span className="inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                          <span className="font-semibold">{item.subjectName}</span>
-                        </div>
-                        <div className="text-[11px] text-zinc-300">{examDateFormatter.format(new Date(item.dateISO))}</div>
-                        <div className="text-[11px] text-zinc-400">{dayLabel}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </foreignObject>
-            </g>
-          )}
         </svg>
       </div>
     );
