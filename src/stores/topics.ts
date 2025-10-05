@@ -9,6 +9,7 @@ import {
   startOfDayInTimeZone
 } from "@/lib/date";
 import demoSeedData from "../data/demo-seed-data.json";
+import { FALLBACK_SUBJECT_COLOR } from "@/lib/colors";
 import {
   AutoAdjustPreference,
   ReviewKind,
@@ -137,7 +138,7 @@ const DEFAULT_GENERAL_EXAM_DATE = "2026-08-01T00:00:00.000Z";
 const createDefaultCategory = (): LegacyCategory => ({
   id: DEFAULT_SUBJECT_ID,
   label: "General Chemistry",
-  color: "#38bdf8",
+  color: FALLBACK_SUBJECT_COLOR,
   icon: "Sparkles"
 });
 
@@ -146,7 +147,7 @@ const createDefaultSubject = (): Subject => {
   return {
     id: DEFAULT_SUBJECT_ID,
     name: "General Chemistry",
-    color: "#38bdf8",
+    color: FALLBACK_SUBJECT_COLOR,
     icon: "Sparkles",
     examDate: DEFAULT_GENERAL_EXAM_DATE,
     difficultyModifier: 1,
@@ -829,7 +830,7 @@ const migrate = (persistedState: unknown, from: number): PersistedState => {
           subject = {
             id: subjectId ?? nanoid(),
             name: legacyLabel,
-            color: (topic as any).color ?? "#38bdf8",
+            color: (topic as any).color ?? FALLBACK_SUBJECT_COLOR,
             icon: (topic as any).icon ?? "Sparkles",
             examDate: (topic as any).examDate ?? null,
             createdAt: now,
@@ -903,7 +904,7 @@ export const useTopicStore = create<TopicStore>()(
         const subject: Subject = {
           id: nanoid(),
           name,
-          color: payload.color ?? "#38bdf8",
+          color: payload.color ?? FALLBACK_SUBJECT_COLOR,
           icon: payload.icon ?? "Sparkles",
           examDate: normalizeExamDate(payload.examDate),
           difficultyModifier: resolveDifficultyModifier(payload.difficultyModifier),
@@ -1087,7 +1088,7 @@ export const useTopicStore = create<TopicStore>()(
         }
 
         const subjectExamDate = resolvedSubject?.examDate ?? payload.examDate ?? null;
-        const subjectColor = resolvedSubject?.color ?? payload.color ?? "#38bdf8";
+        const subjectColor = resolvedSubject?.color ?? payload.color ?? FALLBACK_SUBJECT_COLOR;
         const subjectIcon = resolvedSubject?.icon ?? payload.icon ?? "Sparkles";
         const subjectDifficulty = resolveDifficultyModifier(resolvedSubject?.difficultyModifier);
         const startedOnIso = payload.startedOn ?? createdAt;

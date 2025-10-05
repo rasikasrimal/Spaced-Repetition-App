@@ -37,6 +37,7 @@ import {
   nextStartOfDayInTimeZone
 } from "@/lib/date";
 import { cn } from "@/lib/utils";
+import { FALLBACK_SUBJECT_COLOR } from "@/lib/colors";
 import { REVISE_LOCKED_MESSAGE } from "@/lib/constants";
 import { toast } from "sonner";
 
@@ -68,20 +69,20 @@ const SORT_STORAGE_KEY = "dashboard-topic-sort";
 const STATUS_META: Record<TopicStatus, { label: string; tone: string; subtle: string; icon: React.ReactNode }> = {
   overdue: {
     label: "Overdue",
-    tone: "bg-rose-500/15 text-rose-200 border border-rose-400/20",
-    subtle: "text-rose-200",
+    tone: "bg-error/15 text-error/20 border border-error/20",
+    subtle: "text-error/20",
     icon: <Flame className="h-3.5 w-3.5" aria-hidden="true" />
   },
   "due-today": {
     label: "Due today",
-    tone: "bg-amber-500/15 text-amber-200 border border-amber-400/20",
-    subtle: "text-amber-200",
+    tone: "bg-warn/15 text-warn/30 border border-warn/20",
+    subtle: "text-warn/30",
     icon: <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />
   },
   upcoming: {
     label: "Upcoming",
-    tone: "bg-sky-500/15 text-sky-200 border border-sky-400/20",
-    subtle: "text-sky-200",
+    tone: "bg-accent/15 text-accent/20 border border-accent/20",
+    subtle: "text-accent/20",
     icon: <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
   }
 };
@@ -263,7 +264,7 @@ export function TopicList({
       options.push({
         id: NO_SUBJECT_KEY,
         name: "No subject",
-        color: "#64748b",
+        color: FALLBACK_SUBJECT_COLOR,
         count: noSubjectCount
       });
     }
@@ -384,7 +385,7 @@ export function TopicList({
   return (
     <div
       id={id}
-      className="rounded-[32px] border border-white/5 bg-slate-900/50 p-5 shadow-xl shadow-slate-950/40 backdrop-blur xl:p-8"
+      className="rounded-[32px] border border-inverse/5 bg-card/50 p-5 backdrop-blur xl:p-8"
     >
       <div className="flex flex-col gap-5 xl:gap-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:gap-8">
@@ -394,15 +395,15 @@ export function TopicList({
             </label>
             <div
               className={cn(
-                "group relative flex h-12 w-full min-w-0 items-center rounded-2xl border border-white/10 bg-slate-950/85 px-4 text-base text-white shadow-lg shadow-slate-950/60 transition",
-                "hover:border-white/20 hover:shadow-xl hover:shadow-slate-950/70",
+                "group relative flex h-12 w-full min-w-0 items-center rounded-2xl border border-inverse/10 bg-bg/85 px-4 text-base text-fg transition",
+                "hover:border-inverse/20",
                 searchFocused
-                  ? "border-accent ring-2 ring-accent/45 ring-offset-2 ring-offset-slate-950"
-                  : "focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/45 focus-within:ring-offset-2 focus-within:ring-offset-slate-950"
+                  ? "border-accent ring-2 ring-accent/45 ring-offset-2 ring-offset-bg"
+                  : "focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/45 focus-within:ring-offset-2 focus-within:ring-offset-bg"
               )}
             >
               <Search
-                className="pointer-events-none absolute left-4 h-5 w-5 flex-none text-zinc-400"
+                className="pointer-events-none absolute left-4 h-5 w-5 flex-none text-muted-foreground"
                 aria-hidden="true"
               />
               <input
@@ -424,7 +425,7 @@ export function TopicList({
                   }
                 }}
                 placeholder="Search topics…"
-                className="h-full w-full rounded-2xl bg-transparent pl-10 pr-12 text-sm text-white placeholder:text-zinc-400 focus:outline-none"
+                className="h-full w-full rounded-2xl bg-transparent pl-10 pr-12 text-sm text-fg placeholder:text-muted-foreground focus:outline-none"
                 aria-describedby={filterDescriptions ? appliedFiltersDescriptionId : undefined}
                 autoComplete="off"
                 spellCheck={false}
@@ -440,8 +441,8 @@ export function TopicList({
                   handleClearSearch();
                 }}
                 className={cn(
-                  "absolute right-3 inline-flex h-7 w-7 flex-none items-center justify-center rounded-full text-zinc-400 transition",
-                  "hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950",
+                  "absolute right-3 inline-flex h-7 w-7 flex-none items-center justify-center rounded-full text-muted-foreground transition",
+                  "hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
                   searchInput ? "opacity-100" : "pointer-events-none opacity-0"
                 )}
               >
@@ -453,15 +454,15 @@ export function TopicList({
                 Active filters: {filterDescriptions}
               </span>
             ) : null}
-            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500">
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground/80">
               <p className="flex items-center gap-1">
-                <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] uppercase tracking-wide text-zinc-400">
+                <span className="rounded-full border border-inverse/10 px-2 py-0.5 text-[11px] uppercase tracking-wide text-muted-foreground">
                   /
                 </span>
                 to focus search
               </p>
               <p className="flex items-center gap-1">
-                <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] uppercase tracking-wide text-zinc-400">
+                <span className="rounded-full border border-inverse/10 px-2 py-0.5 text-[11px] uppercase tracking-wide text-muted-foreground">
                   Esc
                 </span>
                 clears
@@ -469,9 +470,9 @@ export function TopicList({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400 xl:flex-nowrap xl:justify-end xl:gap-3">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground xl:flex-nowrap xl:justify-end xl:gap-3">
             <div
-              className="flex items-center gap-1 rounded-full border border-white/10 bg-slate-900/60 p-1"
+              className="flex items-center gap-1 rounded-full border border-inverse/10 bg-card/60 p-1"
               role="group"
               aria-label="Filter by status"
             >
@@ -486,8 +487,8 @@ export function TopicList({
                   className={cn(
                     "rounded-full px-3 py-1 text-xs transition",
                     statusFilter === value
-                      ? "bg-accent text-slate-950 hover:bg-accent/90"
-                      : "text-zinc-300 hover:text-white"
+                      ? "bg-accent text-inverse-foreground hover:bg-accent/90"
+                      : "text-muted-foreground hover:text-fg"
                   )}
                 >
                   {label}
@@ -501,16 +502,16 @@ export function TopicList({
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="inline-flex items-center gap-2 rounded-full border-white/15 bg-slate-900/60 px-3 py-1 text-xs text-zinc-200 hover:border-white/25 hover:text-white"
+                  className="inline-flex items-center gap-2 rounded-full border-inverse/15 bg-card/60 px-3 py-1 text-xs text-fg/80 hover:border-inverse/25 hover:text-fg"
                 >
                   <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
                   {subjectsLabel}
-                  <ChevronDown className="h-3 w-3 text-zinc-400" aria-hidden="true" />
+                  <ChevronDown className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-72 rounded-2xl border border-white/10 bg-slate-900/95 p-3 text-sm text-white shadow-xl">
+              <PopoverContent className="w-72 rounded-2xl border border-inverse/10 bg-card/95 p-3 text-sm text-fg">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Subjects</span>
+                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Subjects</span>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
@@ -524,7 +525,7 @@ export function TopicList({
                     </button>
                     <button
                       type="button"
-                      className="text-xs font-medium text-zinc-300 hover:underline"
+                      className="text-xs font-medium text-muted-foreground hover:underline"
                       onClick={() => onSubjectFilterChange(new Set<string>())}
                     >
                       Clear all
@@ -536,22 +537,22 @@ export function TopicList({
                     Search subjects
                   </label>
                   <div className="relative">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" aria-hidden="true" />
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/80" aria-hidden="true" />
                     <Input
                       id="subject-filter-search"
                       type="search"
                       value={subjectSearch}
                       onChange={(event) => setSubjectSearch(event.target.value)}
                       placeholder="Search subjects"
-                      className="h-9 w-full rounded-xl border-white/10 bg-slate-950/80 pl-9 pr-3 text-xs text-white placeholder:text-zinc-500 focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/40"
+                      className="h-9 w-full rounded-xl border-inverse/10 bg-bg/80 pl-9 pr-3 text-xs text-fg placeholder:text-muted-foreground/80 focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/40"
                     />
                   </div>
                 </div>
                 <div className="mt-3 max-h-64 space-y-1 overflow-y-auto">
                   {subjectOptions.length === 0 ? (
-                    <p className="text-xs text-zinc-400">No subjects yet.</p>
+                    <p className="text-xs text-muted-foreground">No subjects yet.</p>
                   ) : filteredSubjectOptions.length === 0 ? (
-                    <p className="text-xs text-zinc-400">No matching subjects.</p>
+                    <p className="text-xs text-muted-foreground">No matching subjects.</p>
                   ) : (
                     filteredSubjectOptions.map((option) => {
                       const isChecked = subjectFilter === null ? true : subjectFilter.has(option.id);
@@ -562,20 +563,20 @@ export function TopicList({
                           onClick={() => toggleSubject(option.id)}
                           role="menuitemcheckbox"
                           aria-checked={isChecked}
-                          className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition hover:bg-white/10"
+                          className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition hover:bg-inverse/10"
                         >
                           <span className="flex items-center gap-2">
                             <span className="flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: option.color }} />
                             {option.name}
                           </span>
-                          <span className="flex items-center gap-2 text-xs text-zinc-300">
+                          <span className="flex items-center gap-2 text-xs text-muted-foreground">
                             {option.count}
                             <span
                               className={cn(
                                 "flex h-5 w-5 items-center justify-center rounded-full border",
                                 isChecked
                                   ? "border-accent bg-accent/20 text-accent"
-                                  : "border-white/20 text-zinc-500"
+                                  : "border-inverse/20 text-muted-foreground/80"
                               )}
                             >
                               {isChecked ? <Check className="h-3 w-3" aria-hidden="true" /> : null}
@@ -595,12 +596,12 @@ export function TopicList({
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="inline-flex items-center gap-2 rounded-full border-white/15 bg-slate-900/60 px-3 py-1 text-xs text-zinc-200 hover:border-white/25 hover:text-white"
+                  className="inline-flex items-center gap-2 rounded-full border-inverse/15 bg-card/60 px-3 py-1 text-xs text-fg/80 hover:border-inverse/25 hover:text-fg"
                 >
-                  <ChevronDown className="h-3 w-3 text-zinc-400" aria-hidden="true" /> Sort by: {sortLabels[sortOption]}
+                  <ChevronDown className="h-3 w-3 text-muted-foreground" aria-hidden="true" /> Sort by: {sortLabels[sortOption]}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-56 rounded-2xl border border-white/10 bg-slate-900/95 p-2 text-sm text-white">
+              <PopoverContent className="w-56 rounded-2xl border border-inverse/10 bg-card/95 p-2 text-sm text-fg">
                 <div className="space-y-1">
                   {(Object.keys(sortLabels) as SortOption[]).map((value) => (
                     <button
@@ -612,7 +613,7 @@ export function TopicList({
                       }}
                       className={cn(
                         "flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left transition",
-                        sortOption === value ? "bg-accent/20 text-white" : "hover:bg-white/10 hover:text-white"
+                        sortOption === value ? "bg-accent/20 text-fg" : "hover:bg-inverse/10 hover:text-fg"
                       )}
                     >
                       <span>{sortLabels[value]}</span>
@@ -625,7 +626,7 @@ export function TopicList({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-400" aria-live="polite">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground" aria-live="polite">
           <span>
             Showing {totalFilteredCount} of {items.length} topics
             {totalHiddenCount > 0 ? ` • ${totalHiddenCount} hidden by filters` : ""}
@@ -634,7 +635,7 @@ export function TopicList({
             <button
               type="button"
               onClick={handleResetFilters}
-              className="rounded-full border border-white/10 px-3 py-1 text-[11px] uppercase tracking-wide text-zinc-300 transition hover:border-white/30 hover:text-white"
+              className="rounded-full border border-inverse/10 px-3 py-1 text-[11px] uppercase tracking-wide text-muted-foreground transition hover:border-inverse/30 hover:text-fg"
             >
               Clear filters
             </button>
@@ -643,21 +644,21 @@ export function TopicList({
 
         <div className="mt-2">
           {items.length === 0 ? (
-            <div className="flex h-72 flex-col items-center justify-center gap-4 rounded-3xl border border-white/5 bg-slate-950/40 p-10 text-center">
+            <div className="flex h-72 flex-col items-center justify-center gap-4 rounded-3xl border border-inverse/5 bg-bg/40 p-10 text-center">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/20 text-accent">
                 <Sparkles className="h-7 w-7" aria-hidden="true" />
               </div>
               <div className="space-y-2">
-                <h3 className="text-lg font-semibold text-white">No topics yet</h3>
-                <p className="text-sm text-zinc-400">Create your first topic to start reviewing.</p>
+                <h3 className="text-lg font-semibold text-fg">No topics yet</h3>
+                <p className="text-sm text-muted-foreground">Create your first topic to start reviewing.</p>
               </div>
               <Button onClick={onCreateTopic} className="gap-2 rounded-2xl">
                 <Sparkles className="h-4 w-4" aria-hidden="true" /> Add topic
               </Button>
             </div>
           ) : filteredItems.length === 0 ? (
-            <div className="flex h-60 flex-col items-center justify-center gap-4 rounded-3xl border border-white/5 bg-slate-950/40 p-10 text-center">
-              <p className="text-sm text-zinc-300">
+            <div className="flex h-60 flex-col items-center justify-center gap-4 rounded-3xl border border-inverse/5 bg-bg/40 p-10 text-center">
+              <p className="text-sm text-muted-foreground">
                 No topics match {searchQuery ? `‘${searchQuery}’` : "your current filters"}. Try clearing Subjects or changing the status.
               </p>
               <div className="flex flex-wrap justify-center gap-2">
@@ -666,7 +667,7 @@ export function TopicList({
                   variant="outline"
                   onClick={handleClearSearch}
                   disabled={!searchInput && !searchQuery}
-                  className="rounded-full border-white/20 bg-transparent px-4 py-2 text-sm text-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:opacity-40"
+                  className="rounded-full border-inverse/20 bg-transparent px-4 py-2 text-sm text-fg transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:opacity-40"
                 >
                   Clear search
                 </Button>
@@ -675,22 +676,22 @@ export function TopicList({
                   variant="outline"
                   onClick={handleResetFilters}
                   disabled={statusFilter === "all" && (subjectFilter === null || subjectFilter.size === totalSubjectOptions)}
-                  className="rounded-full border-white/20 bg-transparent px-4 py-2 text-sm text-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:opacity-40"
+                  className="rounded-full border-inverse/20 bg-transparent px-4 py-2 text-sm text-fg transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:opacity-40"
                 >
                   Reset filters
                 </Button>
               </div>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-3xl border border-white/5 bg-slate-950/40">
-              <div className="hidden border-b border-white/5 px-6 py-3 text-xs font-semibold uppercase tracking-wide text-zinc-400 md:grid md:grid-cols-[minmax(0,2.5fr)_minmax(0,1.2fr)_minmax(0,1.3fr)_minmax(0,1fr)_auto]">
+            <div className="overflow-hidden rounded-3xl border border-inverse/5 bg-bg/40">
+              <div className="hidden border-b border-inverse/5 px-6 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid md:grid-cols-[minmax(0,2.5fr)_minmax(0,1.2fr)_minmax(0,1.3fr)_minmax(0,1fr)_auto]">
                 <span>Topic</span>
                 <span>Subject</span>
                 <span>Next review</span>
                 <span>Status</span>
                 <span className="text-right">Actions</span>
               </div>
-              <div className="divide-y divide-white/5">
+              <div className="divide-y divide-border/40">
                 {filteredItems.map((row) => (
                   <TopicListRow
                     key={row.topic.id}
@@ -902,7 +903,7 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
   const nextReviewRelativeLabel = formatRelativeToNow(item.topic.nextReviewDate);
 
   return (
-    <div className={cn("transition-colors", recentlyRevised ? "bg-emerald-500/10" : "bg-transparent")}
+    <div className={cn("transition-colors", recentlyRevised ? "bg-success/10" : "bg-transparent")}
     >
       <div className="flex flex-col gap-3 px-4 py-4 md:grid md:grid-cols-[minmax(0,2.5fr)_minmax(0,1.2fr)_minmax(0,1.3fr)_minmax(0,1fr)_auto] md:items-center md:gap-4 md:px-6">
         <div className="flex flex-col gap-2">
@@ -910,7 +911,7 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
             <button
               type="button"
               onClick={() => setExpanded((value) => !value)}
-              className="mt-0.5 inline-flex h-11 w-11 flex-none items-center justify-center rounded-full border border-white/10 bg-white/5 text-white transition hover:bg-white/10"
+              className="mt-0.5 inline-flex h-11 w-11 flex-none items-center justify-center rounded-full border border-inverse/10 bg-inverse/5 text-fg transition hover:bg-inverse/10"
               aria-expanded={expanded}
               aria-controls={`topic-details-${item.topic.id}`}
               title={expanded ? "Hide details" : "Show details"}
@@ -922,21 +923,21 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
             </button>
             <div className="min-w-0 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-                <p className="truncate text-base font-semibold text-white" title={item.topic.title}>
+                <p className="truncate text-base font-semibold text-fg" title={item.topic.title}>
                   {item.topic.title}
                 </p>
                 {editing ? (
-                  <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-accent">
+                  <span className="rounded-full bg-inverse/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-accent">
                     Editing…
                   </span>
                 ) : null}
               </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400 md:hidden">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground md:hidden">
                 <span
-                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2.5 py-1"
-                  style={{ backgroundColor: `${(subject?.color ?? "#64748b")}1f` }}
+                  className="inline-flex items-center gap-2 rounded-full border border-inverse/10 bg-inverse/5 px-2.5 py-1"
+                  style={{ backgroundColor: `${(subject?.color ?? FALLBACK_SUBJECT_COLOR)}1f` }}
                 >
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/15 text-white">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-inverse/15 text-fg">
                     <IconPreview name={subject?.icon ?? "Sparkles"} className="h-3.5 w-3.5" />
                   </span>
                   <span>{subject ? subject.name : "No subject"}</span>
@@ -952,20 +953,20 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
             </div>
           </div>
         </div>
-        <div className="hidden min-w-0 items-center gap-2 text-sm text-zinc-200 md:flex">
+        <div className="hidden min-w-0 items-center gap-2 text-sm text-fg/80 md:flex">
           <span
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium"
-            style={{ backgroundColor: `${(subject?.color ?? "#64748b")}1f` }}
+            className="inline-flex items-center gap-2 rounded-full border border-inverse/10 bg-inverse/5 px-3 py-1 text-xs font-medium"
+            style={{ backgroundColor: `${(subject?.color ?? FALLBACK_SUBJECT_COLOR)}1f` }}
           >
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/15 text-white">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-inverse/15 text-fg">
               <IconPreview name={subject?.icon ?? "Sparkles"} className="h-3.5 w-3.5" />
             </span>
             {subject ? subject.name : "No subject"}
           </span>
         </div>
-        <div className="hidden min-w-0 flex-col text-sm text-zinc-100 md:flex">
-          <span className="font-medium text-white">{nextReviewDateLabel}</span>
-          <span className="text-xs text-zinc-400">{nextReviewRelativeLabel}</span>
+        <div className="hidden min-w-0 flex-col text-sm text-inverse md:flex">
+          <span className="font-medium text-fg">{nextReviewDateLabel}</span>
+          <span className="text-xs text-muted-foreground">{nextReviewRelativeLabel}</span>
         </div>
         <div className="hidden md:flex">
           <span className={cn("inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium", statusMeta.tone)}>
@@ -991,7 +992,7 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
             onClick={onEdit}
             title="Edit topic"
             aria-label="Edit topic"
-            className="h-11 w-11 rounded-full text-zinc-300 hover:text-white"
+            className="h-11 w-11 rounded-full text-muted-foreground hover:text-fg"
           >
             <Pencil className="h-4 w-4" />
           </Button>
@@ -1000,27 +1001,27 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-11 w-11 rounded-full text-zinc-300 hover:text-white"
+                className="h-11 w-11 rounded-full text-muted-foreground hover:text-fg"
                 title="More actions"
                 aria-label="More topic actions"
               >
                 <Ellipsis className="h-4 w-4" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-48 rounded-2xl border border-white/10 bg-slate-900/95 p-2 text-sm text-white">
+            <PopoverContent className="w-48 rounded-2xl border border-inverse/10 bg-card/95 p-2 text-sm text-fg">
               <button
                 type="button"
                 onClick={() => {
                   setShowSkipConfirm(true);
                 }}
-                className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-zinc-200 transition hover:bg-white/10"
+                className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-fg/80 transition hover:bg-inverse/10"
               >
                 <RefreshCw className="h-4 w-4" aria-hidden="true" /> Skip today
               </button>
               <button
                 type="button"
                 onClick={() => setShowDeleteConfirm(true)}
-                className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-rose-200 transition hover:bg-rose-500/20"
+                className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-error/20 transition hover:bg-error/20"
               >
                 <Trash2 className="h-4 w-4" aria-hidden="true" /> Delete topic
               </button>
@@ -1030,7 +1031,7 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
       </div>
       {hasUsedReviseToday ? (
         <>
-          <p className="px-6 text-[11px] text-zinc-500 md:text-right">{nextAvailabilitySubtext}</p>
+          <p className="px-6 text-[11px] text-muted-foreground/80 md:text-right">{nextAvailabilitySubtext}</p>
           <span id={lockedDescriptionId} className="sr-only">
             {nextAvailabilityMessage}
           </span>
@@ -1039,35 +1040,35 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
       {expanded ? (
         <div
           id={`topic-details-${item.topic.id}`}
-          className="border-t border-white/5 bg-slate-950/40 px-4 py-4 text-sm text-zinc-300 md:px-6"
+          className="border-t border-inverse/5 bg-bg/40 px-4 py-4 text-sm text-muted-foreground md:px-6"
         >
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Schedule</p>
-              <ul className="space-y-1 text-xs text-zinc-300">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Schedule</p>
+              <ul className="space-y-1 text-xs text-muted-foreground">
                 <li>
-                  <span className="text-zinc-400">Reminder:</span> {reminderLabel}
+                  <span className="text-muted-foreground">Reminder:</span> {reminderLabel}
                 </li>
                 <li>
-                  <span className="text-zinc-400">Intervals:</span> {intervalsLabel}
+                  <span className="text-muted-foreground">Intervals:</span> {intervalsLabel}
                 </li>
                 <li>
-                  <span className="text-zinc-400">Last reviewed:</span> {lastReviewedLabel}
+                  <span className="text-muted-foreground">Last reviewed:</span> {lastReviewedLabel}
                 </li>
                 <li>
-                  <span className="text-zinc-400">Total reviews:</span> {totalReviews}
+                  <span className="text-muted-foreground">Total reviews:</span> {totalReviews}
                 </li>
                 {examDateLabel ? (
                   <li>
-                    <span className="text-zinc-400">Exam:</span> {examDateLabel}
+                    <span className="text-muted-foreground">Exam:</span> {examDateLabel}
                     {typeof daysUntilExam === "number" ? ` • ${daysUntilExam} day${daysUntilExam === 1 ? "" : "s"} left` : ""}
                   </li>
                 ) : null}
               </ul>
             </div>
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Notes</p>
-              <p className="whitespace-pre-line text-xs text-zinc-200">{notesPreview}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Notes</p>
+              <p className="whitespace-pre-line text-xs text-fg/80">{notesPreview}</p>
               {notes.length > 180 ? (
                 <button
                   type="button"

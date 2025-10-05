@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import "./globals.css";
+import "@/styles/theme.css";
+import "@/styles/globals.css";
 import { Toaster } from "sonner";
 import { AppShell } from "@/components/layout/app-shell";
+import { ThemeManager } from "@/components/theme-manager";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
@@ -18,7 +20,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} min-h-screen bg-surface text-surface-foreground`}>        
+      <body className={`${inter.variable} dark min-h-screen antialiased`}>
+        <ThemeManager />
         <Toaster richColors position="top-right" />
         <AppShell>{children}</AppShell>
       </body>
