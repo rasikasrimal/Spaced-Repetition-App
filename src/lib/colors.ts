@@ -149,3 +149,20 @@ export const generateTopicColorMap = <T extends { id: string; title?: string }>(
   return map;
 };
 
+type SoftenOptions = {
+  saturationScale?: number;
+  lightnessOffset?: number;
+};
+
+export const softenColorTone = (color: string, options: SoftenOptions = {}): string => {
+  const { saturationScale = 0.88, lightnessOffset = 4 } = options;
+  const hsl = parseToHsl(color);
+  if (!hsl) return color;
+  const softened: HSLColor = {
+    h: hsl.h,
+    s: clamp(hsl.s * saturationScale, 35, 95),
+    l: clamp(hsl.l + lightnessOffset, 30, 85)
+  };
+  return toHslString(softened);
+};
+
