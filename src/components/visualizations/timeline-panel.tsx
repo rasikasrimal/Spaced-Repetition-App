@@ -59,6 +59,10 @@ import {
   computeRetrievability
 } from "@/lib/forgetting-curve";
 import { FALLBACK_SUBJECT_COLOR, generateTopicColorMap } from "@/lib/colors";
+import {
+  SubjectRevisionRow,
+  SubjectRevisionTable
+} from "@/components/visualizations/subject-revision-table";
 
 const DEFAULT_WINDOW_DAYS = 30;
 const MIN_ZOOM_SPAN = DAY_MS;
@@ -921,6 +925,78 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     items.sort((a, b) => a.label.localeCompare(b.label));
     return items;
   }, [filteredTopics, subjectLookup, visibility, resolveSubjectColor, nowMs, showCheckpoints]);
+
+  const subjectTableData = React.useMemo(
+    () => {
+      if (filteredTopics.length === 0) return [];
+      const groups = new Map<
+        string,
+        {
+          subjectId: string;
+          subject: Subject | null;
+          color: string;
+          rows: SubjectRevisionRow[];
+        }
+      >();
+
+      for (const topic of filteredTopics) {
+        const subjectKey = topic.subjectId ?? DEFAULT_SUBJECT_ID;
+        const actualSubjectId = topic.subjectId ?? null;
+        const subject = actualSubjectId ? subjectLookup.get(actualSubjectId) ?? null : null;
+        const color = resolveSubjectColor(actualSubjectId);
+
+        const revisionEvents = (topic.events ?? [])
+          .filter((event) => event.type === "reviewed")
+          .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+
+        const revisions = revisionEvents.map((event) => ({ id: event.id, date: event.at }));
+
+        const lastReviewSource =
+          revisionEvents.length > 0
+            ? revisionEvents[revisionEvents.length - 1].at
+            : topic.lastReviewedAt ?? topic.startedAt ?? topic.createdAt;
+        const lastReviewMs = lastReviewSource ? new Date(lastReviewSource).getTime() : nowMs;
+        const stability = Number.isFinite(topic.stability)
+          ? Math.max(topic.stability, STABILITY_MIN_DAYS)
+          : STABILITY_MIN_DAYS;
+        const elapsedMs = Math.max(0, nowMs - lastReviewMs);
+        const retention = computeRetrievability(stability, elapsedMs);
+        const retentionPercent = Number.isFinite(retention)
+          ? Math.round(Math.min(Math.max(retention * 100, 0), 100))
+          : 0;
+
+        const row: SubjectRevisionRow = {
+          topicId: topic.id,
+          title: topic.title,
+          retentionPercent,
+          revisions
+        };
+
+        const bucket = groups.get(subjectKey);
+        if (bucket) {
+          bucket.rows.push(row);
+        } else {
+          groups.set(subjectKey, {
+            subjectId: subjectKey,
+            subject,
+            color,
+            rows: [row]
+          });
+        }
+      }
+
+      const entries = Array.from(groups.values()).map((entry) => ({
+        subjectId: entry.subjectId,
+        subjectName: entry.subject?.name ?? "Unassigned",
+        subjectColor: entry.color,
+        rows: entry.rows.sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }))
+      }));
+
+      entries.sort((a, b) => a.subjectName.localeCompare(b.subjectName, undefined, { sensitivity: "base" }));
+      return entries;
+    },
+    [filteredTopics, subjectLookup, resolveSubjectColor, nowMs]
+  );
 
   React.useEffect(() => {
     if (!fullscreenTarget) return;
@@ -1908,6 +1984,29 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
         </div>
       </div>
       </section>
+
+      {subjectTableData.length > 0 ? (
+        <section className={`${cardClasses} space-y-4`} aria-label="Subject topic tables">
+          <header className="space-y-2">
+            <h3 className="text-lg font-semibold text-fg">Subject overview</h3>
+            <p className="text-sm text-muted-foreground">
+              Review current retention and revision history without leaving the timeline view.
+            </p>
+          </header>
+          <div className="space-y-3">
+            {subjectTableData.map((entry) => (
+              <SubjectRevisionTable
+                key={entry.subjectId}
+                subjectId={entry.subjectId}
+                subjectName={entry.subjectName}
+                subjectColor={entry.subjectColor}
+                rows={entry.rows}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <TimelineFullscreenDialog
         open={isFullscreenOpen}
         title={fullscreenConfig?.title ?? ""}
