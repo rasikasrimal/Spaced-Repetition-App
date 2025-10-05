@@ -1346,6 +1346,70 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       ]
     );
 
+    const topicLabels = React.useMemo(
+      () => {
+        if (!showTopicLabels) return [] as { topicId: string; text: string; x: number; y: number }[];
+        const visibleSeries = series.filter(
+          (line) => line.nowPoint && line.nowPoint.t >= xDomain[0] && line.nowPoint.t <= xDomain[1]
+        );
+        if (visibleSeries.length === 0) return [];
+
+        const entries = visibleSeries.map((line) => {
+          const nowPoint = line.nowPoint!;
+          const x = scaleX(nowPoint.t);
+          const y = scaleY(nowPoint.r);
+          const retentionPercent = clampValue(Math.round(nowPoint.r * 100), 0, 100);
+          return {
+            topicId: line.topicId,
+            text: `${line.topicTitle} — ${retentionPercent}%`,
+            x,
+            y
+          };
+        });
+
+        const minY = PADDING_Y;
+        const maxY = height - PADDING_Y;
+        const minGap = 18;
+        const sorted = entries
+          .map((entry) => ({ ...entry }))
+          .sort((a, b) => a.y - b.y);
+
+        for (let index = 0; index < sorted.length; index += 1) {
+          const previous = index > 0 ? sorted[index - 1] : null;
+          const desired = clampValue(sorted[index].y, minY, maxY);
+          const adjusted = previous ? Math.max(desired, previous.y + minGap) : Math.max(minY, desired);
+          sorted[index].y = Math.min(adjusted, maxY);
+        }
+
+        for (let index = sorted.length - 2; index >= 0; index -= 1) {
+          const next = sorted[index + 1];
+          if (next.y - sorted[index].y < minGap) {
+            sorted[index].y = Math.max(minY, next.y - minGap);
+          }
+        }
+
+        const labelXBase = todayPosition ?? sorted[0]?.x ?? PADDING_X;
+        const xPosition = clampValue(labelXBase + 8, PADDING_X + 4, width - PADDING_X + 40);
+
+        return sorted.map((entry) => ({
+          topicId: entry.topicId,
+          text: entry.text,
+          x: xPosition,
+          y: clampValue(entry.y, minY, maxY)
+        }));
+      },
+      [
+        showTopicLabels,
+        series,
+        xDomain,
+        scaleX,
+        scaleY,
+        todayPosition,
+        height,
+        width
+      ]
+    );
+
     const clampX = React.useCallback(
       (value: number) => clampValue(value, PADDING_X, width - PADDING_X),
       [width]
