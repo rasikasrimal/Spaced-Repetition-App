@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { FALLBACK_SUBJECT_COLOR } from "@/lib/colors";
 
 export type Profile = {
   name: string;
@@ -25,7 +26,7 @@ const DEFAULT_PROFILE: Profile = {
   name: "Alex Rivera",
   email: "alex@example.com",
   role: "Learner",
-  avatarColor: "#38bdf8",
+  avatarColor: FALLBACK_SUBJECT_COLOR,
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone ?? "Asia/Colombo",
   notifications: {
     email: true,

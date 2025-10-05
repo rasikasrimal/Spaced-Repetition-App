@@ -15,12 +15,16 @@ import { downloadSvg, downloadSvgAsPng } from "@/lib/export-svg";
 import { buildCurveSegments, sampleSegment } from "@/selectors/curves";
 import { useTopicStore } from "@/stores/topics";
 import { useProfileStore } from "@/stores/profile";
+import { useTimelinePreferencesStore } from "@/stores/timeline-preferences";
+import { useThemeStore } from "@/stores/theme";
+import { useThemePalette } from "@/hooks/use-theme-palette";
 import { Subject, Topic } from "@/types/topic";
 import { SubjectFilterValue, NO_SUBJECT_KEY } from "@/components/dashboard/topic-list";
 import {
   CalendarClock,
   Check,
   Droplet,
+  Dot,
   EllipsisVertical,
   Eye,
   EyeOff,
@@ -37,7 +41,10 @@ import {
   Hand,
   SquareDashedMousePointer,
   Maximize2,
-  Minimize2
+  Minimize2,
+  Type,
+  Moon,
+  Sun
 } from "lucide-react";
 import {
   daysBetween,
@@ -51,6 +58,7 @@ import {
   STABILITY_MIN_DAYS,
   computeRetrievability
 } from "@/lib/forgetting-curve";
+import { FALLBACK_SUBJECT_COLOR, generateTopicColorMap } from "@/lib/colors";
 
 const DEFAULT_WINDOW_DAYS = 30;
 const MIN_ZOOM_SPAN = DAY_MS;
@@ -71,6 +79,7 @@ type SubjectSeriesGroup = {
 
 type FullscreenTarget =
   | { type: "combined" }
+  | { type: "per-subject-grid" }
   | { type: "subject"; subjectId: string };
 
 const ensureVisibilityState = (topics: Topic[], prev: TopicVisibility): TopicVisibility => {
@@ -122,6 +131,7 @@ const deriveSeries = (
       color,
       points: [],
       segments: [],
+      connectors: [],
       stitches: [],
       events: [
         {
@@ -214,6 +224,37 @@ const deriveSeries = (
               ? `Reviewed → next interval ${(segment.start.intervalDays ?? 0).toFixed(2)} days`
               : undefined
         });
+
+        if (Number.isFinite(prevStart)) {
+          const intervalMs = Math.max(0, reviewTime - prevStart);
+          const epsilonMs = Math.max(60_000, Math.min(intervalMs * 0.1, 12 * 60 * 60 * 1000));
+          const connectorStartTime = Math.max(prevStart, reviewTime - epsilonMs);
+          const connectorElapsed = Math.max(0, connectorStartTime - prevStart);
+          const connectorRetention = computeRetrievability(
+            previousRenderableSegment.stabilityDays,
+            connectorElapsed
+          );
+          const nowSpan = nowMs - prevStart;
+          const computeOpacity = (timestamp: number) => {
+            if (!Number.isFinite(timestamp)) return 0;
+            if (nowSpan <= 0) {
+              return timestamp >= prevStart ? 1 : 0;
+            }
+            const ratio = (timestamp - prevStart) / nowSpan;
+            return Math.max(0, Math.min(1, ratio));
+          };
+          if (connectorStartTime < reviewTime) {
+            pack.connectors.push({
+              id: `connector-${segment.start.id}`,
+              from: {
+                t: connectorStartTime,
+                r: connectorRetention,
+                opacity: computeOpacity(connectorStartTime)
+              },
+              to: { t: reviewTime, r: 1, opacity: 1 }
+            });
+          }
+        }
       }
 
       if (hasSamples) {
@@ -252,6 +293,7 @@ const deriveSeries = (
     pack.points.sort((a, b) => a.t - b.t);
     pack.events.sort((a, b) => a.t - b.t);
     pack.stitches.sort((a, b) => a.t - b.t);
+    pack.connectors.sort((a, b) => a.from.t - b.from.t);
     series.push(pack);
   }
 
@@ -412,10 +454,13 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     return map;
   }, [storeSubjects]);
 
-  const resolveTopicColor = React.useCallback(
-    (topic: Topic) => {
-      const subject = topic.subjectId ? subjectLookup.get(topic.subjectId) : undefined;
-      return subject?.color ?? "#7c3aed";
+  const resolveSubjectColor = React.useCallback(
+    (subjectId: string | null | undefined) => {
+      if (!subjectId) {
+        return FALLBACK_SUBJECT_COLOR;
+      }
+      const subject = subjectLookup.get(subjectId);
+      return subject?.color ?? FALLBACK_SUBJECT_COLOR;
     },
     [subjectLookup]
   );
@@ -440,8 +485,14 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   const [hasStudyActivity, setHasStudyActivity] = React.useState(true);
   const [showExamMarkers, setShowExamMarkers] = React.useState(true);
   const [showCheckpoints, setShowCheckpoints] = React.useState(false);
-  const [showOpacityFade, setShowOpacityFade] = React.useState(true);
-  const [showReviewMarkers, setShowReviewMarkers] = React.useState(false);
+  const showOpacityGradient = useTimelinePreferencesStore((state) => state.showOpacityGradient);
+  const setShowOpacityGradient = useTimelinePreferencesStore((state) => state.setShowOpacityGradient);
+  const showReviewMarkers = useTimelinePreferencesStore((state) => state.showReviewMarkers);
+  const setShowReviewMarkers = useTimelinePreferencesStore((state) => state.setShowReviewMarkers);
+  const showEventDots = useTimelinePreferencesStore((state) => state.showEventDots);
+  const setShowEventDots = useTimelinePreferencesStore((state) => state.setShowEventDots);
+  const showTopicLabels = useTimelinePreferencesStore((state) => state.showTopicLabels);
+  const setShowTopicLabels = useTimelinePreferencesStore((state) => state.setShowTopicLabels);
   const svgRef = React.useRef<SVGSVGElement | null>(null);
   const perSubjectSvgRefs = React.useRef(new Map<string, SVGSVGElement | null>());
   const perSubjectContainerRef = React.useRef<HTMLDivElement | null>(null);
@@ -457,6 +508,11 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
       map.delete(subjectId);
     }
   }, []);
+  const { theme: activeTheme, setTheme } = useThemeStore((state) => ({
+    theme: state.theme,
+    setTheme: state.setTheme
+  }));
+  const palette = useThemePalette();
 
   const domainMeta = React.useMemo(
     () => computeTimelineDomain(topics, subjects, resolvedTimezone),
@@ -785,6 +841,38 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     return sorted;
   }, [topics, categoryFilter, search, sortView]);
 
+  const singleSubjectColorOverrides = React.useMemo(() => {
+    if (filteredTopics.length === 0) return null;
+    const uniqueSubjectKeys = new Set(
+      filteredTopics.map((topic) => topic.subjectId ?? DEFAULT_SUBJECT_ID)
+    );
+    if (uniqueSubjectKeys.size !== 1) return null;
+    const [singleKey] = Array.from(uniqueSubjectKeys);
+    const subjectId = singleKey === DEFAULT_SUBJECT_ID ? null : singleKey;
+    const baseColor = resolveSubjectColor(subjectId);
+    return generateTopicColorMap(baseColor, filteredTopics);
+  }, [filteredTopics, resolveSubjectColor]);
+
+  const singleSubjectLegend = React.useMemo(() => {
+    if (!singleSubjectColorOverrides || singleSubjectColorOverrides.size <= 1) {
+      return null;
+    }
+    const sorted = filteredTopics
+      .filter((topic) => singleSubjectColorOverrides.has(topic.id))
+      .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
+    if (sorted.length <= 1) return null;
+    const limit = 14;
+    const visible = sorted.slice(0, limit);
+    const remaining = sorted.length - visible.length;
+    return { visible, remaining };
+  }, [filteredTopics, singleSubjectColorOverrides]);
+
+  const resolveTopicColor = React.useCallback(
+    (topic: Topic) =>
+      singleSubjectColorOverrides?.get(topic.id) ?? resolveSubjectColor(topic.subjectId),
+    [singleSubjectColorOverrides, resolveSubjectColor]
+  );
+
   const [nowMs, setNowMs] = React.useState(() => Date.now());
 
   React.useEffect(() => {
@@ -810,21 +898,29 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     }
     const items: SubjectSeriesGroup[] = [];
     for (const [subjectId, list] of grouped) {
-      const subject = subjectLookup.get(subjectId) ?? null;
-      const derived = deriveSeries(list, visibility, resolveTopicColor, nowMs, showCheckpoints);
+      const actualSubjectId = subjectId === DEFAULT_SUBJECT_ID ? null : subjectId;
+      const subject = actualSubjectId ? subjectLookup.get(actualSubjectId) ?? null : null;
+      const baseColor = resolveSubjectColor(actualSubjectId);
+      const palette = generateTopicColorMap(baseColor, list);
+      const derived = deriveSeries(
+        list,
+        visibility,
+        (topic) => palette.get(topic.id) ?? resolveSubjectColor(topic.subjectId),
+        nowMs,
+        showCheckpoints
+      );
       if (derived.length === 0) continue;
-      const color = subject?.color ?? resolveTopicColor(list[0]);
       items.push({
         subjectId,
         subject,
         label: subject?.name ?? "Unassigned",
-        color,
+        color: baseColor,
         series: derived
       });
     }
     items.sort((a, b) => a.label.localeCompare(b.label));
     return items;
-  }, [filteredTopics, subjectLookup, visibility, resolveTopicColor, nowMs, showCheckpoints]);
+  }, [filteredTopics, subjectLookup, visibility, resolveSubjectColor, nowMs, showCheckpoints]);
 
   React.useEffect(() => {
     if (!fullscreenTarget) return;
@@ -835,6 +931,10 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     if (fullscreenTarget.type === "subject") {
       const exists = perSubjectSeries.some((group) => group.subjectId === fullscreenTarget.subjectId);
       if (!exists) {
+        setFullscreenTarget(null);
+      }
+    } else if (fullscreenTarget.type === "per-subject-grid") {
+      if (perSubjectSeries.length === 0) {
         setFullscreenTarget(null);
       }
     }
@@ -913,7 +1013,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
         return {
           id: `exam-marker-${subject.id}`,
           time: examDate.getTime(),
-          color: subject.color ?? "#38bdf8",
+          color: subject.color ?? palette.accent,
           subjectName: subject.name,
           daysRemaining,
           dateISO: examDate.toISOString()
@@ -921,7 +1021,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
       })
       .filter((marker): marker is ExamMarker => marker !== null)
       .sort((a, b) => a.time - b.time);
-  }, [subjects, filteredTopics, visibility, resolvedTimezone, showExamMarkers]);
+  }, [subjects, filteredTopics, visibility, resolvedTimezone, showExamMarkers, palette.accent]);
 
   const examMarkersBySubject = React.useMemo(() => {
     const map = new Map<string, ExamMarker[]>();
@@ -973,10 +1073,93 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
             onRequestStepBack={handleStepBack}
             onTooSmallSelection={handleTooSmallSelection}
             keyboardSelection={keyboardSelection}
-            showOpacityFade={showOpacityFade}
-            showReviewLines={showReviewMarkers}
+            showOpacityGradient={showOpacityGradient}
+            showReviewMarkers={showReviewMarkers}
+            showEventDots={showEventDots}
+            showTopicLabels={showTopicLabels}
           />
         )
+      } as const;
+    }
+
+    if (fullscreenTarget.type === "per-subject-grid") {
+      if (perSubjectSeries.length === 0) return null;
+      const columns = perSubjectSeries.length > 1 ? 2 : 1;
+      const rows = Math.max(1, Math.ceil(perSubjectSeries.length / columns));
+      const columnTemplate =
+        columns === 1 ? "minmax(0, 1fr)" : "repeat(auto-fit, minmax(360px, 1fr))";
+      const verticalGap = 24; // gap-6
+      return {
+        title: "Per-subject timelines",
+        subtitle: "Fullscreen view",
+        renderChart: (height: number) => {
+          const usableHeight = Math.max(height - (rows - 1) * verticalGap, 260);
+          const perChartHeight = Math.max(260, Math.floor(usableHeight / rows));
+          return (
+            <div className="flex h-full w-full flex-col overflow-hidden">
+              <div className="flex-1 overflow-auto pr-2">
+                <div
+                  className="grid gap-6"
+                  style={{ gridTemplateColumns: columnTemplate }}
+                >
+                  {perSubjectSeries.map((group) => {
+                    const markers = showExamMarkers
+                      ? examMarkersBySubject.get(group.subjectId) ?? []
+                      : [];
+                    const examLabel = group.subject?.examDate
+                      ? formatDateWithWeekday(group.subject.examDate)
+                      : null;
+                    return (
+                      <div
+                        key={group.subjectId}
+                        className="space-y-2 rounded-3xl border border-inverse/10 bg-card/60 p-4"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="inline-flex h-2 w-2 rounded-full"
+                              style={{ backgroundColor: group.color }}
+                              aria-hidden="true"
+                            />
+                            <h3 className="text-sm font-semibold text-fg">{group.label}</h3>
+                          </div>
+                          {examLabel ? (
+                            <span className="text-xs text-muted-foreground">Exam {examLabel}</span>
+                          ) : null}
+                        </div>
+                        <TimelineChart
+                          series={group.series}
+                          xDomain={domain}
+                          yDomain={yDomain}
+                          onViewportChange={(next, options) =>
+                            handleViewportChange(next, { push: options?.push })
+                          }
+                          height={perChartHeight}
+                          showGrid
+                          fullDomain={fullDomain ?? undefined}
+                          fullYDomain={fullYDomain ?? undefined}
+                          examMarkers={markers}
+                          timeZone={resolvedTimezone}
+                          onResetDomain={handleResetDomain}
+                          ariaDescribedBy={`timeline-zoom-shortcuts ${pointerInstructionId}`}
+                          interactionMode={interactionMode}
+                          temporaryPan={spacePanning}
+                          onRequestStepBack={handleStepBack}
+                          onTooSmallSelection={handleTooSmallSelection}
+                          keyboardSelection={keyboardSelection}
+                          showOpacityGradient={showOpacityGradient}
+                          showReviewMarkers={showReviewMarkers}
+                          showEventDots={showEventDots}
+                          showTopicLabels={showTopicLabels}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          );
+        }
       } as const;
     }
 
@@ -1007,8 +1190,10 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
           onRequestStepBack={handleStepBack}
           onTooSmallSelection={handleTooSmallSelection}
           keyboardSelection={keyboardSelection}
-          showOpacityFade={showOpacityFade}
-          showReviewLines={showReviewMarkers}
+          showOpacityGradient={showOpacityGradient}
+          showReviewMarkers={showReviewMarkers}
+          showEventDots={showEventDots}
+          showTopicLabels={showTopicLabels}
         />
       )
     } as const;
@@ -1032,8 +1217,10 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     keyboardSelection,
     perSubjectSeries,
     examMarkersBySubject,
-    showOpacityFade,
-    showReviewMarkers
+    showOpacityGradient,
+    showReviewMarkers,
+    showEventDots,
+    showTopicLabels
   ]);
 
   const isFullscreenOpen = Boolean(fullscreenConfig);
@@ -1124,8 +1311,8 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   };
 
   const cardClasses = variant === "compact"
-    ? "rounded-3xl border border-white/5 bg-slate-900/50 p-5 shadow-lg shadow-slate-900/30"
-    : "rounded-3xl border border-white/5 bg-slate-900/40 p-6 md:p-8 shadow-xl shadow-slate-900/30";
+    ? "rounded-3xl border border-inverse/5 bg-card/50 p-5"
+    : "rounded-3xl border border-inverse/5 bg-card/40 p-6 md:p-8";
 
   return (
     <>
@@ -1136,25 +1323,25 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
           <div className="inline-flex items-center gap-2 rounded-full bg-accent/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-accent">
             <Sparkles className="h-3 w-3" /> Retention & schedule
           </div>
-          <h2 className="mt-2 text-xl font-semibold text-white">Review timeline</h2>
-          <p className="text-sm text-zinc-400">
+          <h2 className="mt-2 text-xl font-semibold text-fg">Review timeline</h2>
+          <p className="text-sm text-muted-foreground">
             Track when each topic is due and how its memory curve evolves.
           </p>
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <div
-            className="flex items-center gap-1 rounded-2xl border border-white/10 bg-slate-900/60 p-1"
+            className="flex items-center gap-1 rounded-2xl border border-inverse/10 bg-card/60 p-1"
             role="group"
             aria-label="Timeline view mode"
           >
-            <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+            <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               View:
             </span>
             <Button
               type="button"
               size="sm"
               variant={viewMode === "combined" ? "default" : "ghost"}
-              className={`rounded-xl px-3 ${viewMode === "combined" ? "bg-accent/20 text-white" : "text-zinc-300"}`}
+              className={`rounded-xl px-3 ${viewMode === "combined" ? "bg-accent/20 text-fg" : "text-muted-foreground"}`}
               onClick={() => setViewMode("combined")}
               aria-pressed={viewMode === "combined"}
             >
@@ -1164,7 +1351,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
               type="button"
               size="sm"
               variant={viewMode === "per-subject" ? "default" : "ghost"}
-              className={`rounded-xl px-3 ${viewMode === "per-subject" ? "bg-accent/20 text-white" : "text-zinc-300"}`}
+              className={`rounded-xl px-3 ${viewMode === "per-subject" ? "bg-accent/20 text-fg" : "text-muted-foreground"}`}
               onClick={() => setViewMode("per-subject")}
               aria-pressed={viewMode === "per-subject"}
             >
@@ -1172,7 +1359,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
             </Button>
           </div>
           <div
-            className="flex items-center gap-1 rounded-2xl border border-white/10 bg-slate-900/60 p-1"
+            className="flex items-center gap-1 rounded-2xl border border-inverse/10 bg-card/60 p-1"
             role="group"
             aria-label="Timeline zoom controls"
             aria-describedby="timeline-zoom-shortcuts"
@@ -1212,7 +1399,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
             </Button>
           </div>
           <div
-            className="flex items-center gap-1 rounded-2xl border border-white/10 bg-slate-900/60 p-1"
+            className="flex items-center gap-1 rounded-2xl border border-inverse/10 bg-card/60 p-1"
             role="group"
             aria-label="Interaction mode"
           >
@@ -1220,7 +1407,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
               type="button"
               size="sm"
               variant={interactionMode === "zoom" ? "default" : "ghost"}
-              className={`inline-flex items-center gap-1 rounded-xl px-3 ${interactionMode === "zoom" ? "bg-accent/20 text-white" : "text-zinc-300"}`}
+              className={`inline-flex items-center gap-1 rounded-xl px-3 ${interactionMode === "zoom" ? "bg-accent/20 text-fg" : "text-muted-foreground"}`}
               onClick={() => setInteractionMode("zoom")}
               aria-pressed={interactionMode === "zoom"}
               title="Zoom select (Z)"
@@ -1232,7 +1419,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
               type="button"
               size="sm"
               variant={interactionMode === "pan" ? "default" : "ghost"}
-              className={`inline-flex items-center gap-1 rounded-xl px-3 ${interactionMode === "pan" ? "bg-accent/20 text-white" : "text-zinc-300"}`}
+              className={`inline-flex items-center gap-1 rounded-xl px-3 ${interactionMode === "pan" ? "bg-accent/20 text-fg" : "text-muted-foreground"}`}
               onClick={() => {
                 setInteractionMode("pan");
                 setKeyboardSelection(null);
@@ -1243,32 +1430,6 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
               <Hand className="h-4 w-4" />
               Pan (Space)
             </Button>
-          </div>
-          <div
-            className="flex items-center gap-1 rounded-2xl border border-white/10 bg-slate-900/60 p-1"
-            role="group"
-            aria-label="Timeline display options"
-          >
-            <Toggle
-              type="button"
-              pressed={showOpacityFade}
-              onPressedChange={(pressed) => setShowOpacityFade(Boolean(pressed))}
-              aria-label="Toggle opacity fade"
-              title="Toggle opacity fade"
-            >
-              <Droplet className="h-3.5 w-3.5" />
-              <span>Opacity fade</span>
-            </Toggle>
-            <Toggle
-              type="button"
-              pressed={showReviewMarkers}
-              onPressedChange={(pressed) => setShowReviewMarkers(Boolean(pressed))}
-              aria-label="Toggle review markers"
-              title="Toggle review markers"
-            >
-              <EllipsisVertical className="h-3.5 w-3.5" />
-              <span>Review markers</span>
-            </Toggle>
           </div>
           <Button
             size="sm"
@@ -1284,10 +1445,19 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
             size="sm"
             variant="outline"
             onClick={(event) => {
+              if (!domain || !yDomain) return;
               fullscreenReturnFocusRef.current = event.currentTarget;
-              setFullscreenTarget({ type: "combined" });
+              if (viewMode === "combined") {
+                setFullscreenTarget({ type: "combined" });
+              } else {
+                setFullscreenTarget({ type: "per-subject-grid" });
+              }
             }}
-            disabled={!domain || !yDomain || series.length === 0}
+            disabled={
+              !domain ||
+              !yDomain ||
+              (viewMode === "combined" ? series.length === 0 : perSubjectSeries.length === 0)
+            }
             className="inline-flex items-center gap-2"
             aria-label="Expand timeline to fullscreen"
             title="Expand timeline"
@@ -1323,15 +1493,15 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
       </p>
 
       {isZoomed ? (
-        <div className="flex flex-wrap items-center gap-2 text-xs text-amber-100" aria-live="polite">
-          <span className="inline-flex items-center gap-2 rounded-full bg-amber-500/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-warn/20" aria-live="polite">
+          <span className="inline-flex items-center gap-2 rounded-full bg-warn/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide">
             Zoomed
           </span>
           <span>Use Back to step out or reset to return to the full schedule.</span>
           <button
             type="button"
             onClick={handleResetDomain}
-            className="font-semibold text-amber-200 underline-offset-2 hover:underline"
+            className="font-semibold text-warn/30 underline-offset-2 hover:underline"
           >
             Reset view
           </button>
@@ -1339,14 +1509,14 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
       ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-slate-900/60 px-3 py-2 text-xs text-zinc-300">
+        <div className="flex items-center gap-2 rounded-2xl border border-inverse/10 bg-card/60 px-3 py-2 text-xs text-muted-foreground">
           <CalendarClock className="h-3.5 w-3.5" />
           <span>Window (days)</span>
           <Input
             type="number"
             min={7}
             max={365}
-            className="h-8 w-20 border-none bg-transparent text-xs text-white focus-visible:ring-0"
+            className="h-8 w-20 border-none bg-transparent text-xs text-fg focus-visible:ring-0"
             value={domain ? Math.max(7, Math.round((domain[1] - domain[0]) / DAY_MS)) : ""}
             onChange={(event) => {
               if (!domain) return;
@@ -1363,17 +1533,17 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
             disabled={!domain}
           />
         </div>
-        <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-slate-900/60 px-3 py-2">
-          <Search className="h-3.5 w-3.5 text-zinc-500" />
+        <div className="flex items-center gap-2 rounded-2xl border border-inverse/10 bg-card/60 px-3 py-2">
+          <Search className="h-3.5 w-3.5 text-muted-foreground/80" />
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search topics"
-            className="h-8 w-52 border-none bg-transparent text-xs text-white placeholder:text-zinc-500 focus-visible:ring-0"
+            className="h-8 w-52 border-none bg-transparent text-xs text-fg placeholder:text-muted-foreground/80 focus-visible:ring-0"
           />
         </div>
         <Select value={sortView} onValueChange={(value: SortView) => setSortView(value)}>
-          <SelectTrigger className="h-9 rounded-2xl border-white/10 bg-slate-900/60 text-xs text-white">
+          <SelectTrigger className="h-9 rounded-2xl border-inverse/10 bg-card/60 text-xs text-fg">
             <SelectValue placeholder="Sort" />
           </SelectTrigger>
           <SelectContent className="rounded-2xl backdrop-blur">
@@ -1381,28 +1551,82 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
             <SelectItem value="title">Topic name</SelectItem>
           </SelectContent>
         </Select>
-        <button
-          type="button"
-          onClick={() => setShowExamMarkers((prev) => !prev)}
-          className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs transition ${
-            showExamMarkers
-              ? "border-accent/40 bg-accent/20 text-white"
-              : "border-white/10 bg-transparent text-zinc-400 hover:text-white"
-          }`}
+        <div
+          className="flex flex-wrap items-center gap-1 rounded-2xl border border-inverse/10 bg-card/60 p-1"
+          role="group"
+          aria-label="Timeline overlays"
         >
-          <CalendarClock className="h-3.5 w-3.5" /> Exam markers {showExamMarkers ? "on" : "off"}
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowCheckpoints((prev) => !prev)}
-          className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs transition ${
-            showCheckpoints
-              ? "border-accent/40 bg-accent/20 text-white"
-              : "border-white/10 bg-transparent text-zinc-400 hover:text-white"
-          }`}
-        >
-          <Milestone className="h-3.5 w-3.5" /> Checkpoints {showCheckpoints ? "on" : "off"}
-        </button>
+          <Toggle
+            type="button"
+            pressed={showExamMarkers}
+            onPressedChange={(pressed) => setShowExamMarkers(Boolean(pressed))}
+            aria-label="Toggle exam markers"
+            title="Toggle exam markers"
+          >
+            <CalendarClock className="h-3.5 w-3.5" />
+            <span>Exam Markers</span>
+          </Toggle>
+          <Toggle
+            type="button"
+            pressed={showCheckpoints}
+            onPressedChange={(pressed) => setShowCheckpoints(Boolean(pressed))}
+            aria-label="Toggle checkpoints"
+            title="Toggle checkpoints"
+          >
+            <Milestone className="h-3.5 w-3.5" />
+            <span>Checkpoints</span>
+          </Toggle>
+          <Toggle
+            type="button"
+            pressed={showReviewMarkers}
+            onPressedChange={(pressed) => setShowReviewMarkers(Boolean(pressed))}
+            aria-label="Toggle review markers"
+            title="Toggle review markers"
+          >
+            <EllipsisVertical className="h-3.5 w-3.5" />
+            <span>Review Markers</span>
+          </Toggle>
+          <Toggle
+            type="button"
+            pressed={showEventDots}
+            onPressedChange={(pressed) => setShowEventDots(Boolean(pressed))}
+            aria-label="Toggle event start dots"
+            title="Toggle event start dots"
+          >
+            <Dot className="h-3.5 w-3.5" />
+            <span>Event Dots</span>
+          </Toggle>
+          <Toggle
+            type="button"
+            pressed={showOpacityGradient}
+            onPressedChange={(pressed) => setShowOpacityGradient(Boolean(pressed))}
+            aria-label="Toggle opacity gradient"
+            title="Toggle opacity gradient"
+          >
+            <Droplet className="h-3.5 w-3.5" />
+            <span>Opacity Gradient</span>
+          </Toggle>
+          <Toggle
+            type="button"
+            pressed={showTopicLabels}
+            onPressedChange={(pressed) => setShowTopicLabels(Boolean(pressed))}
+            aria-label="Toggle topic labels"
+            title="Toggle topic labels"
+          >
+            <Type className="h-3.5 w-3.5" />
+            <span>Topic Labels</span>
+          </Toggle>
+          <Toggle
+            type="button"
+            pressed={activeTheme === "dark"}
+            onPressedChange={(pressed) => setTheme(pressed ? "dark" : "light")}
+            aria-label="Toggle theme"
+            title={activeTheme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+          >
+            {activeTheme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+            <span>Theme</span>
+          </Toggle>
+        </div>
         {categoryFilter.size > 0 ? (
           <Button size="sm" variant="ghost" onClick={() => setCategoryFilter(new Set())}>
             Clear categories
@@ -1420,8 +1644,8 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
               onClick={() => handleToggleCategory(category.id)}
               className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs transition ${
                 active
-                  ? "border-white/40 bg-white/10 text-white"
-                  : "border-white/10 bg-transparent text-zinc-400 hover:text-white"
+                  ? "border-inverse/40 bg-inverse/10 text-fg"
+                  : "border-inverse/10 bg-transparent text-muted-foreground hover:text-fg"
               }`}
             >
               <span className="inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: category.color }} />
@@ -1430,18 +1654,18 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
           );
         })}
         {categories.length === 0 ? (
-          <p className="text-xs text-zinc-500">Categories you create appear here for quick filtering.</p>
+          <p className="text-xs text-muted-foreground/80">Categories you create appear here for quick filtering.</p>
         ) : null}
       </div>
 
       {rangeWarning ? (
-        <div className="flex items-center gap-2 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+        <div className="flex items-center gap-2 rounded-2xl border border-warn/40 bg-warn/10 px-3 py-2 text-xs text-warn/20">
           <AlertTriangle className="h-3.5 w-3.5" />
           <span>{rangeWarning}</span>
         </div>
       ) : null}
       {rangeHint ? (
-        <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-slate-900/60 px-3 py-2 text-xs text-zinc-300">
+        <div className="flex items-center gap-2 rounded-2xl border border-inverse/10 bg-card/60 px-3 py-2 text-xs text-muted-foreground">
           <Info className="h-3.5 w-3.5 text-accent" />
           <span>{rangeHint}</span>
         </div>
@@ -1450,31 +1674,68 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
       {viewMode === "combined"
         ? hasStudyActivity && domain && yDomain
           ? (
-              <TimelineChart
-                ref={svgRef}
-                series={series}
-                xDomain={domain}
-                yDomain={yDomain}
-                onViewportChange={(next, options) => handleViewportChange(next, { push: options?.push })}
-                height={variant === "compact" ? 320 : 460}
-                showGrid
-                fullDomain={fullDomain ?? undefined}
-                fullYDomain={fullYDomain ?? undefined}
-                examMarkers={showExamMarkers ? examMarkers : []}
-                timeZone={resolvedTimezone}
-                onResetDomain={handleResetDomain}
-                ariaDescribedBy={`timeline-zoom-shortcuts ${pointerInstructionId}`}
-                interactionMode={interactionMode}
-                temporaryPan={spacePanning}
-                onRequestStepBack={handleStepBack}
-                onTooSmallSelection={handleTooSmallSelection}
-                keyboardSelection={keyboardSelection}
-                showOpacityFade={showOpacityFade}
-                showReviewLines={showReviewMarkers}
-              />
+              <div className="space-y-3">
+                <TimelineChart
+                  ref={svgRef}
+                  series={series}
+                  xDomain={domain}
+                  yDomain={yDomain}
+                  onViewportChange={(next, options) => handleViewportChange(next, { push: options?.push })}
+                  height={variant === "compact" ? 320 : 460}
+                  showGrid
+                  fullDomain={fullDomain ?? undefined}
+                  fullYDomain={fullYDomain ?? undefined}
+                  examMarkers={showExamMarkers ? examMarkers : []}
+                  timeZone={resolvedTimezone}
+                  onResetDomain={handleResetDomain}
+                  ariaDescribedBy={`timeline-zoom-shortcuts ${pointerInstructionId}`}
+                  interactionMode={interactionMode}
+                  temporaryPan={spacePanning}
+                  onRequestStepBack={handleStepBack}
+                  onTooSmallSelection={handleTooSmallSelection}
+                  keyboardSelection={keyboardSelection}
+                  showOpacityGradient={showOpacityGradient}
+                  showReviewMarkers={showReviewMarkers}
+                  showEventDots={showEventDots}
+                  showTopicLabels={showTopicLabels}
+                />
+                {singleSubjectLegend ? (
+                  <div
+                    className="flex flex-wrap items-center gap-2 rounded-2xl border border-inverse/10 bg-card/60 px-3 py-2 text-xs text-muted-foreground"
+                    aria-label="Topic color legend"
+                  >
+                    <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Topic colors
+                    </span>
+                    {singleSubjectLegend.visible.map((topic) => {
+                      const color =
+                        singleSubjectColorOverrides?.get(topic.id) ?? resolveTopicColor(topic);
+                      return (
+                        <span
+                          key={topic.id}
+                          className="inline-flex items-center gap-2 rounded-full border border-inverse/10 bg-inverse/5 px-2 py-1"
+                        >
+                          <span
+                            className="inline-flex h-2 w-2 rounded-full"
+                            style={{ backgroundColor: color }}
+                          />
+                          <span className="max-w-[10rem] truncate text-[11px] text-fg/80">
+                            {topic.title}
+                          </span>
+                        </span>
+                      );
+                    })}
+                    {singleSubjectLegend.remaining > 0 ? (
+                      <span className="text-[11px] text-muted-foreground">
+                        +{singleSubjectLegend.remaining} more
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
             )
           : (
-              <div className="flex h-60 items-center justify-center rounded-3xl border border-dashed border-white/10 bg-slate-900/40 text-sm text-zinc-400">
+              <div className="flex h-60 items-center justify-center rounded-3xl border border-dashed border-inverse/10 bg-card/40 text-sm text-muted-foreground">
                 No study activity yet. Add a topic to see your timeline.
               </div>
             )
@@ -1494,7 +1755,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                   return (
                     <div
                       key={group.subjectId}
-                      className="space-y-2 rounded-3xl border border-white/10 bg-slate-900/50 p-4"
+                      className="space-y-2 rounded-3xl border border-inverse/10 bg-card/50 p-4"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -1503,11 +1764,11 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                             style={{ backgroundColor: group.color }}
                             aria-hidden="true"
                           />
-                          <h3 className="text-sm font-semibold text-white">{group.label}</h3>
+                          <h3 className="text-sm font-semibold text-fg">{group.label}</h3>
                         </div>
                         <div className="flex items-center gap-2">
                           {examLabel ? (
-                            <span className="text-xs text-zinc-400">Exam {examLabel}</span>
+                            <span className="text-xs text-muted-foreground">Exam {examLabel}</span>
                           ) : null}
                           <Button
                             type="button"
@@ -1544,8 +1805,10 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                         onRequestStepBack={handleStepBack}
                         onTooSmallSelection={handleTooSmallSelection}
                         keyboardSelection={keyboardSelection}
-                        showOpacityFade={showOpacityFade}
-                        showReviewLines={showReviewMarkers}
+                        showOpacityGradient={showOpacityGradient}
+                        showReviewMarkers={showReviewMarkers}
+                        showEventDots={showEventDots}
+                        showTopicLabels={showTopicLabels}
                       />
                     </div>
                   );
@@ -1553,17 +1816,17 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
               </div>
             )
           : (
-              <div className="flex h-60 items-center justify-center rounded-3xl border border-dashed border-white/10 bg-slate-900/40 text-sm text-zinc-400">
+              <div className="flex h-60 items-center justify-center rounded-3xl border border-dashed border-inverse/10 bg-card/40 text-sm text-muted-foreground">
                 No study activity yet. Add a topic to see your timeline.
               </div>
             )}
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             <Filter className="h-3.5 w-3.5" /> Visibility
           </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <Button size="sm" variant="ghost" onClick={showAllTopics}>
               Show all
             </Button>
@@ -1588,12 +1851,12 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                     }))
                   }
                   className={`flex items-center gap-2 rounded-2xl border px-3 py-2 text-left text-xs transition ${
-                    isVisible ? "border-accent/40 bg-accent/10 text-white" : "border-white/10 bg-transparent text-zinc-400 hover:text-white"
+                    isVisible ? "border-accent/40 bg-accent/10 text-fg" : "border-inverse/10 bg-transparent text-muted-foreground hover:text-fg"
                   }`}
                 >
                   <span className="inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: resolveTopicColor(topic) }} />
                   <span className="flex-1 truncate">{topic.title}</span>
-                  <span className="text-[10px] text-zinc-400">
+                  <span className="text-[10px] text-muted-foreground">
                     {formatDateWithWeekday(topic.nextReviewDate)}
                   </span>
                   {isVisible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
@@ -1603,13 +1866,13 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
           </div>
         </div>
 
-        <div className="space-y-3 rounded-2xl border border-white/5 bg-white/5 p-4">
-          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-zinc-400">
+        <div className="space-y-3 rounded-2xl border border-inverse/5 bg-inverse/5 p-4">
+          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             <span>Upcoming checkpoints</span>
             <span>{upcomingSchedule.length} topics</span>
           </div>
           {upcomingSchedule.length === 0 ? (
-            <p className="rounded-2xl border border-white/10 bg-slate-900/50 px-3 py-3 text-xs text-zinc-400">
+            <p className="rounded-2xl border border-inverse/10 bg-card/50 px-3 py-3 text-xs text-muted-foreground">
               As you add topics their next review dates will show up here.
             </p>
           ) : (
@@ -1617,20 +1880,22 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
               {upcomingSchedule.map((topic) => {
                 const due = isDueToday(topic.nextReviewDate);
                 return (
-                  <div key={topic.id} className="flex items-start gap-3 rounded-2xl border border-white/10 bg-slate-900/60 px-3 py-2">
+                  <div key={topic.id} className="flex items-start gap-3 rounded-2xl border border-inverse/10 bg-card/60 px-3 py-2">
                     <span
                       className="mt-1 inline-flex h-2 w-2 rounded-full"
-                      style={{ backgroundColor: due ? "#f97316" : resolveTopicColor(topic) }}
+                      style={{ backgroundColor: due ? palette.warn : resolveTopicColor(topic) }}
                     />
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-white">{topic.title}</p>
-                      <p className="text-xs text-zinc-400">
+                      <p className="checkpoint-title text-sm font-medium">{topic.title}</p>
+                      <p className="checkpoint-date text-xs">
                         {formatDateWithWeekday(topic.nextReviewDate)}  {formatRelativeToNow(topic.nextReviewDate)}
                       </p>
                     </div>
-                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide ${
-                      due ? "bg-rose-500/20 text-rose-100" : "bg-sky-500/15 text-sky-100"
-                    }`}>
+                    <span
+                      className={`checkpoint-status inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] uppercase tracking-wide ${
+                        due ? "checkpoint-status--due" : "checkpoint-status--scheduled"
+                      }`}
+                    >
                       <Check className="h-3 w-3" /> {due ? "Due" : "Scheduled"}
                     </span>
                   </div>
@@ -1799,7 +2064,7 @@ function TimelineFullscreenDialog({
   const overlay = (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-[1200] flex flex-col bg-slate-950/95 backdrop-blur"
+      className="fixed inset-0 z-[1200] flex flex-col bg-bg/95 backdrop-blur"
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === overlayRef.current) {
@@ -1814,14 +2079,14 @@ function TimelineFullscreenDialog({
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
         tabIndex={-1}
-        className="flex h-full w-full flex-col gap-6 p-4 text-white sm:p-6"
+        className="flex h-full w-full flex-col gap-6 p-4 text-fg sm:p-6"
       >
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div className="space-y-1">
-            <h2 id={titleId} className="text-xl font-semibold text-white">
+            <h2 id={titleId} className="text-xl font-semibold text-fg">
               {title}
             </h2>
-            <p id={descriptionId} className="text-sm text-zinc-300">
+            <p id={descriptionId} className="text-sm text-muted-foreground">
               {subtitle ?? "Interact with the expanded retention timeline."}
             </p>
           </div>
@@ -1836,10 +2101,10 @@ function TimelineFullscreenDialog({
           </Button>
         </header>
         <div className="flex min-h-0 flex-1 flex-col gap-4">
-          <div className="flex min-h-0 flex-1 items-stretch rounded-3xl border border-white/10 bg-slate-900/60 p-3">
+          <div className="flex min-h-0 flex-1 items-stretch rounded-3xl border border-inverse/10 bg-card/60 p-3">
             <div className="h-full w-full">{renderChart(chartHeight)}</div>
           </div>
-          <p className="text-xs text-zinc-400">
+          <p className="text-xs text-muted-foreground">
             Use the mouse wheel or touch gestures to zoom, drag to pan, or press Escape to exit fullscreen.
           </p>
         </div>

@@ -409,23 +409,23 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
         <div className="inline-flex items-center gap-2 rounded-full bg-accent/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-accent">
           <Calendar className="h-3.5 w-3.5" /> Edit history
         </div>
-        <h2 id="history-editor-title" className="text-2xl font-semibold text-white">
+        <h2 id="history-editor-title" className="text-2xl font-semibold text-fg">
           Edit history - {topic.title}
         </h2>
-        <p id="history-editor-description" className="text-sm text-zinc-300">
+        <p id="history-editor-description" className="text-sm text-muted-foreground">
           Backfill past reviews so retention curves stay continuous and schedules reflect when you actually studied.
         </p>
       </header>
 
       {error ? (
-        <div className="flex items-start gap-3 rounded-2xl border border-rose-500/40 bg-rose-500/10 p-3 text-sm text-rose-100">
+        <div className="flex items-start gap-3 rounded-2xl border border-error/40 bg-error/10 p-3 text-sm text-error/20">
           <AlertTriangle className="mt-0.5 h-4 w-4" />
           <span>{error}</span>
         </div>
       ) : null}
 
       {overflowCount > 0 ? (
-        <div className="flex items-start gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-100">
+        <div className="flex items-start gap-3 rounded-2xl border border-warn/40 bg-warn/10 p-3 text-xs text-warn/20">
           <Info className="mt-0.5 h-4 w-4" />
           <span>
             Showing the latest {MAX_HISTORY_ENTRIES} reviews. {overflowCount} older entr{overflowCount === 1 ? "y is" : "ies are"} hidden from editing.
@@ -433,10 +433,10 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
         </div>
       ) : null}
 
-      <ScrollArea className="flex-1 rounded-2xl border border-white/5 bg-slate-900/60 p-4">
+      <ScrollArea className="flex-1 rounded-2xl border border-inverse/5 bg-card/60 p-4">
         <div className="space-y-4">
           {drafts.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/50 p-6 text-center text-sm text-zinc-400">
+            <div className="rounded-2xl border border-dashed border-inverse/10 bg-card/50 p-6 text-center text-sm text-muted-foreground">
               No past reviews yet.
             </div>
           ) : (
@@ -447,7 +447,7 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
               return (
                 <div
                   key={draft.localId}
-                  className="grid gap-3 rounded-2xl border border-white/10 bg-slate-900/70 p-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]"
+                  className="grid gap-3 rounded-2xl border border-inverse/10 bg-card/70 p-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]"
                 >
                   <div className="space-y-1">
                     <Label htmlFor={`history-date-${draft.localId}`}>Date</Label>
@@ -499,8 +499,8 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                  <p className="md:col-span-3 text-xs text-zinc-400">
-                    Saved quality: <span className="font-medium text-white">{QUALITY_LABEL[draft.quality]}</span>
+                  <p className="md:col-span-3 text-xs text-muted-foreground">
+                    Saved quality: <span className="font-medium text-fg">{QUALITY_LABEL[draft.quality]}</span>
                   </p>
                 </div>
               );
@@ -519,16 +519,16 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
           >
             <Plus className="h-4 w-4" /> Add entry
           </Button>
-          <span className="text-xs text-zinc-400">
+          <span className="text-xs text-muted-foreground">
             Entries are sorted chronologically and merged on the same day using the highest quality. Up to {MAX_HISTORY_ENTRIES} entries per topic. {remainingSlots > 0 ? `${remainingSlots} slot${remainingSlots === 1 ? '' : 's'} remaining.` : `Adding more hides the oldest entry.`}
           </span>
         </div>
 
-        <div className="space-y-3 rounded-2xl border border-white/10 bg-slate-900/70 p-4">
-          <div className="flex items-center gap-2 text-sm font-semibold text-white">
+        <div className="space-y-3 rounded-2xl border border-inverse/10 bg-card/70 p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-fg">
             <ClipboardList className="h-4 w-4" /> Bulk add from pasted dates
           </div>
-          <p className="text-xs text-zinc-400">
+          <p className="text-xs text-muted-foreground">
             Paste one date per line (YYYY-MM-DD). Optionally include a quality token (easy, hard, forgot). Missing tokens use the selected default quality.
           </p>
           <div className="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto]">
@@ -536,7 +536,7 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
               value={bulkInput}
               onChange={(event) => setBulkInput(event.target.value)}
               rows={3}
-              className="min-h-[96px] resize-y rounded-2xl border border-white/10 bg-slate-950/50 p-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-accent/50"
+              className="min-h-[96px] resize-y rounded-2xl border border-inverse/10 bg-bg/50 p-3 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-accent/50"
               placeholder="2024-03-01 easy\n2024-03-05 hard\n2024-03-12"
             />
             <div className="space-y-1">
@@ -571,8 +571,8 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
         </div>
       </div>
 
-      <footer className="flex flex-col gap-3 border-t border-white/5 pt-4 md:flex-row md:items-center md:justify-between">
-        <div className="text-xs text-zinc-400">
+      <footer className="flex flex-col gap-3 border-t border-inverse/5 pt-4 md:flex-row md:items-center md:justify-between">
+        <div className="text-xs text-muted-foreground">
           {subject?.examDate ? (
             <span>
               Reviews must stay on or before {formatDateWithWeekday(subject.examDate)}.
@@ -604,7 +604,7 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
       animate={{ scale: 1, opacity: 1 }}
       exit={{ scale: 0.9, opacity: 0 }}
       transition={{ type: "spring", stiffness: 260, damping: 26 }}
-      className="flex max-h-[90vh] w-full max-w-4xl flex-col gap-6 rounded-3xl border border-white/10 bg-slate-900/95 p-6 shadow-2xl"
+      className="flex max-h-[90vh] w-full max-w-4xl flex-col gap-6 rounded-3xl border border-inverse/10 bg-card/95 p-6"
     >
       {panelBody}
     </motion.div>
@@ -615,7 +615,7 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
       role="region"
       aria-labelledby="history-editor-title"
       aria-describedby="history-editor-description"
-      className="flex w-full max-w-4xl flex-col gap-6 rounded-3xl border border-white/10 bg-slate-900/95 p-6 shadow-2xl"
+      className="flex w-full max-w-4xl flex-col gap-6 rounded-3xl border border-inverse/10 bg-card/95 p-6"
     >
       {panelBody}
     </div>
@@ -656,7 +656,7 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
         <motion.div
           key="history-editor"
           ref={overlayRef}
-          className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-950/70 backdrop-blur"
+          className="fixed inset-0 z-[1200] flex items-center justify-center bg-bg/70 backdrop-blur"
           role="presentation"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
