@@ -235,6 +235,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
         nextTopic={filteredNextTopic}
       />
 
+      <ProgressTodayModule completed={completedCount} total={totalToday} completionPercent={completionPercent} />
+
       <TopicList
         id="dashboard-topic-list"
         items={enrichedTopics}
@@ -248,8 +250,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
         subjectFilter={resolvedSubjectFilter}
         onSubjectFilterChange={handleSubjectFilterChange}
       />
-
-      <ProgressTodayModule completed={completedCount} total={totalToday} completionPercent={completionPercent} />
     </section>
   );
 };
@@ -266,7 +266,7 @@ const ProgressTodayModule = ({
   const safeTotal = total === 0 ? completed : total;
   const safePercent = Number.isFinite(completionPercent) ? Math.max(0, Math.min(100, completionPercent)) : 0;
   const isComplete = safePercent >= 100;
-  const summaryText = `${completed}/${safeTotal} reviews completed • ${safePercent}% complete. Keep up the rhythm — every checkmark keeps your memory sharp.`;
+  const summaryText = `${completed}/${safeTotal} reviews completed â€¢ ${safePercent}% complete. Keep up the rhythm â€” every checkmark keeps your memory sharp.`;
 
   return (
     <section className="progress-summary rounded-3xl border border-inverse/10 bg-card/60 px-6 py-8 md:px-8">
@@ -309,7 +309,7 @@ const DailySummarySection = ({
       ? "You\u2019re all caught up. Check back tomorrow or add a topic."
       : `You have ${dueCount} topic${dueCount === 1 ? "" : "s"} ready for review. Finish them to extend your streak.`;
   const nextLine = nextTopic
-    ? `Next up: ${nextTopic.title} • ${nextRelative} (${nextDateLabel})`
+    ? `Next up: ${nextTopic.title} â€¢ ${nextRelative} (${nextDateLabel})`
     : "Next up: Add a topic to plan your next review.";
 
   return (

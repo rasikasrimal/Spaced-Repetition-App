@@ -361,6 +361,8 @@ body.light .bg-success\/20 { background-color: rgba(33, 206, 153, 0.2); }
 body.dark .bg-success\/20 { background-color: rgba(61, 234, 149, 0.2); }
 body.light .bg-success\/80 { background-color: rgba(33, 206, 153, 0.8); }
 body.dark .bg-success\/80 { background-color: rgba(61, 234, 149, 0.8); }
+body.light .text-success { color: #21ce99; }
+body.dark .text-success { color: #3dea95; }
 
 body.light .bg-warn { background-color: #f5a623; }
 body.dark .bg-warn { background-color: #f5a623; }
@@ -372,11 +374,15 @@ body.light .bg-warn\/20 { background-color: rgba(245, 166, 35, 0.2); }
 body.dark .bg-warn\/20 { background-color: rgba(245, 166, 35, 0.2); }
 body.light .bg-warn\/80 { background-color: rgba(245, 166, 35, 0.8); }
 body.dark .bg-warn\/80 { background-color: rgba(245, 166, 35, 0.8); }
+body.light .text-warn { color: #f5a623; }
+body.dark .text-warn { color: #f5a623; }
 
 body.light .bg-error { background-color: #e5484d; }
 body.dark .bg-error { background-color: #f87171; }
 body.light .bg-error\/20 { background-color: rgba(229, 72, 77, 0.2); }
 body.dark .bg-error\/20 { background-color: rgba(248, 113, 113, 0.2); }
+body.light .text-error { color: #e5484d; }
+body.dark .text-error { color: #f87171; }
 
 /* text colors */
 body.light .text-fg { color: #1a1a1a; }
@@ -694,12 +700,10 @@ body.dark .checkpoint-status--scheduled {
   }
 
 body.light .subject-exam-info {
-    color: #333333;
     font-weight: 500;
   }
 
 body.dark .subject-exam-info {
-    color: #d1d5db;
     font-weight: 500;
   }
 
@@ -714,13 +718,11 @@ body.dark .subject-exam-soon {
   }
 
 body.light .subject-exam-far {
-    color: #2563eb;
-    font-weight: 600;
+    font-weight: 500;
   }
 
 body.dark .subject-exam-far {
-    color: #8ab4ff;
-    font-weight: 600;
+    font-weight: 500;
   }
 
 /* reviews page */

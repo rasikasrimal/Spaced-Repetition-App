@@ -1,6 +1,8 @@
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
-export const DEFAULT_RETRIEVABILITY_TARGET = 0.7;
+export const DEFAULT_RETRIEVABILITY_TARGET = 0.5;
+export const REVIEW_TRIGGER_MIN = 0.3;
+export const REVIEW_TRIGGER_MAX = 0.8;
 export const DEFAULT_STABILITY_DAYS = 1;
 export const STABILITY_MIN_DAYS = 0.25;
 export const STABILITY_MAX_DAYS = 3650;
