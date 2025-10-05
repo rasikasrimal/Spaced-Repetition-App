@@ -10,6 +10,7 @@ import {
   computeRetrievability,
   updateStability
 } from "../src/lib/forgetting-curve";
+import { projectAdaptiveSchedule } from "../src/lib/adaptive-scheduler";
 
 test("spaced reviews grow stability and lengthen future intervals", () => {
   const firstElapsedDays = 10;
@@ -113,4 +114,46 @@ test("lapses weaken stability but retain long-term memory", () => {
     retentionAfterLapse >= DEFAULT_RETENTION_FLOOR,
     "even after lapses, retention should not fall below the baseline floor"
   );
+});
+
+test("higher retention triggers shorten the next interval", () => {
+  const stability = 2.5;
+  const lowTrigger = 0.3;
+  const mediumTrigger = 0.5;
+  const highTrigger = 0.7;
+
+  const lowInterval = computeIntervalDays(stability, lowTrigger);
+  const mediumInterval = computeIntervalDays(stability, mediumTrigger);
+  const highInterval = computeIntervalDays(stability, highTrigger);
+
+  assert.ok(lowInterval > mediumInterval, "lower trigger should yield longer intervals");
+  assert.ok(mediumInterval > highInterval, "higher trigger should schedule sooner");
+});
+
+test("adaptive schedule stops at the exam boundary and stretches with growth", () => {
+  const anchor = new Date("2024-01-01T00:00:00.000Z");
+  const exam = new Date("2024-01-10T00:00:00.000Z");
+  const trigger = 0.5;
+
+  const schedule = projectAdaptiveSchedule({
+    anchorDate: anchor,
+    stabilityDays: 1,
+    reviewsCount: 0,
+    reviewTrigger: trigger,
+    examDate: exam,
+    maxReviews: 8
+  });
+
+  assert.ok(schedule.length > 0, "adaptive schedule should generate checkpoints");
+  const last = schedule[schedule.length - 1]!;
+  assert.ok(
+    new Date(last.date).getTime() <= exam.getTime(),
+    "no adaptive review should overshoot the exam"
+  );
+  if (schedule.length > 1) {
+    assert.ok(
+      schedule[1]!.intervalDays >= schedule[0]!.intervalDays,
+      "intervals should widen as stability grows"
+    );
+  }
 });

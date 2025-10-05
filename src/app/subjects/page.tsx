@@ -3,10 +3,12 @@
 import * as React from "react";
 import Link from "next/link";
 import { useTopicStore } from "@/stores/topics";
+import { useReviewPreferencesStore } from "@/stores/review-preferences";
 import { FALLBACK_SUBJECT_COLOR } from "@/lib/colors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { ColorPicker } from "@/components/forms/color-picker";
 import { IconPicker } from "@/components/forms/icon-picker";
@@ -86,7 +88,6 @@ type SortOption = "urgency" | "exam-date" | "name";
 
 interface ExamUrgencyMeta {
   label: string;
-  badgeClass: string;
   description: string;
   accentClass: string;
 }
@@ -95,7 +96,6 @@ const getExamUrgencyMeta = (daysLeft: number | null): ExamUrgencyMeta => {
   if (daysLeft === null) {
     return {
       label: "No exam date",
-      badgeClass: "bg-muted/80 text-fg/80",
       description: "Set an exam date to unlock countdowns and exam alerts.",
       accentClass: "ring-1 ring-inset ring-border/60"
     };
@@ -104,7 +104,6 @@ const getExamUrgencyMeta = (daysLeft: number | null): ExamUrgencyMeta => {
   if (daysLeft < 0) {
     return {
       label: "Exam passed",
-      badgeClass: "bg-muted/80 text-fg/80",
       description: "This exam date has passed. Plan a new milestone when you are ready.",
       accentClass: "ring-1 ring-inset ring-border/60"
     };
@@ -113,7 +112,6 @@ const getExamUrgencyMeta = (daysLeft: number | null): ExamUrgencyMeta => {
   if (daysLeft <= 7) {
     return {
       label: "Urgent",
-      badgeClass: "bg-error/20 text-error/20",
       description: "Exam is around the corner. Prioritise these reviews.",
       accentClass: "ring-1 ring-inset ring-error/40"
     };
@@ -122,7 +120,6 @@ const getExamUrgencyMeta = (daysLeft: number | null): ExamUrgencyMeta => {
   if (daysLeft <= 30) {
     return {
       label: "Next up",
-      badgeClass: "bg-warn/20 text-warn/20",
       description: "Exam is approaching. Keep momentum steady.",
       accentClass: "ring-1 ring-inset ring-warn/40"
     };
@@ -130,7 +127,6 @@ const getExamUrgencyMeta = (daysLeft: number | null): ExamUrgencyMeta => {
 
   return {
     label: "Plenty of time",
-    badgeClass: "bg-success/20 text-success/20",
     description: "Planned well ahead. Maintain a consistent cadence.",
     accentClass: "ring-1 ring-inset ring-success/40"
   };
@@ -144,6 +140,8 @@ const SubjectAdminPage: React.FC = () => {
   const deleteSubject = useTopicStore((state) => state.deleteSubject);
   const summaries = useTopicStore((state) => state.getSubjectSummaries());
   const timezone = useProfileStore((state) => state.profile.timezone) || "Asia/Colombo";
+  const reviewTrigger = useReviewPreferencesStore((state) => state.reviewTrigger);
+  const triggerPercent = Math.round(reviewTrigger * 100);
 
   const [name, setName] = React.useState("");
   const [examDate, setExamDate] = React.useState("");
@@ -325,6 +323,9 @@ const SubjectAdminPage: React.FC = () => {
           <p className="text-sm text-muted-foreground">
             Manage the subjects that power your review schedule, including exam dates and identity settings.
           </p>
+          <p className="text-xs text-muted-foreground">
+            Adaptive reviews fire as soon as predicted retention dips under {triggerPercent}% for any topic in the subject.
+          </p>
         </div>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
@@ -401,8 +402,8 @@ const SubjectAdminPage: React.FC = () => {
                 ? "Exam today"
                 : `Exam in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`;
             const examInfoClassName = cn(
-              "subject-exam-info text-sm",
-              daysLeft === null ? undefined : daysLeft <= 7 ? "subject-exam-soon" : "subject-exam-far"
+              "subject-exam-info text-sm text-muted-foreground dark:text-zinc-300",
+              daysLeft !== null && daysLeft <= 7 ? "subject-exam-soon" : undefined
             );
 
             if (isEditing) {
@@ -517,12 +518,13 @@ const SubjectAdminPage: React.FC = () => {
                         <h3 className="text-xl font-semibold text-fg">{subject.name}</h3>
                         <div className="space-y-2 text-sm text-muted-foreground">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span
-                              className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${urgencyMeta.badgeClass}`}
-                            >
-                              <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
-                              {examBadgeText}
-                            </span>
+                            <StatusBadge
+                              type="exam"
+                              className="exam-date"
+                              icon={CalendarDays}
+                              label={examBadgeText}
+                              date={subject.examDate ?? undefined}
+                            />
                             {subject.examDate ? (
                               <span className={examInfoClassName}>
                                 Exam on {formatFullDate(subject.examDate)}

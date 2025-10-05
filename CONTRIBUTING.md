@@ -26,6 +26,7 @@ Thanks for your interest in helping improve the Spaced Repetition App! This docu
 - Write TypeScript using strict typing and prefer existing utility helpers where available.
 - Keep components small and composable; colocate unit tests alongside the code they cover.
 - Follow Tailwind conventions already established in the codebase and use design tokens defined in `tailwind.config.ts`.
+- When introducing filter rails or status chips, match the dashboard pattern: active buttons use `bg-primary/10 text-primary border-primary` with `focus-visible:ring-primary/50`, inactive buttons stay muted until `hover:bg-accent/20` elevates them, and the group remains a single-line, scrollable flex row.
 
 ## Documentation
 
