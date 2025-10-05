@@ -472,160 +472,171 @@ export function TopicList({
               </p>
             </div>
           </div>
+          <div className="flex flex-col gap-3 xl:flex-1">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Button
+                type="button"
+                onClick={onCreateTopic}
+                className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition hover:bg-accent/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+              >
+                <Sparkles className="h-4 w-4" aria-hidden="true" /> Add topic
+              </Button>
 
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground xl:flex-nowrap xl:justify-end xl:gap-3">
-            <div
-              className="flex items-center gap-1 rounded-full border border-inverse/10 bg-card/60 p-1"
-              role="group"
-              aria-label="Filter by status"
-            >
-              {statusFilters.map(({ value, label }) => (
-                <Button
-                  key={value}
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => onStatusFilterChange(value)}
-                  aria-pressed={statusFilter === value}
-                  className={cn(
-                    "rounded-full px-3 py-1 text-xs transition",
-                    statusFilter === value
-                      ? "bg-accent text-inverse-foreground hover:bg-accent/90"
-                      : "text-muted-foreground hover:text-fg"
-                  )}
+              <div className="flex flex-1 flex-wrap items-center gap-2 text-xs text-muted-foreground xl:flex-nowrap xl:justify-end xl:gap-3">
+                <div
+                  className="flex items-center gap-1 rounded-full border border-inverse/10 bg-card/60 p-1"
+                  role="group"
+                  aria-label="Filter by status"
                 >
-                  {label}
-                </Button>
-              ))}
-            </div>
-
-            <Popover open={subjectOpen} onOpenChange={setSubjectOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="inline-flex items-center gap-2 rounded-full border-inverse/15 bg-card/60 px-3 py-1 text-xs text-fg/80 hover:border-inverse/25 hover:text-fg"
-                >
-                  <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-                  {subjectsLabel}
-                  <ChevronDown className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-72 rounded-2xl border border-inverse/10 bg-card/95 p-3 text-sm text-fg">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Subjects</span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      className="text-xs font-medium text-accent hover:underline"
-                      onClick={() => {
-                        onSubjectFilterChange(null);
-                        setSubjectOpen(false);
-                      }}
-                    >
-                      Select all
-                    </button>
-                    <button
-                      type="button"
-                      className="text-xs font-medium text-muted-foreground hover:underline"
-                      onClick={() => onSubjectFilterChange(new Set<string>())}
-                    >
-                      Clear all
-                    </button>
-                  </div>
-                </div>
-                <div className="mt-3">
-                  <label htmlFor="subject-filter-search" className="sr-only">
-                    Search subjects
-                  </label>
-                  <div className="relative">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/80" aria-hidden="true" />
-                    <Input
-                      id="subject-filter-search"
-                      type="search"
-                      value={subjectSearch}
-                      onChange={(event) => setSubjectSearch(event.target.value)}
-                      placeholder="Search subjects"
-                      className="h-9 w-full rounded-xl border-inverse/10 bg-bg/80 pl-9 pr-3 text-xs text-fg placeholder:text-muted-foreground/80 focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/40"
-                    />
-                  </div>
-                </div>
-                <div className="mt-3 max-h-64 space-y-1 overflow-y-auto">
-                  {subjectOptions.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">No subjects yet.</p>
-                  ) : filteredSubjectOptions.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">No matching subjects.</p>
-                  ) : (
-                    filteredSubjectOptions.map((option) => {
-                      const isChecked = subjectFilter === null ? true : subjectFilter.has(option.id);
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => toggleSubject(option.id)}
-                          role="menuitemcheckbox"
-                          aria-checked={isChecked}
-                          className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition hover:bg-inverse/10"
-                        >
-                          <span className="flex items-center gap-2">
-                            <span className="flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: option.color }} />
-                            {option.name}
-                          </span>
-                          <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                            {option.count}
-                            <span
-                              className={cn(
-                                "flex h-5 w-5 items-center justify-center rounded-full border",
-                                isChecked
-                                  ? "border-accent bg-accent/20 text-accent"
-                                  : "border-inverse/20 text-muted-foreground/80"
-                              )}
-                            >
-                              {isChecked ? <Check className="h-3 w-3" aria-hidden="true" /> : null}
-                            </span>
-                          </span>
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            <Popover open={sortOpen} onOpenChange={setSortOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="inline-flex items-center gap-2 rounded-full border-inverse/15 bg-card/60 px-3 py-1 text-xs text-fg/80 hover:border-inverse/25 hover:text-fg"
-                >
-                  <ChevronDown className="h-3 w-3 text-muted-foreground" aria-hidden="true" /> Sort by: {sortLabels[sortOption]}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-56 rounded-2xl border border-inverse/10 bg-card/95 p-2 text-sm text-fg">
-                <div className="space-y-1">
-                  {(Object.keys(sortLabels) as SortOption[]).map((value) => (
-                    <button
+                  {statusFilters.map(({ value, label }) => (
+                    <Button
                       key={value}
                       type="button"
-                      onClick={() => {
-                        setSortOption(value);
-                        setSortOpen(false);
-                      }}
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => onStatusFilterChange(value)}
+                      aria-pressed={statusFilter === value}
                       className={cn(
-                        "flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left transition",
-                        sortOption === value ? "bg-accent/20 text-fg" : "hover:bg-inverse/10 hover:text-fg"
+                        "rounded-full px-3 py-1 text-xs transition",
+                        statusFilter === value
+                          ? "bg-accent text-accent-foreground hover:bg-accent/90"
+                          : "text-muted-foreground hover:text-fg"
                       )}
                     >
-                      <span>{sortLabels[value]}</span>
-                      {sortOption === value ? <CheckCircle2 className="h-3.5 w-3.5 text-accent" aria-hidden="true" /> : null}
-                    </button>
+                      {label}
+                    </Button>
                   ))}
                 </div>
-              </PopoverContent>
-            </Popover>
+
+                <Popover open={subjectOpen} onOpenChange={setSubjectOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="inline-flex items-center gap-2 rounded-full border-inverse/15 bg-card/60 px-3 py-1 text-xs text-fg/80 hover:border-inverse/25 hover:text-fg"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                      {subjectsLabel}
+                      <ChevronDown className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72 rounded-2xl border border-inverse/10 bg-card/95 p-3 text-sm text-fg">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Subjects</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          className="text-xs font-medium text-accent hover:underline"
+                          onClick={() => {
+                            onSubjectFilterChange(null);
+                            setSubjectOpen(false);
+                          }}
+                        >
+                          Select all
+                        </button>
+                        <button
+                          type="button"
+                          className="text-xs font-medium text-muted-foreground hover:underline"
+                          onClick={() => onSubjectFilterChange(new Set<string>())}
+                        >
+                          Clear all
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <label htmlFor="subject-filter-search" className="sr-only">
+                        Search subjects
+                      </label>
+                      <div className="relative">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/80" aria-hidden="true" />
+                        <Input
+                          id="subject-filter-search"
+                          type="search"
+                          value={subjectSearch}
+                          onChange={(event) => setSubjectSearch(event.target.value)}
+                          placeholder="Search subjects"
+                          className="h-9 w-full rounded-xl border-inverse/10 bg-bg/80 pl-9 pr-3 text-xs text-fg placeholder:text-muted-foreground/80 focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/40"
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-3 max-h-64 space-y-1 overflow-y-auto">
+                      {subjectOptions.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">No subjects yet.</p>
+                      ) : filteredSubjectOptions.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">No matching subjects.</p>
+                      ) : (
+                        filteredSubjectOptions.map((option) => {
+                          const isChecked = subjectFilter === null ? true : subjectFilter.has(option.id);
+                          return (
+                            <button
+                              key={option.id}
+                              type="button"
+                              onClick={() => toggleSubject(option.id)}
+                              role="menuitemcheckbox"
+                              aria-checked={isChecked}
+                              className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition hover:bg-inverse/10"
+                            >
+                              <span className="flex items-center gap-2">
+                                <span className="flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: option.color }} />
+                                {option.name}
+                              </span>
+                              <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                                {option.count}
+                                <span
+                                  className={cn(
+                                    "flex h-5 w-5 items-center justify-center rounded-full border",
+                                    isChecked
+                                      ? "border-accent bg-accent/20 text-accent"
+                                      : "border-inverse/20 text-muted-foreground/80"
+                                  )}
+                                >
+                                  {isChecked ? <Check className="h-3 w-3" aria-hidden="true" /> : null}
+                                </span>
+                              </span>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
+                <Popover open={sortOpen} onOpenChange={setSortOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="inline-flex items-center gap-2 rounded-full border-inverse/15 bg-card/60 px-3 py-1 text-xs text-fg/80 hover:border-inverse/25 hover:text-fg"
+                    >
+                      <ChevronDown className="h-3 w-3 text-muted-foreground" aria-hidden="true" /> Sort by: {sortLabels[sortOption]}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 rounded-2xl border border-inverse/10 bg-card/95 p-2 text-sm text-fg">
+                    <div className="space-y-1">
+                      {(Object.keys(sortLabels) as SortOption[]).map((value) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => {
+                            setSortOption(value);
+                            setSortOpen(false);
+                          }}
+                          className={cn(
+                            "flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left transition",
+                            sortOption === value ? "bg-accent/20 text-fg" : "hover:bg-inverse/10 hover:text-fg"
+                          )}
+                        >
+                          <span>{sortLabels[value]}</span>
+                          {sortOption === value ? <CheckCircle2 className="h-3.5 w-3.5 text-accent" aria-hidden="true" /> : null}
+                        </button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
           </div>
         </div>
 
