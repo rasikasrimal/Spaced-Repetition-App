@@ -324,6 +324,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
 
     const [width, setWidth] = React.useState(960);
     const [isPanning, setIsPanning] = React.useState(false);
+    const [hoveredTopicId, setHoveredTopicId] = React.useState<string | null>(null);
 
     const tooltipDateFormatter = React.useMemo(
       () =>
@@ -909,6 +910,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       endPan();
       pinchStateRef.current = null;
       activeTouchesRef.current.clear();
+      setHoveredTopicId(null);
     };
 
     const handlePointerCancel: React.PointerEventHandler<SVGRectElement> = () => {
