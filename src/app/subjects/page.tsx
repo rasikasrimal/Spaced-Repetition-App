@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useTopicStore } from "@/stores/topics";
+import { useReviewPreferencesStore } from "@/stores/review-preferences";
 import { FALLBACK_SUBJECT_COLOR } from "@/lib/colors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -144,6 +145,8 @@ const SubjectAdminPage: React.FC = () => {
   const deleteSubject = useTopicStore((state) => state.deleteSubject);
   const summaries = useTopicStore((state) => state.getSubjectSummaries());
   const timezone = useProfileStore((state) => state.profile.timezone) || "Asia/Colombo";
+  const reviewTrigger = useReviewPreferencesStore((state) => state.reviewTrigger);
+  const triggerPercent = Math.round(reviewTrigger * 100);
 
   const [name, setName] = React.useState("");
   const [examDate, setExamDate] = React.useState("");
@@ -324,6 +327,9 @@ const SubjectAdminPage: React.FC = () => {
           <h1 className="text-4xl font-semibold text-fg">Subjects</h1>
           <p className="text-sm text-muted-foreground">
             Manage the subjects that power your review schedule, including exam dates and identity settings.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Adaptive reviews fire as soon as predicted retention dips under {triggerPercent}% for any topic in the subject.
           </p>
         </div>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
