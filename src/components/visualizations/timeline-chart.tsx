@@ -33,6 +33,7 @@ export type TimelineSeries = {
   color: string;
   points: TimelinePoint[];
   segments: TimelineSegment[];
+  connectors: { id: string; from: TimelinePoint; to: TimelinePoint }[];
   stitches: TimelineStitch[];
   events: {
     id: string;
@@ -896,6 +897,25 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeOpacity={showOpacityGradient ? undefined : 1}
+            />
+          );
+        })}
+        {line.connectors.map((connector) => {
+          const fromX = scaleX(connector.from.t);
+          const fromY = scaleY(connector.from.r);
+          const toX = scaleX(connector.to.t);
+          const toY = scaleY(connector.to.r);
+          return (
+            <line
+              key={connector.id}
+              x1={fromX}
+              y1={fromY}
+              x2={toX}
+              y2={toY}
+              stroke={line.color}
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeOpacity={showOpacityGradient ? 0.75 : 1}
             />
           );
         })}
