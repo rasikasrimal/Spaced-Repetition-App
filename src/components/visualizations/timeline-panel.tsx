@@ -79,6 +79,7 @@ type SubjectSeriesGroup = {
 
 type FullscreenTarget =
   | { type: "combined" }
+  | { type: "per-subject-grid" }
   | { type: "subject"; subjectId: string };
 
 const ensureVisibilityState = (topics: Topic[], prev: TopicVisibility): TopicVisibility => {
@@ -932,6 +933,10 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
       if (!exists) {
         setFullscreenTarget(null);
       }
+    } else if (fullscreenTarget.type === "per-subject-grid") {
+      if (perSubjectSeries.length === 0) {
+        setFullscreenTarget(null);
+      }
     }
   }, [fullscreenTarget, domain, yDomain, perSubjectSeries]);
 
@@ -1074,6 +1079,87 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
             showTopicLabels={showTopicLabels}
           />
         )
+      } as const;
+    }
+
+    if (fullscreenTarget.type === "per-subject-grid") {
+      if (perSubjectSeries.length === 0) return null;
+      const columns = perSubjectSeries.length > 1 ? 2 : 1;
+      const rows = Math.max(1, Math.ceil(perSubjectSeries.length / columns));
+      const columnTemplate =
+        columns === 1 ? "minmax(0, 1fr)" : "repeat(auto-fit, minmax(360px, 1fr))";
+      const verticalGap = 24; // gap-6
+      return {
+        title: "Per-subject timelines",
+        subtitle: "Fullscreen view",
+        renderChart: (height: number) => {
+          const usableHeight = Math.max(height - (rows - 1) * verticalGap, 260);
+          const perChartHeight = Math.max(260, Math.floor(usableHeight / rows));
+          return (
+            <div className="flex h-full w-full flex-col overflow-hidden">
+              <div className="flex-1 overflow-auto pr-2">
+                <div
+                  className="grid gap-6"
+                  style={{ gridTemplateColumns: columnTemplate }}
+                >
+                  {perSubjectSeries.map((group) => {
+                    const markers = showExamMarkers
+                      ? examMarkersBySubject.get(group.subjectId) ?? []
+                      : [];
+                    const examLabel = group.subject?.examDate
+                      ? formatDateWithWeekday(group.subject.examDate)
+                      : null;
+                    return (
+                      <div
+                        key={group.subjectId}
+                        className="space-y-2 rounded-3xl border border-inverse/10 bg-card/60 p-4"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="inline-flex h-2 w-2 rounded-full"
+                              style={{ backgroundColor: group.color }}
+                              aria-hidden="true"
+                            />
+                            <h3 className="text-sm font-semibold text-fg">{group.label}</h3>
+                          </div>
+                          {examLabel ? (
+                            <span className="text-xs text-muted-foreground">Exam {examLabel}</span>
+                          ) : null}
+                        </div>
+                        <TimelineChart
+                          series={group.series}
+                          xDomain={domain}
+                          yDomain={yDomain}
+                          onViewportChange={(next, options) =>
+                            handleViewportChange(next, { push: options?.push })
+                          }
+                          height={perChartHeight}
+                          showGrid
+                          fullDomain={fullDomain ?? undefined}
+                          fullYDomain={fullYDomain ?? undefined}
+                          examMarkers={markers}
+                          timeZone={resolvedTimezone}
+                          onResetDomain={handleResetDomain}
+                          ariaDescribedBy={`timeline-zoom-shortcuts ${pointerInstructionId}`}
+                          interactionMode={interactionMode}
+                          temporaryPan={spacePanning}
+                          onRequestStepBack={handleStepBack}
+                          onTooSmallSelection={handleTooSmallSelection}
+                          keyboardSelection={keyboardSelection}
+                          showOpacityGradient={showOpacityGradient}
+                          showReviewMarkers={showReviewMarkers}
+                          showEventDots={showEventDots}
+                          showTopicLabels={showTopicLabels}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          );
+        }
       } as const;
     }
 
@@ -1359,10 +1445,18 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
             size="sm"
             variant="outline"
             onClick={(event) => {
+              const hasSeries = viewMode === "combined" ? series.length > 0 : perSubjectSeries.length > 0;
+              if (!hasSeries) {
+                return;
+              }
               fullscreenReturnFocusRef.current = event.currentTarget;
-              setFullscreenTarget({ type: "combined" });
+              if (viewMode === "combined") {
+                setFullscreenTarget({ type: "combined" });
+              } else {
+                setFullscreenTarget({ type: "per-subject-grid" });
+              }
             }}
-            disabled={!domain || !yDomain || series.length === 0}
+            disabled={viewMode === "combined" ? series.length === 0 : perSubjectSeries.length === 0}
             className="inline-flex items-center gap-2"
             aria-label="Expand timeline to fullscreen"
             title="Expand timeline"
@@ -1680,10 +1774,13 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                             size="icon"
                             variant="ghost"
                             onClick={(event) => {
+                              if (group.series.length === 0) {
+                                return;
+                              }
                               fullscreenReturnFocusRef.current = event.currentTarget;
                               setFullscreenTarget({ type: "subject", subjectId: group.subjectId });
                             }}
-                            disabled={!domain || !yDomain || group.series.length === 0}
+                            disabled={group.series.length === 0}
                             aria-label={`Expand ${group.label} timeline`}
                             title="Expand timeline"
                           >
