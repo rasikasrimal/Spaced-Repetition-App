@@ -1325,7 +1325,7 @@ const WizardStepContent: React.FC<WizardStepContentProps> = ({
 
             <p className="text-xs text-muted-foreground">
 
-              Adjust or add intervals to match your pace. We�ll keep them flexible so reviews never pile up.
+              Adjust or add intervals to match your pace. We&apos;ll keep them flexible so reviews never pile up.
 
             </p>
 
@@ -1387,7 +1387,7 @@ const WizardStepContent: React.FC<WizardStepContentProps> = ({
 
             <p className="text-warn/20/80">
 
-              Use the �Skip today� action sparingly � we�ll rebalance the schedule, but you should still aim to review consistently.
+              Use the &apos;Skip today&apos; action sparingly - we&apos;ll rebalance the schedule, but you should still aim to review consistently.
 
             </p>
 
@@ -1547,7 +1547,7 @@ const WizardStepContent: React.FC<WizardStepContentProps> = ({
 
         <p className="text-xs text-muted-foreground">
 
-          {notes.trim() || "Nothing yet � add a note in the previous step to make reviews richer."}
+          {notes.trim() || "Nothing yet - add a note in the previous step to make reviews richer."}
 
         </p>
 
@@ -1624,3 +1624,8 @@ const WizardSteps = ({ steps, activeStep }: { steps: typeof wizardSteps; activeS
   );
 
 };
+
+
+
+
+
