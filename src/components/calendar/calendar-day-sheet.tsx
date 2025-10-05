@@ -135,7 +135,7 @@ export function CalendarDaySheet({
   const overlay = (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-[1200] flex items-end justify-center bg-slate-950/80 px-4 pb-[max(env(safe-area-inset-bottom),20px)] pt-6 backdrop-blur-sm transition sm:items-center sm:px-6"
+      className="fixed inset-0 z-[1200] flex items-end justify-center bg-bg/80 px-4 pb-[max(env(safe-area-inset-bottom),20px)] pt-6 backdrop-blur-sm transition sm:items-center sm:px-6"
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === overlayRef.current) {
@@ -148,12 +148,12 @@ export function CalendarDaySheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby="calendar-day-sheet-title"
-        className="relative flex w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-slate-900/95 text-white shadow-2xl"
+        className="relative flex w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-inverse/10 bg-card/95 text-fg shadow-2xl"
       >
-        <header className="flex items-start justify-between gap-4 border-b border-white/5 px-6 py-5">
+        <header className="flex items-start justify-between gap-4 border-b border-inverse/5 px-6 py-5">
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-zinc-400">
-              <span id="calendar-day-sheet-title" className="font-semibold text-white">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+              <span id="calendar-day-sheet-title" className="font-semibold text-fg">
                 {formattedDate}
               </span>
               {day.isToday ? (
@@ -163,13 +163,13 @@ export function CalendarDaySheet({
               ) : null}
             </div>
             {day.hasOverdueBacklog ? (
-              <div className="inline-flex items-center gap-2 rounded-full bg-rose-500/15 px-3 py-1 text-[11px] font-semibold text-rose-200">
+              <div className="inline-flex items-center gap-2 rounded-full bg-error/15 px-3 py-1 text-[11px] font-semibold text-error/20">
                 <AlertTriangle className="h-3 w-3" aria-hidden="true" />
                 Overdue reviews waiting
               </div>
             ) : null}
             {day.hasExam && day.examSubjects.length > 0 ? (
-              <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-200" aria-label="Exam markers">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-fg/80" aria-label="Exam markers">
                 {day.examSubjects.map((entry) => {
                   const examLabel = `Exam: ${entry.name} — ${fullExamDate}`;
                   return (
@@ -188,7 +188,7 @@ export function CalendarDaySheet({
               </div>
             ) : null}
             {showCapacityHint ? (
-              <p className="text-xs font-medium text-amber-200">
+              <p className="text-xs font-medium text-warn/30">
                 Busy day ahead — consider reviewing some items earlier.
               </p>
             ) : null}
@@ -199,14 +199,14 @@ export function CalendarDaySheet({
             size="icon"
             onClick={onClose}
             aria-label="Close day details"
-            className="rounded-full border border-white/15 text-zinc-300 hover:text-white"
+            className="rounded-full border border-inverse/15 text-muted-foreground hover:text-fg"
           >
             <X className="h-4 w-4" />
           </Button>
         </header>
         <div className="custom-scrollbar flex max-h-[70vh] flex-col gap-6 overflow-y-auto px-6 py-6 sm:max-h-[60vh]">
           {subjectsForDay.length === 0 ? (
-            <p className="text-sm text-zinc-300">No reviews scheduled for this day.</p>
+            <p className="text-sm text-muted-foreground">No reviews scheduled for this day.</p>
           ) : (
             subjectsForDay.map((entry) => (
               <section key={entry.subject.id} className="space-y-3">
@@ -218,8 +218,8 @@ export function CalendarDaySheet({
                     <IconPreview name={entry.subject.icon} className="h-5 w-5" />
                   </span>
                   <div>
-                    <p className="font-semibold text-white">{entry.subject.name}</p>
-                    <p className="text-xs text-zinc-400">{entry.count} {entry.count === 1 ? "topic" : "topics"} scheduled</p>
+                    <p className="font-semibold text-fg">{entry.subject.name}</p>
+                    <p className="text-xs text-muted-foreground">{entry.count} {entry.count === 1 ? "topic" : "topics"} scheduled</p>
                   </div>
                 </div>
                 <ul className="space-y-3">
@@ -235,12 +235,12 @@ export function CalendarDaySheet({
                       return (
                         <li
                           key={topic.id}
-                          className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-100"
+                          className="rounded-2xl border border-inverse/10 bg-inverse/5 px-4 py-3 text-sm text-inverse"
                         >
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <div>
-                              <p className="font-medium text-white">{topic.title}</p>
-                              <p className="text-xs text-zinc-400">
+                              <p className="font-medium text-fg">{topic.title}</p>
+                              <p className="text-xs text-muted-foreground">
                                 Next review window: {dueTimeLabel}
                               </p>
                             </div>
@@ -260,16 +260,16 @@ export function CalendarDaySheet({
                                   size="sm"
                                   variant="outline"
                                   disabled
-                                  className="rounded-full border-dashed text-zinc-400"
+                                  className="rounded-full border-dashed text-muted-foreground"
                                   title={allowance.message}
                                 >
                                   {allowance.message ?? "Not available"}
                                 </Button>
                               )
                             ) : day.isPast ? (
-                              <span className="text-xs font-medium text-amber-200">Missed - catch up anytime.</span>
+                              <span className="text-xs font-medium text-warn/30">Missed - catch up anytime.</span>
                             ) : (
-                              <span className="text-xs text-zinc-400">Scheduled for this day.</span>
+                              <span className="text-xs text-muted-foreground">Scheduled for this day.</span>
                             )}
                           </div>
                         </li>

@@ -128,7 +128,7 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
         <motion.div
           key="confirmation-dialog"
           ref={overlayRef}
-          className="fixed inset-0 z-[1100] flex items-center justify-center bg-slate-950/70 backdrop-blur"
+          className="fixed inset-0 z-[1100] flex items-center justify-center bg-bg/70 backdrop-blur"
           role="presentation"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -149,29 +149,29 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
             transition={{ type: "spring", stiffness: 260, damping: 26 }}
-            className="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900/90 p-6 shadow-2xl"
+            className="w-full max-w-md rounded-3xl border border-inverse/10 bg-card/90 p-6 shadow-2xl"
           >
             <div className="flex items-start gap-3">
-              {icon ? <span className="mt-1 rounded-2xl bg-white/10 p-2 text-accent" aria-hidden="true">{icon}</span> : null}
+              {icon ? <span className="mt-1 rounded-2xl bg-inverse/10 p-2 text-accent" aria-hidden="true">{icon}</span> : null}
               <div className="space-y-2">
-                <h2 id={titleId} className="text-lg font-semibold text-white">
+                <h2 id={titleId} className="text-lg font-semibold text-fg">
                   {title}
                 </h2>
-                <p id={descriptionId} className="text-sm text-zinc-300">
+                <p id={descriptionId} className="text-sm text-muted-foreground">
                   {description}
                 </p>
-                {warning ? <p className="text-xs font-semibold text-amber-200">{warning}</p> : null}
+                {warning ? <p className="text-xs font-semibold text-warn/30">{warning}</p> : null}
               </div>
             </div>
             {extraActions && extraActions.length > 0 ? (
-              <div className="mt-4 space-y-2 rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-zinc-300">
-                <p className="font-semibold text-white">Quick preferences</p>
+              <div className="mt-4 space-y-2 rounded-2xl border border-inverse/10 bg-inverse/5 p-3 text-xs text-muted-foreground">
+                <p className="font-semibold text-fg">Quick preferences</p>
                 {extraActions.map((action) => (
                   <button
                     key={action.label}
                     type="button"
                     onClick={action.action}
-                    className="w-full rounded-xl border border-white/10 px-3 py-2 text-left transition hover:border-accent/40 hover:text-accent"
+                    className="w-full rounded-xl border border-inverse/10 px-3 py-2 text-left transition hover:border-accent/40 hover:text-accent"
                   >
                     {action.label}
                   </button>
@@ -188,9 +188,9 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
                 className={cn(
                   "min-w-[140px] rounded-2xl",
                   confirmTone === "danger"
-                    ? "bg-rose-500/80 hover:bg-rose-500 text-white"
+                    ? "bg-error/80 hover:bg-error text-fg"
                     : confirmTone === "warning"
-                    ? "bg-amber-500/80 hover:bg-amber-500 text-slate-900"
+                    ? "bg-warn/80 hover:bg-warn text-inverse-foreground"
                     : ""
                 )}
               >

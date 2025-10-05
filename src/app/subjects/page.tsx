@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useTopicStore } from "@/stores/topics";
+import { FALLBACK_SUBJECT_COLOR } from "@/lib/colors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -54,9 +55,9 @@ const toDateInputValue = (value: string | null | undefined) => {
 type TopicStatus = "overdue" | "due-today" | "upcoming";
 
 const STATUS_META: Record<TopicStatus, { label: string; tone: string }> = {
-  overdue: { label: "Overdue", tone: "bg-rose-500/20 text-rose-100" },
-  "due-today": { label: "Due today", tone: "bg-amber-500/20 text-amber-100" },
-  upcoming: { label: "Upcoming", tone: "bg-sky-500/20 text-sky-100" }
+  overdue: { label: "Overdue", tone: "bg-error/20 text-error/20" },
+  "due-today": { label: "Due today", tone: "bg-warn/20 text-warn/20" },
+  upcoming: { label: "Upcoming", tone: "bg-accent/20 text-accent/20" }
 };
 
 const DEFAULT_SUBJECT_ID = "subject-general";
@@ -81,44 +82,44 @@ const getExamUrgencyMeta = (daysLeft: number | null): ExamUrgencyMeta => {
   if (daysLeft === null) {
     return {
       label: "No exam date",
-      badgeClass: "bg-zinc-800/80 text-zinc-200",
+      badgeClass: "bg-muted/80 text-fg/80",
       description: "Set an exam date to unlock countdowns and exam alerts.",
-      accentClass: "ring-1 ring-inset ring-zinc-700/40"
+      accentClass: "ring-1 ring-inset ring-border/60"
     };
   }
 
   if (daysLeft < 0) {
     return {
       label: "Exam passed",
-      badgeClass: "bg-zinc-800/80 text-zinc-200",
+      badgeClass: "bg-muted/80 text-fg/80",
       description: "This exam date has passed. Plan a new milestone when you are ready.",
-      accentClass: "ring-1 ring-inset ring-zinc-700/40"
+      accentClass: "ring-1 ring-inset ring-border/60"
     };
   }
 
   if (daysLeft <= 7) {
     return {
       label: "Urgent",
-      badgeClass: "bg-rose-500/20 text-rose-100",
+      badgeClass: "bg-error/20 text-error/20",
       description: "Exam is around the corner. Prioritise these reviews.",
-      accentClass: "ring-1 ring-inset ring-rose-400/40"
+      accentClass: "ring-1 ring-inset ring-error/40"
     };
   }
 
   if (daysLeft <= 30) {
     return {
       label: "Next up",
-      badgeClass: "bg-amber-500/20 text-amber-100",
+      badgeClass: "bg-warn/20 text-warn/20",
       description: "Exam is approaching. Keep momentum steady.",
-      accentClass: "ring-1 ring-inset ring-amber-300/40"
+      accentClass: "ring-1 ring-inset ring-warn/40"
     };
   }
 
   return {
     label: "Plenty of time",
-    badgeClass: "bg-emerald-500/20 text-emerald-100",
+    badgeClass: "bg-success/20 text-success/20",
     description: "Planned well ahead. Maintain a consistent cadence.",
-    accentClass: "ring-1 ring-inset ring-emerald-300/40"
+    accentClass: "ring-1 ring-inset ring-success/40"
   };
 };
 
@@ -133,10 +134,10 @@ const SubjectAdminPage: React.FC = () => {
 
   const [name, setName] = React.useState("");
   const [examDate, setExamDate] = React.useState("");
-  const [color, setColor] = React.useState("#38bdf8");
+  const [color, setColor] = React.useState(FALLBACK_SUBJECT_COLOR);
   const [icon, setIcon] = React.useState("Sparkles");
   const [editing, setEditing] = React.useState<string | null>(null);
-  const [editDraft, setEditDraft] = React.useState({ name: "", examDate: "", color: "#38bdf8", icon: "Sparkles" });
+  const [editDraft, setEditDraft] = React.useState({ name: "", examDate: "", color: FALLBACK_SUBJECT_COLOR, icon: "Sparkles" });
   const [expandedSubjects, setExpandedSubjects] = React.useState<Set<string>>(new Set());
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
   const [sortOption, setSortOption] = React.useState<SortOption>("urgency");
@@ -221,7 +222,7 @@ const SubjectAdminPage: React.FC = () => {
   const resetForm = () => {
     setName("");
     setExamDate("");
-    setColor("#38bdf8");
+    setColor(FALLBACK_SUBJECT_COLOR);
     setIcon("Sparkles");
   };
 
@@ -307,16 +308,16 @@ const SubjectAdminPage: React.FC = () => {
     <main className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-10 px-4 pb-24 pt-12 md:px-8 lg:px-10">
       <header className="relative flex flex-col gap-6 pb-8">
         <div className="space-y-3 pr-0 md:pr-64">
-          <h1 className="text-4xl font-semibold text-white">Subjects</h1>
-          <p className="text-sm text-zinc-400">
+          <h1 className="text-4xl font-semibold text-fg">Subjects</h1>
+          <p className="text-sm text-muted-foreground">
             Manage the subjects that power your review schedule, including exam dates and identity settings.
           </p>
         </div>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-            <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Sort</span>
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">Sort</span>
             <Select value={sortOption} onValueChange={(value) => setSortOption(value as SortOption)}>
-              <SelectTrigger className="w-48 border-white/10 bg-white/5 text-white/90 backdrop-blur">
+              <SelectTrigger className="w-48 border-inverse/10 bg-inverse/5 text-fg/90 backdrop-blur">
                 <SelectValue placeholder="Sort subjects" />
               </SelectTrigger>
               <SelectContent>
@@ -329,14 +330,14 @@ const SubjectAdminPage: React.FC = () => {
               </SelectContent>
             </Select>
           </div>
-          <p className="text-xs text-zinc-500 sm:text-sm">
+          <p className="text-xs text-muted-foreground/80 sm:text-sm">
             {subjects.length} subject{subjects.length === 1 ? "" : "s"} tracked
           </p>
         </div>
         <Button
           size="lg"
           onClick={() => setIsCreateOpen(true)}
-          className="self-start rounded-full bg-accent px-6 py-3 text-base font-semibold shadow-[0_20px_60px_-20px_rgba(56,189,248,0.6)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 md:absolute md:right-0 md:top-0"
+          className="self-start rounded-full bg-accent px-6 py-3 text-base font-semibold shadow-[0_20px_60px_-20px_hsl(var(--accent)_/_0.6)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 md:absolute md:right-0 md:top-0"
           aria-haspopup="dialog"
           aria-expanded={isCreateOpen}
           aria-controls="create-subject-drawer"
@@ -347,8 +348,8 @@ const SubjectAdminPage: React.FC = () => {
 
       <section className="space-y-6">
         <div className="flex flex-col gap-2">
-          <h2 className="text-lg font-semibold text-white">Subjects overview</h2>
-          <p className="text-sm text-zinc-400">
+          <h2 className="text-lg font-semibold text-fg">Subjects overview</h2>
+          <p className="text-sm text-muted-foreground">
             Monitor exam timelines, review momentum, and drill into topics from a single place.
           </p>
         </div>
@@ -362,7 +363,7 @@ const SubjectAdminPage: React.FC = () => {
             const examDateValue = subject.examDate ? new Date(subject.examDate) : null;
             const daysLeft = examDateValue ? daysBetween(startOfToday, examDateValue) : null;
             const urgencyMeta = getExamUrgencyMeta(daysLeft);
-            const accentColor = (subject.color?.trim() || "#38bdf8") as string;
+            const accentColor = (subject.color?.trim() || FALLBACK_SUBJECT_COLOR) as string;
             const topicsCount = summary?.topicsCount ?? subjectTopics.length;
             const upcomingCount = summary?.upcomingReviewsCount ?? 0;
             const nextReviewAt = summary?.nextReviewAt ?? null;
@@ -392,7 +393,7 @@ const SubjectAdminPage: React.FC = () => {
               return (
                 <div
                   key={subject.id}
-                  className={`relative overflow-hidden rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-xl shadow-slate-950/40 ${urgencyMeta.accentClass}`}
+                  className={`relative overflow-hidden rounded-3xl border border-inverse/10 bg-bg/70 p-6 shadow-xl shadow-slate-950/40 ${urgencyMeta.accentClass}`}
                 >
                   <div
                     aria-hidden="true"
@@ -404,9 +405,9 @@ const SubjectAdminPage: React.FC = () => {
                   <div className="flex flex-col gap-6">
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Editing</p>
-                        <h3 className="text-xl font-semibold text-white">{subject.name}</h3>
-                        <p className="text-sm text-zinc-400">Adjust the identity and exam target for this subject.</p>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">Editing</p>
+                        <h3 className="text-xl font-semibold text-fg">{subject.name}</h3>
+                        <p className="text-sm text-muted-foreground">Adjust the identity and exam target for this subject.</p>
                       </div>
                       <Button type="button" variant="ghost" onClick={handleCancelEdit}>
                         Cancel
@@ -420,7 +421,7 @@ const SubjectAdminPage: React.FC = () => {
                           value={editDraft.name}
                           onChange={(event) => setEditDraft((prev) => ({ ...prev, name: event.target.value }))}
                           placeholder="Subject name"
-                          className="h-11 rounded-xl border-white/10 bg-white/5 text-white"
+                          className="h-11 rounded-xl border-inverse/10 bg-inverse/5 text-fg"
                         />
                       </div>
                       <div className="space-y-2">
@@ -431,7 +432,7 @@ const SubjectAdminPage: React.FC = () => {
                           value={editDraft.examDate}
                           min={toDateInputValue(new Date().toISOString())}
                           onChange={(event) => setEditDraft((prev) => ({ ...prev, examDate: event.target.value }))}
-                          className="h-11 rounded-xl border-white/10 bg-white/5 text-white"
+                          className="h-11 rounded-xl border-inverse/10 bg-inverse/5 text-fg"
                         />
                       </div>
                     </div>
@@ -445,20 +446,20 @@ const SubjectAdminPage: React.FC = () => {
                         <ColorPicker value={editDraft.color} onChange={(value) => setEditDraft((prev) => ({ ...prev, color: value }))} />
                       </div>
                     </div>
-                    <div className="rounded-2xl border border-white/10 bg-slate-950/80 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Live preview</p>
+                    <div className="rounded-2xl border border-inverse/10 bg-bg/80 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Live preview</p>
                       <div className="mt-3 flex items-center gap-3">
                         <span
-                          className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/5"
+                          className="flex h-12 w-12 items-center justify-center rounded-2xl border border-inverse/5"
                           style={{ backgroundColor: `${editDraft.color}22`, color: editDraft.color }}
                           aria-hidden="true"
                         >
                           <IconPreview name={editDraft.icon} className="h-5 w-5" />
                         </span>
-                        <div className="space-y-1 text-xs text-zinc-300">
-                          <p className="text-sm font-semibold text-white">{editDraft.name || "Untitled subject"}</p>
+                        <div className="space-y-1 text-xs text-muted-foreground">
+                          <p className="text-sm font-semibold text-fg">{editDraft.name || "Untitled subject"}</p>
                           <p>{previewExamLabel}</p>
-                          <p className="text-[11px] text-zinc-500">
+                          <p className="text-[11px] text-muted-foreground/80">
                             Saving applies the new identity to every topic in this subject.
                           </p>
                         </div>
@@ -480,7 +481,7 @@ const SubjectAdminPage: React.FC = () => {
             return (
               <article
                 key={subject.id}
-                className={`relative overflow-hidden rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-xl shadow-slate-950/40 ${urgencyMeta.accentClass}`}
+                className={`relative overflow-hidden rounded-3xl border border-inverse/10 bg-bg/70 p-6 shadow-xl shadow-slate-950/40 ${urgencyMeta.accentClass}`}
               >
                 <div
                   aria-hidden="true"
@@ -493,15 +494,15 @@ const SubjectAdminPage: React.FC = () => {
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="flex flex-1 items-start gap-4">
                       <span
-                        className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10"
+                        className="flex h-14 w-14 items-center justify-center rounded-2xl border border-inverse/10"
                         style={{ backgroundColor: `${accentColor}22`, color: accentColor }}
                         aria-hidden="true"
                       >
                         <IconPreview name={subject.icon} className="h-6 w-6" />
                       </span>
                       <div className="space-y-3">
-                        <h3 className="text-xl font-semibold text-white">{subject.name}</h3>
-                        <div className="space-y-2 text-sm text-zinc-300">
+                        <h3 className="text-xl font-semibold text-fg">{subject.name}</h3>
+                        <div className="space-y-2 text-sm text-muted-foreground">
                           <div className="flex flex-wrap items-center gap-2">
                             <span
                               className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${urgencyMeta.badgeClass}`}
@@ -510,12 +511,12 @@ const SubjectAdminPage: React.FC = () => {
                               {examBadgeText}
                             </span>
                             {subject.examDate ? (
-                              <span className="text-sm text-zinc-300">
+                              <span className="text-sm text-muted-foreground">
                                 Exam on {formatFullDate(subject.examDate)}
                                 {countdownText ? ` • ${countdownText}` : ""}
                               </span>
                             ) : (
-                              <span className="text-sm text-zinc-400">{urgencyMeta.description}</span>
+                              <span className="text-sm text-muted-foreground">{urgencyMeta.description}</span>
                             )}
                           </div>
                         </div>
@@ -526,7 +527,7 @@ const SubjectAdminPage: React.FC = () => {
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="gap-2 border-white/10 bg-white/5 text-white hover:border-white/30 hover:bg-white/10"
+                        className="gap-2 border-inverse/10 bg-inverse/5 text-fg hover:border-inverse/30 hover:bg-inverse/10"
                         onClick={() => handleStartEdit(subject)}
                       >
                         <PencilLine className="h-4 w-4" /> Edit
@@ -535,7 +536,7 @@ const SubjectAdminPage: React.FC = () => {
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="text-rose-200 hover:text-rose-100"
+                        className="text-error/20 hover:text-error/20"
                         onClick={() => setSubjectPendingDelete(subject)}
                         disabled={hasTopics}
                         aria-label={
@@ -548,58 +549,58 @@ const SubjectAdminPage: React.FC = () => {
                   </div>
 
                   <div className="grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-2xl border border-white/10 bg-slate-950/80 p-4">
-                      <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                    <div className="rounded-2xl border border-inverse/10 bg-bg/80 p-4">
+                      <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         <span>Topics</span>
-                        <BookOpen className="h-4 w-4 text-zinc-500" aria-hidden="true" />
+                        <BookOpen className="h-4 w-4 text-muted-foreground/80" aria-hidden="true" />
                       </div>
-                      <p className="mt-2 text-2xl font-semibold text-white">{topicsCount}</p>
+                      <p className="mt-2 text-2xl font-semibold text-fg">{topicsCount}</p>
                       {topicsCount === 0 ? (
                         <span
-                          className="mt-2 inline-flex items-center gap-1 text-xs text-zinc-500"
+                          className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground/80"
                           title="No topics yet. Create topics and assign them to this subject."
                         >
-                          <Info className="h-3.5 w-3.5 text-zinc-600" aria-hidden="true" />
+                          <Info className="h-3.5 w-3.5 text-muted-foreground/80" aria-hidden="true" />
                           No topics
                         </span>
                       ) : (
-                        <p className="mt-2 text-xs text-zinc-400">Active topics</p>
+                        <p className="mt-2 text-xs text-muted-foreground">Active topics</p>
                       )}
                     </div>
-                    <div className="rounded-2xl border border-white/10 bg-slate-950/80 p-4">
-                      <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                    <div className="rounded-2xl border border-inverse/10 bg-bg/80 p-4">
+                      <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         <span>Upcoming</span>
-                        <RefreshCw className="h-4 w-4 text-zinc-500" aria-hidden="true" />
+                        <RefreshCw className="h-4 w-4 text-muted-foreground/80" aria-hidden="true" />
                       </div>
-                      <p className="mt-2 text-2xl font-semibold text-white">{upcomingCount}</p>
+                      <p className="mt-2 text-2xl font-semibold text-fg">{upcomingCount}</p>
                       {upcomingCount === 0 ? (
                         <span
-                          className="mt-2 inline-flex items-center gap-1 text-xs text-zinc-500"
+                          className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground/80"
                           title="No reviews scheduled in the next 7 days."
                         >
-                          <Info className="h-3.5 w-3.5 text-zinc-600" aria-hidden="true" />
+                          <Info className="h-3.5 w-3.5 text-muted-foreground/80" aria-hidden="true" />
                           No upcoming reviews
                         </span>
                       ) : (
-                        <p className="mt-2 text-xs text-zinc-400">Reviews next 7 days</p>
+                        <p className="mt-2 text-xs text-muted-foreground">Reviews next 7 days</p>
                       )}
                     </div>
-                    <div className="rounded-2xl border border-white/10 bg-slate-950/80 p-4">
-                      <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                    <div className="rounded-2xl border border-inverse/10 bg-bg/80 p-4">
+                      <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         <span>Next review</span>
-                        <Clock className="h-4 w-4 text-zinc-500" aria-hidden="true" />
+                        <Clock className="h-4 w-4 text-muted-foreground/80" aria-hidden="true" />
                       </div>
-                      <p className="mt-2 text-sm font-semibold text-white">
+                      <p className="mt-2 text-sm font-semibold text-fg">
                         {nextReviewAt ? formatDateWithWeekday(nextReviewAt) : "--"}
                       </p>
                       {nextReviewAt ? (
-                        <p className="mt-1 text-xs text-zinc-400">{formatRelativeToNow(nextReviewAt)}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{formatRelativeToNow(nextReviewAt)}</p>
                       ) : (
                         <span
-                          className="mt-1 inline-flex items-center gap-1 text-xs text-zinc-500"
+                          className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground/80"
                           title="Once a topic is due this will show the next review time."
                         >
-                          <Info className="h-3.5 w-3.5 text-zinc-600" aria-hidden="true" />
+                          <Info className="h-3.5 w-3.5 text-muted-foreground/80" aria-hidden="true" />
                           No upcoming reviews
                         </span>
                       )}
@@ -607,8 +608,8 @@ const SubjectAdminPage: React.FC = () => {
                   </div>
 
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 text-xs text-zinc-400">
-                      <Clock className="h-3.5 w-3.5 text-zinc-500" aria-hidden="true" />
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Clock className="h-3.5 w-3.5 text-muted-foreground/80" aria-hidden="true" />
                       <span>{nextReviewLabel}</span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -616,7 +617,7 @@ const SubjectAdminPage: React.FC = () => {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="gap-2 text-white/80 hover:text-white"
+                        className="gap-2 text-fg/80 hover:text-fg"
                         onClick={() => toggleSubjectExpansion(subject.id)}
                         aria-expanded={isExpanded}
                         aria-controls={`subject-topics-${subject.id}`}
@@ -630,11 +631,11 @@ const SubjectAdminPage: React.FC = () => {
                   {isExpanded ? (
                     <div
                       id={`subject-topics-${subject.id}`}
-                      className="mt-4 space-y-3 rounded-2xl border border-white/10 bg-slate-950/80 p-4"
+                      className="mt-4 space-y-3 rounded-2xl border border-inverse/10 bg-bg/80 p-4"
                     >
                       {subjectTopics.length === 0 ? (
-                        <div className="flex items-center gap-2 text-sm text-zinc-400">
-                          <Info className="h-4 w-4 text-zinc-500" aria-hidden="true" />
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Info className="h-4 w-4 text-muted-foreground/80" aria-hidden="true" />
                           No topics assigned yet.
                         </div>
                       ) : (
@@ -646,11 +647,11 @@ const SubjectAdminPage: React.FC = () => {
                           return (
                             <div
                               key={topic.id}
-                              className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-slate-950/90 p-4 md:flex-row md:items-center md:justify-between"
+                              className="flex flex-col gap-3 rounded-2xl border border-inverse/10 bg-bg/90 p-4 md:flex-row md:items-center md:justify-between"
                             >
                               <div className="min-w-0 space-y-1">
-                                <p className="text-sm font-semibold text-white">{topic.title}</p>
-                                <p className="text-xs text-zinc-400">
+                                <p className="text-sm font-semibold text-fg">{topic.title}</p>
+                                <p className="text-xs text-muted-foreground">
                                   Next {nextDateLabel} • {nextRelative}
                                 </p>
                               </div>
@@ -664,7 +665,7 @@ const SubjectAdminPage: React.FC = () => {
                                   asChild
                                   size="sm"
                                   variant="outline"
-                                  className="gap-2 border-white/10 bg-white/5 text-white hover:border-white/30 hover:bg-white/10"
+                                  className="gap-2 border-inverse/10 bg-inverse/5 text-fg hover:border-inverse/30 hover:bg-inverse/10"
                                 >
                                   <Link href={`/subjects/${subject.id}/history`}>
                                     <Clock className="h-4 w-4" aria-hidden="true" /> Review history
@@ -684,9 +685,9 @@ const SubjectAdminPage: React.FC = () => {
         </div>
 
         {sortedSubjects.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-white/10 bg-slate-950/60 p-10 text-center text-sm text-zinc-400">
+          <div className="rounded-3xl border border-dashed border-inverse/10 bg-bg/60 p-10 text-center text-sm text-muted-foreground">
             <p className="mx-auto max-w-sm">
-              You haven’t created any subjects yet. Use the <span className="font-semibold text-white">New Subject</span> button to get started.
+              You haven’t created any subjects yet. Use the <span className="font-semibold text-fg">New Subject</span> button to get started.
             </p>
           </div>
         ) : null}
@@ -704,11 +705,11 @@ const SubjectAdminPage: React.FC = () => {
             onClick={() => setIsCreateOpen(false)}
             aria-hidden="true"
           />
-          <aside className="relative ml-auto flex h-full w-full max-w-md flex-col overflow-y-auto bg-slate-950/95 p-6 shadow-2xl shadow-black/50">
+          <aside className="relative ml-auto flex h-full w-full max-w-md flex-col overflow-y-auto bg-bg/95 p-6 shadow-2xl shadow-black/50">
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1">
-                <h2 className="text-2xl font-semibold text-white">Create a subject</h2>
-                <p className="text-sm text-zinc-400">
+                <h2 className="text-2xl font-semibold text-fg">Create a subject</h2>
+                <p className="text-sm text-muted-foreground">
                   Subjects group related topics and enforce exam date cutoffs.
                 </p>
               </div>
@@ -726,7 +727,7 @@ const SubjectAdminPage: React.FC = () => {
                   value={name}
                   onChange={(event) => setName(event.target.value)}
                   placeholder="e.g., Organic Chemistry"
-                  className="h-11 rounded-xl border-white/10 bg-white/5 text-white"
+                  className="h-11 rounded-xl border-inverse/10 bg-inverse/5 text-fg"
                 />
               </div>
               <div className="space-y-2">
@@ -737,9 +738,9 @@ const SubjectAdminPage: React.FC = () => {
                   value={examDate}
                   min={toDateInputValue(new Date().toISOString())}
                   onChange={(event) => setExamDate(event.target.value)}
-                  className="h-11 rounded-xl border-white/10 bg-white/5 text-white"
+                  className="h-11 rounded-xl border-inverse/10 bg-inverse/5 text-fg"
                 />
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-muted-foreground/80">
                   Set the exam date for this subject to optimise your review schedule. No reviews will be scheduled after the exam.
                 </p>
               </div>
@@ -753,20 +754,20 @@ const SubjectAdminPage: React.FC = () => {
                   <ColorPicker value={color} onChange={setColor} />
                 </div>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-slate-950/80 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Live preview</p>
+              <div className="rounded-2xl border border-inverse/10 bg-bg/80 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Live preview</p>
                 <div className="mt-3 flex items-start gap-3">
                   <span
-                    className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/5"
+                    className="flex h-12 w-12 items-center justify-center rounded-2xl border border-inverse/5"
                     style={{ backgroundColor: `${color}22`, color }}
                     aria-hidden="true"
                   >
                     <IconPreview name={icon} className="h-5 w-5" />
                   </span>
-                  <div className="space-y-1 text-xs text-zinc-300">
-                    <p className="text-sm font-semibold text-white">{name || "Untitled subject"}</p>
+                  <div className="space-y-1 text-xs text-muted-foreground">
+                    <p className="text-sm font-semibold text-fg">{name || "Untitled subject"}</p>
                     <p>{examDate ? formatFullDate(examDate) : "No exam date"}</p>
-                    <p className="text-[11px] text-zinc-500">Topics created in this subject will use this identity.</p>
+                    <p className="text-[11px] text-muted-foreground/80">Topics created in this subject will use this identity.</p>
                   </div>
                 </div>
               </div>

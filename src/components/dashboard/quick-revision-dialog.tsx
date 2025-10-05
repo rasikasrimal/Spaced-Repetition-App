@@ -144,7 +144,7 @@ export function QuickRevisionDialog({
   const overlay = (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-[1000] flex items-end justify-center bg-slate-950/80 px-4 pb-[max(env(safe-area-inset-bottom),16px)] pt-[max(env(safe-area-inset-top),24px)] backdrop-blur-sm transition sm:items-center sm:pb-6"
+      className="fixed inset-0 z-[1000] flex items-end justify-center bg-bg/80 px-4 pb-[max(env(safe-area-inset-bottom),16px)] pt-[max(env(safe-area-inset-top),24px)] backdrop-blur-sm transition sm:items-center sm:pb-6"
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === overlayRef.current) {
@@ -158,34 +158,34 @@ export function QuickRevisionDialog({
         aria-modal="true"
         aria-labelledby="quick-revision-title"
         aria-describedby="quick-revision-description"
-        className="relative w-full max-w-md max-h-[calc(100vh-3rem)] overflow-y-auto rounded-3xl border border-white/10 bg-slate-900/95 p-6 text-white shadow-2xl outline-none sm:max-h-[min(520px,calc(100vh-6rem))] sm:p-8"
+        className="relative w-full max-w-md max-h-[calc(100vh-3rem)] overflow-y-auto rounded-3xl border border-inverse/10 bg-card/95 p-6 text-fg shadow-2xl outline-none sm:max-h-[min(520px,calc(100vh-6rem))] sm:p-8"
         tabIndex={-1}
       >
         <button
           type="button"
-          className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-zinc-300 transition hover:text-white"
+          className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full border border-inverse/10 text-muted-foreground transition hover:text-fg"
           onClick={onClose}
           aria-label="Close quick revision dialog"
         >
           <X className="h-4 w-4" />
         </button>
         <div className="space-y-3 pr-8">
-          <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-200">
+          <div className="inline-flex items-center gap-2 rounded-full bg-success/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-success/20">
             Quick revision
           </div>
-          <h2 id="quick-revision-title" className="text-xl font-semibold text-white">
+          <h2 id="quick-revision-title" className="text-xl font-semibold text-fg">
             Quick revision
           </h2>
-          <p id="quick-revision-description" className="text-sm text-zinc-300">
+          <p id="quick-revision-description" className="text-sm text-muted-foreground">
             {topicTitle ? (
               <>
-                Record today’s revision for <span className="font-semibold text-white">{topicTitle}</span>. We’ll keep your scheduled reviews intact.
+                Record today’s revision for <span className="font-semibold text-fg">{topicTitle}</span>. We’ll keep your scheduled reviews intact.
               </>
             ) : (
               "Record today’s revision without changing your upcoming schedule."
             )}
           </p>
-          <p className="text-xs text-zinc-400">
+          <p className="text-xs text-muted-foreground">
             You can log one quick revision per topic each day. Use it when you squeeze in extra practice.
           </p>
         </div>
@@ -202,7 +202,7 @@ export function QuickRevisionDialog({
             type="button"
             onClick={onConfirm}
             disabled={isConfirming}
-            className="w-full rounded-2xl bg-emerald-500/80 text-slate-950 transition hover:bg-emerald-400 sm:w-auto"
+            className="w-full rounded-2xl bg-success/80 text-inverse-foreground transition hover:bg-success sm:w-auto"
           >
             Log revision
           </Button>

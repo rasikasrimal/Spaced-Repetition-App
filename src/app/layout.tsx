@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import "./globals.css";
+import "@/styles/theme.css";
+import "@/styles/globals.css";
+import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
 import { AppShell } from "@/components/layout/app-shell";
 
@@ -18,9 +20,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} min-h-screen bg-surface text-surface-foreground`}>        
-        <Toaster richColors position="top-right" />
-        <AppShell>{children}</AppShell>
+      <body className={`${inter.variable} min-h-screen bg-bg text-fg`}>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <Toaster richColors position="top-right" />
+          <AppShell>{children}</AppShell>
+        </ThemeProvider>
       </body>
     </html>
   );

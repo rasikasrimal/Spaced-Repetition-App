@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { useTopicStore } from "@/stores/topics";
 import { Topic } from "@/types/topic";
 import { ProfileMenu } from "@/components/layout/profile-menu";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 type AppRoute = Route<"/"> | Route<"/calendar"> | Route<"/reviews"> | Route<"/timeline"> | Route<"/subjects"> | Route<"/settings">;
 
@@ -59,19 +60,19 @@ export const NavigationBar: React.FC = () => {
   const { due } = React.useMemo(() => computeDueCounts(topics), [topics]);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/5 bg-slate-950/80 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-border/60 bg-bg/80 backdrop-blur">
       <div className="mx-auto flex w-full max-w-[90rem] items-center justify-between gap-4 px-4 py-4 md:px-6 lg:px-8 xl:px-10">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 text-fg">
           <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open navigation">
             <Menu className="h-5 w-5" />
           </Button>
           <Link href="/" className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-accent">
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-accent/20 text-accent">SR</span>
-            <span className="hidden text-white md:block">Spaced Repetition</span>
+            <span className="hidden text-fg md:block">Spaced Repetition</span>
           </Link>
         </div>
 
-        <nav className="hidden items-center gap-2 text-sm font-medium text-zinc-400 md:flex">
+        <nav className="hidden items-center gap-2 text-sm font-medium text-muted-foreground md:flex">
           {navItems.map((item) => {
             const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
             const Icon = item.icon;
@@ -80,7 +81,7 @@ export const NavigationBar: React.FC = () => {
                 key={item.href}
                 href={item.href}
                 className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 transition-colors ${
-                  isActive ? "bg-white/10 text-white" : "hover:bg-white/10 hover:text-white"
+                  isActive ? "bg-accent/15 text-accent-foreground" : "hover:bg-muted/60 hover:text-fg"
                 }`}
               >
                 <Icon className="h-4 w-4" />
@@ -91,11 +92,12 @@ export const NavigationBar: React.FC = () => {
         </nav>
 
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           <Button
             type="button"
             variant="outline"
             size="sm"
-            className="hidden items-center gap-2 rounded-full border-white/20 text-xs text-white hover:bg-white/10 md:inline-flex"
+            className="hidden items-center gap-2 rounded-full text-xs text-fg hover:bg-muted/60 md:inline-flex"
             onClick={() => router.push("/reviews" as AppRoute)}
           >
             <Bell className="h-3.5 w-3.5" />

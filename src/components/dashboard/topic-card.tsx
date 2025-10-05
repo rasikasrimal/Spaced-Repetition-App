@@ -30,6 +30,7 @@ import {
   nowInTimeZone
 } from "@/lib/date";
 import { cn } from "@/lib/utils";
+import { FALLBACK_SUBJECT_COLOR } from "@/lib/colors";
 import { REMINDER_TIME_OPTIONS, REVISE_LOCKED_MESSAGE } from "@/lib/constants";
 import {
   AlertTriangle,
@@ -84,7 +85,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
   );
 
   const identityIcon = subject?.icon ?? "Sparkles";
-  const identityColor = subject?.color ?? "#38bdf8";
+  const identityColor = subject?.color ?? FALLBACK_SUBJECT_COLOR;
 
   const [notesValue, setNotesValue] = React.useState(topic.notes ?? "");
   const [reminderValue, setReminderValue] = React.useState<ReminderValue>(() => {
@@ -368,21 +369,21 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
       label: "Due now",
       helper: `${formatRelativeToNow(topic.nextReviewDate)} • ${formatDateWithWeekday(topic.nextReviewDate)}`,
       className:
-        "border border-rose-400/20 bg-rose-500/15 text-rose-100 shadow-[0_1px_10px_rgba(244,63,94,0.15)]",
+        "border border-error/20 bg-error/15 text-error/20 shadow-[0_1px_10px_hsl(var(--error)_/_0.15)]",
       icon: <Flame className="h-4 w-4" />
     },
     upcoming: {
       label: "Upcoming",
       helper: `${formatRelativeToNow(topic.nextReviewDate)} • ${formatDateWithWeekday(topic.nextReviewDate)}`,
       className:
-        "border border-sky-400/20 bg-sky-500/15 text-sky-100 shadow-[0_1px_10px_rgba(14,165,233,0.12)]",
+        "border border-accent/20 bg-accent/15 text-accent/20 shadow-[0_1px_10px_hsl(var(--accent)_/_0.12)]",
       icon: <CalendarClock className="h-4 w-4" />
     },
     completed: {
       label: "Completed",
       helper: `Reviewed today • Next ${formatDateWithWeekday(topic.nextReviewDate)}`,
       className:
-        "border border-emerald-400/20 bg-emerald-500/15 text-emerald-100 shadow-[0_1px_10px_rgba(16,185,129,0.12)]",
+        "border border-success/20 bg-success/15 text-success/20 shadow-[0_1px_10px_hsl(var(--success)_/_0.12)]",
       icon: <CheckCircle2 className="h-4 w-4" />
     }
   };
@@ -397,32 +398,32 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
   };
 
   const ReminderStatus = () => (
-    <div className="flex flex-col gap-1 rounded-2xl border border-white/10 bg-slate-900/50 p-3">
-      <div className="flex items-center justify-between text-xs text-zinc-400">
-        <span className="inline-flex items-center gap-1 text-zinc-300">
+    <div className="flex flex-col gap-1 rounded-2xl border border-inverse/10 bg-card/50 p-3">
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-1 text-muted-foreground">
           <Clock8 className="h-3.5 w-3.5" /> Interval
         </span>
-        <span className="text-zinc-100">
+        <span className="text-inverse">
           {currentInterval} day{currentInterval === 1 ? "" : "s"}
         </span>
       </div>
-      <div className="h-2 rounded-full bg-slate-800">
+      <div className="h-2 rounded-full bg-muted">
         <motion.div
           layout
           className="h-full rounded-full bg-accent"
           style={{ width: `${Math.min(progress, 100)}%` }}
         />
       </div>
-      <div className="flex items-center justify-between text-xs text-zinc-400">
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>
-          <span className="font-medium text-zinc-200">{clampedIndex + 1}</span> of {totalIntervals} steps
+          <span className="font-medium text-fg/80">{clampedIndex + 1}</span> of {totalIntervals} steps
         </span>
         {reviewedToday ? (
-          <span className="inline-flex items-center gap-1 text-emerald-300">
+          <span className="inline-flex items-center gap-1 text-success/40">
             <CheckCircle2 className="h-3.5 w-3.5" /> Completed today
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1 text-sky-300">
+          <span className="inline-flex items-center gap-1 text-accent/30">
             <Sparkles className="h-3.5 w-3.5" /> Keep the momentum
           </span>
         )}
@@ -435,7 +436,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
       <motion.article
         layout
         transition={{ type: "spring", stiffness: 260, damping: 26 }}
-        className="group relative flex h-full flex-col justify-between rounded-3xl border border-white/5 bg-slate-900/40 p-6 shadow-lg shadow-slate-900/30 backdrop-blur-xl"
+        className="group relative flex h-full flex-col justify-between rounded-3xl border border-inverse/5 bg-card/40 p-6 shadow-lg shadow-slate-900/30 backdrop-blur-xl"
       >
         <div className="space-y-4">
           <div className="flex items-start justify-between gap-3">
@@ -447,15 +448,15 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
                 <IconPreview name={identityIcon} className="h-5 w-5" />
               </span>
               <div className="space-y-1.5">
-                <h3 className="text-lg font-semibold text-white">{topic.title}</h3>
+                <h3 className="text-lg font-semibold text-fg">{topic.title}</h3>
                 {topic.categoryLabel ? (
-                  <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-zinc-100">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-inverse/10 px-3 py-1 text-xs font-medium text-inverse">
                     <span className="h-2 w-2 rounded-full" style={{ backgroundColor: identityColor }} />
                     {topic.categoryLabel}
                   </span>
                 ) : null}
                 {examDateLabel ? (
-                  <span className="inline-flex items-center gap-2 rounded-full bg-amber-500/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-100">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-warn/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-warn/20">
                     <CalendarClock className="h-3.5 w-3.5" /> Exam {examDateLabel}
                   </span>
                 ) : null}
@@ -471,12 +472,12 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
                 {statusStyles[currentStatus].icon}
                 {statusStyles[currentStatus].label}
               </span>
-              <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">Next review</p>
-              <p className="text-sm font-semibold text-white/90">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Next review</p>
+              <p className="text-sm font-semibold text-fg/90">
                 {formatDateWithWeekday(topic.nextReviewDate)}
               </p>
-              <p className="text-xs text-zinc-400">{statusStyles[currentStatus].helper}</p>
-              <p className="text-[11px] text-zinc-500">
+              <p className="text-xs text-muted-foreground">{statusStyles[currentStatus].helper}</p>
+              <p className="text-[11px] text-muted-foreground/80">
                 Retention target ≈ {Math.round(topic.retrievabilityTarget * 100)}%
               </p>
             </div>
@@ -484,15 +485,15 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
 
           <ReminderStatus />
 
-          <div className="grid gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
-            <label className="flex items-center justify-between text-xs font-medium uppercase tracking-wide text-zinc-400">
-              <span className="inline-flex items-center gap-1 text-zinc-300">
+          <div className="grid gap-3 rounded-2xl border border-inverse/10 bg-inverse/5 p-3">
+            <label className="flex items-center justify-between text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <span className="inline-flex items-center gap-1 text-muted-foreground">
                 <Bell className="h-3.5 w-3.5" /> Reminder
               </span>
-              {isSavingReminder ? <span className="text-[10px] text-zinc-500">Saving…</span> : null}
+              {isSavingReminder ? <span className="text-[10px] text-muted-foreground/80">Saving…</span> : null}
             </label>
             <Select value={reminderValue} onValueChange={handleReminderChange}>
-              <SelectTrigger className="h-10 rounded-xl border-white/10 bg-slate-900/60 text-sm">
+              <SelectTrigger className="h-10 rounded-xl border-inverse/10 bg-card/60 text-sm">
                 <SelectValue placeholder="Choose reminder" />
               </SelectTrigger>
               <SelectContent className="rounded-2xl backdrop-blur">
@@ -519,7 +520,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
                     value={customTime}
                     onChange={(event) => setCustomTime(event.target.value)}
                     onBlur={handleCustomTimeCommit}
-                    className="h-10 w-32 rounded-xl border-white/10 bg-slate-900/60 text-sm"
+                    className="h-10 w-32 rounded-xl border-inverse/10 bg-card/60 text-sm"
                   />
                   <Button type="button" size="sm" variant="outline" onClick={handleCustomTimeCommit}>
                     Save time
@@ -527,15 +528,15 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
                 </motion.div>
               ) : null}
             </AnimatePresence>
-            <p className="text-xs text-zinc-400">{formatTime(topic.reminderTime)}</p>
+            <p className="text-xs text-muted-foreground">{formatTime(topic.reminderTime)}</p>
           </div>
 
           <div className="space-y-2">
-            <label className="flex items-center justify-between text-xs font-medium uppercase tracking-wide text-zinc-400">
-              <span className="inline-flex items-center gap-1 text-zinc-300">
+            <label className="flex items-center justify-between text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <span className="inline-flex items-center gap-1 text-muted-foreground">
                 <PenLine className="h-3.5 w-3.5" /> Notes
               </span>
-              {isSavingNotes ? <span className="text-[10px] text-zinc-500">Saving…</span> : null}
+              {isSavingNotes ? <span className="text-[10px] text-muted-foreground/80">Saving…</span> : null}
             </label>
             <Textarea
               value={notesValue}
@@ -543,19 +544,19 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
               onBlur={handleNotesBlur}
               placeholder="Add a quick note or mnemonic to help you remember!"
               rows={4}
-              className="min-h-[120px] rounded-2xl border-white/10 bg-slate-900/60 text-sm"
+              className="min-h-[120px] rounded-2xl border-inverse/10 bg-card/60 text-sm"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-zinc-400">
+            <label className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               <RefreshCw className="h-3.5 w-3.5" /> Schedule adjustments
             </label>
             <Select
               value={autoAdjustPreference}
               onValueChange={(value: AutoAdjustPreference) => handlePreferenceChange(value)}
             >
-              <SelectTrigger className="h-10 rounded-xl border-white/10 bg-slate-900/60 text-sm text-left">
+              <SelectTrigger className="h-10 rounded-xl border-inverse/10 bg-card/60 text-sm text-left">
                 <SelectValue placeholder="Choose behaviour" />
               </SelectTrigger>
               <SelectContent className="rounded-2xl backdrop-blur">
@@ -566,7 +567,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-xs text-zinc-400">
+            <p className="text-xs text-muted-foreground">
               Tweak how upcoming reviews adapt when you study early.
             </p>
           </div>
@@ -590,7 +591,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
             <Button
               type="button"
               variant="outline"
-              className="min-w-[150px] gap-2 rounded-2xl border-amber-400/40 text-amber-100 hover:bg-amber-500/10"
+              className="min-w-[150px] gap-2 rounded-2xl border-warn/40 text-warn/20 hover:bg-warn/10"
               onClick={handleSkipToday}
             >
               <SkipForward className="h-4 w-4" /> Skip today
@@ -598,10 +599,10 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
           </div>
           {!due && hasUsedReviseToday ? (
             <div className="space-y-1 text-right text-xs sm:text-left">
-              <p className="font-medium text-emerald-300">Logged today’s revision.</p>
-              <p className="text-zinc-400">{nextAvailabilityMessage}</p>
+              <p className="font-medium text-success/40">Logged today’s revision.</p>
+              <p className="text-muted-foreground">{nextAvailabilityMessage}</p>
               {nextAvailabilitySubtext ? (
-                <p className="text-[11px] text-zinc-500">{nextAvailabilitySubtext}</p>
+                <p className="text-[11px] text-muted-foreground/80">{nextAvailabilitySubtext}</p>
               ) : null}
             </div>
           ) : null}
@@ -610,7 +611,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
               type="button"
               variant="ghost"
               size="icon"
-              className="rounded-xl text-zinc-300 hover:text-white"
+              className="rounded-xl text-muted-foreground hover:text-fg"
               onClick={onEdit}
               aria-label="Edit topic"
             >
@@ -620,7 +621,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
               type="button"
               variant="ghost"
               size="icon"
-              className="rounded-xl text-zinc-300 hover:text-rose-200"
+              className="rounded-xl text-muted-foreground hover:text-error/20"
               onClick={handleDelete}
               aria-label="Remove topic"
             >
@@ -742,7 +743,7 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
     <AnimatePresence>
       {open ? (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-bg/70 backdrop-blur"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -752,25 +753,25 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
             transition={{ type: "spring", stiffness: 260, damping: 26 }}
-            className="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900/90 p-6 shadow-2xl"
+            className="w-full max-w-md rounded-3xl border border-inverse/10 bg-card/90 p-6 shadow-2xl"
           >
             <div className="flex items-start gap-3">
-              {icon ? <span className="mt-1 rounded-2xl bg-white/10 p-2 text-accent">{icon}</span> : null}
+              {icon ? <span className="mt-1 rounded-2xl bg-inverse/10 p-2 text-accent">{icon}</span> : null}
               <div className="space-y-2">
-                <h2 className="text-lg font-semibold text-white">{title}</h2>
-                <p className="text-sm text-zinc-300">{description}</p>
-                {warning ? <p className="text-xs font-semibold text-amber-200">{warning}</p> : null}
+                <h2 className="text-lg font-semibold text-fg">{title}</h2>
+                <p className="text-sm text-muted-foreground">{description}</p>
+                {warning ? <p className="text-xs font-semibold text-warn/30">{warning}</p> : null}
               </div>
             </div>
             {extraActions && extraActions.length > 0 ? (
-              <div className="mt-4 space-y-2 rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-zinc-300">
-                <p className="font-semibold text-white">Quick preferences</p>
+              <div className="mt-4 space-y-2 rounded-2xl border border-inverse/10 bg-inverse/5 p-3 text-xs text-muted-foreground">
+                <p className="font-semibold text-fg">Quick preferences</p>
                 {extraActions.map((action) => (
                   <button
                     key={action.label}
                     type="button"
                     onClick={action.action}
-                    className="w-full rounded-xl border border-white/10 px-3 py-2 text-left transition hover:border-accent/40 hover:text-accent"
+                    className="w-full rounded-xl border border-inverse/10 px-3 py-2 text-left transition hover:border-accent/40 hover:text-accent"
                   >
                     {action.label}
                   </button>
@@ -787,9 +788,9 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
                 className={cn(
                   "min-w-[140px] rounded-2xl",
                   confirmTone === "danger"
-                    ? "bg-rose-500/80 hover:bg-rose-500 text-white"
+                    ? "bg-error/80 hover:bg-error text-fg"
                     : confirmTone === "warning"
-                    ? "bg-amber-500/80 hover:bg-amber-500 text-slate-900"
+                    ? "bg-warn/80 hover:bg-warn text-inverse-foreground"
                     : ""
                 )}
               >

@@ -38,22 +38,22 @@ export default function SettingsPage() {
 
   const emailClasses = cn(
     "flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition",
-    profile.notifications.email ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-zinc-400 hover:text-zinc-200"
+    profile.notifications.email ? "border-accent/40 bg-accent/10 text-accent" : "border-inverse/10 text-muted-foreground hover:text-fg/80"
   );
 
   const pushClasses = cn(
     "flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition",
-    profile.notifications.push ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-zinc-400 hover:text-zinc-200"
+    profile.notifications.push ? "border-accent/40 bg-accent/10 text-accent" : "border-inverse/10 text-muted-foreground hover:text-fg/80"
   );
 
   return (
     <section className="space-y-6">
       <header className="space-y-2">
-        <h1 className="text-3xl font-semibold text-white">Profile settings</h1>
-        <p className="text-sm text-zinc-400">Keep your details and notification preferences up to date.</p>
+        <h1 className="text-3xl font-semibold text-fg">Profile settings</h1>
+        <p className="text-sm text-muted-foreground">Keep your details and notification preferences up to date.</p>
       </header>
 
-      <form onSubmit={handleSubmit} className="space-y-6 rounded-3xl border border-white/5 bg-slate-900/60 p-6 shadow-xl">
+      <form onSubmit={handleSubmit} className="space-y-6 rounded-3xl border border-inverse/5 bg-card/60 p-6 shadow-xl">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="profile-name">Name</Label>
@@ -62,7 +62,7 @@ export default function SettingsPage() {
               value={form.name}
               onChange={handleChange("name")}
               placeholder="Your name"
-              className="h-11 rounded-2xl border-white/10 bg-white/10"
+              className="h-11 rounded-2xl border-inverse/10 bg-inverse/10"
             />
           </div>
           <div className="space-y-2">
@@ -73,7 +73,7 @@ export default function SettingsPage() {
               value={form.email}
               onChange={handleChange("email")}
               placeholder="you@example.com"
-              className="h-11 rounded-2xl border-white/10 bg-white/10"
+              className="h-11 rounded-2xl border-inverse/10 bg-inverse/10"
             />
           </div>
           <div className="space-y-2">
@@ -83,7 +83,7 @@ export default function SettingsPage() {
               value={form.role}
               onChange={handleChange("role")}
               placeholder="Learner"
-              className="h-11 rounded-2xl border-white/10 bg-white/10"
+              className="h-11 rounded-2xl border-inverse/10 bg-inverse/10"
             />
           </div>
           <div className="space-y-2">
@@ -93,9 +93,9 @@ export default function SettingsPage() {
               value={form.timezone}
               onChange={handleChange("timezone")}
               placeholder="UTC"
-              className="h-11 rounded-2xl border-white/10 bg-white/10"
+              className="h-11 rounded-2xl border-inverse/10 bg-inverse/10"
             />
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-muted-foreground/80">
               We use this timezone for all date labels and to reset the daily revise limit at local midnight.
             </p>
           </div>
@@ -106,7 +106,7 @@ export default function SettingsPage() {
             <Label>Avatar colour</Label>
             <div className="mt-2 flex items-center gap-4">
               <span
-                className="flex h-12 w-12 items-center justify-center rounded-full text-sm font-semibold text-white"
+                className="flex h-12 w-12 items-center justify-center rounded-full text-sm font-semibold text-fg"
                 style={{ backgroundColor: form.avatarColor }}
               >
                 {initials}
@@ -114,8 +114,8 @@ export default function SettingsPage() {
               <ColorPicker value={form.avatarColor} onChange={(value) => setForm((prev) => ({ ...prev, avatarColor: value }))} />
             </div>
           </div>
-          <div className="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs text-zinc-300">
-            <p className="text-sm font-semibold text-white">Notifications</p>
+          <div className="space-y-2 rounded-2xl border border-inverse/10 bg-inverse/5 p-4 text-xs text-muted-foreground">
+            <p className="text-sm font-semibold text-fg">Notifications</p>
             <button type="button" onClick={() => toggleNotification("email")} className={emailClasses}>
               <span className="flex items-center gap-2"><BellRing className="h-4 w-4" /> Email reminders</span>
               <span>{profile.notifications.email ? "On" : "Off"}</span>

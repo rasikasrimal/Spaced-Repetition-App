@@ -22,12 +22,12 @@ export const ProfileMenu: React.FC = () => {
 
   const emailClasses = cn(
     "flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition",
-    profile.notifications.email ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-zinc-400 hover:text-zinc-200"
+    profile.notifications.email ? "border-accent/40 bg-accent/10 text-accent" : "border-inverse/10 text-muted-foreground hover:text-fg/80"
   );
 
   const pushClasses = cn(
     "flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition",
-    profile.notifications.push ? "border-accent/40 bg-accent/10 text-accent" : "border-white/10 text-zinc-400 hover:text-zinc-200"
+    profile.notifications.push ? "border-accent/40 bg-accent/10 text-accent" : "border-inverse/10 text-muted-foreground hover:text-fg/80"
   );
 
   return (
@@ -37,30 +37,30 @@ export const ProfileMenu: React.FC = () => {
           type="button"
           variant="ghost"
           size="icon"
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/10 text-sm font-semibold text-white shadow-sm transition hover:border-white/30"
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-inverse/10 bg-inverse/10 text-sm font-semibold text-fg shadow-sm transition hover:border-inverse/30"
           aria-label="Open profile menu"
         >
           {avatarFallback(profile.name)}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-64 space-y-4 rounded-2xl border-white/10 bg-slate-900/90 p-4 text-sm text-zinc-200 shadow-xl" sideOffset={12}>
+      <PopoverContent className="w-64 space-y-4 rounded-2xl border-inverse/10 bg-card/90 p-4 text-sm text-fg/80 shadow-xl" sideOffset={12}>
         <div className="flex items-center gap-3">
           <span
-            className="flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold text-white"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold text-fg"
             style={{ backgroundColor: profile.avatarColor }}
           >
             {avatarFallback(profile.name)}
           </span>
           <div>
-            <p className="text-sm font-semibold text-white">{profile.name}</p>
-            <p className="text-xs text-zinc-400">{profile.email}</p>
+            <p className="text-sm font-semibold text-fg">{profile.name}</p>
+            <p className="text-xs text-muted-foreground">{profile.email}</p>
           </div>
         </div>
 
-        <div className="space-y-2 rounded-2xl border border-white/5 bg-white/5 p-3 text-xs text-zinc-300">
+        <div className="space-y-2 rounded-2xl border border-inverse/5 bg-inverse/5 p-3 text-xs text-muted-foreground">
           <div className="flex items-center justify-between">
             <span>Timezone</span>
-            <span className="font-medium text-white">{profile.timezone}</span>
+            <span className="font-medium text-fg">{profile.timezone}</span>
           </div>
           <button type="button" onClick={() => toggleNotification("email")} className={emailClasses}>
             <span className="flex items-center gap-2"><Bell className="h-4 w-4" /> Email reminders</span>
@@ -76,7 +76,7 @@ export const ProfileMenu: React.FC = () => {
           <Button
             type="button"
             variant="ghost"
-            className="w-full justify-start gap-2 text-zinc-200 hover:text-white"
+            className="w-full justify-start gap-2 text-fg/80 hover:text-fg"
             onClick={() => router.push("/settings")}
           >
             <Settings className="h-4 w-4" /> Profile settings
@@ -84,7 +84,7 @@ export const ProfileMenu: React.FC = () => {
           <Button
             type="button"
             variant="ghost"
-            className="w-full justify-start gap-2 text-zinc-400 hover:text-white"
+            className="w-full justify-start gap-2 text-muted-foreground hover:text-fg"
             onClick={() => router.push("/subjects")}
           >
             <User className="h-4 w-4" /> Manage subjects
@@ -92,14 +92,14 @@ export const ProfileMenu: React.FC = () => {
           <Button
             type="button"
             variant="ghost"
-            className="w-full justify-start gap-2 text-zinc-400 hover:text-white"
+            className="w-full justify-start gap-2 text-muted-foreground hover:text-fg"
             onClick={() => router.push("/reviews")}
           >
             <Bell className="h-4 w-4" /> Today’s reviews
           </Button>
         </div>
 
-        <Button type="button" variant="outline" className="w-full justify-center gap-2 border-white/20 text-xs text-zinc-300">
+        <Button type="button" variant="outline" className="w-full justify-center gap-2 border-inverse/20 text-xs text-muted-foreground">
           <LogOut className="h-4 w-4" /> Sign out
         </Button>
       </PopoverContent>

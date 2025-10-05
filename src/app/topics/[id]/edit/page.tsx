@@ -23,9 +23,9 @@ export default function EditTopicPage() {
   if (!topic) {
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-4 py-12 md:px-6 lg:px-8">
-        <div className="rounded-3xl border border-white/5 bg-slate-900/60 p-8 text-center shadow-xl">
-          <h1 className="text-2xl font-semibold text-white">Topic unavailable</h1>
-          <p className="mt-2 text-sm text-zinc-400">
+        <div className="rounded-3xl border border-inverse/5 bg-card/60 p-8 text-center shadow-xl">
+          <h1 className="text-2xl font-semibold text-fg">Topic unavailable</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
             We couldn&apos;t find that topic. It might have been removed or hasn&apos;t been created yet.
           </p>
           <Button className="mt-6 rounded-2xl" onClick={() => router.push("/")}>
@@ -45,13 +45,13 @@ export default function EditTopicPage() {
               <PenSquare className="h-4 w-4" /> Editing topic
             </div>
             <div className="space-y-2">
-              <h1 className="text-3xl font-semibold text-white md:text-4xl">{topic.title}</h1>
-              <p className="max-w-2xl text-sm text-zinc-300">
+              <h1 className="text-3xl font-semibold text-fg md:text-4xl">{topic.title}</h1>
+              <p className="max-w-2xl text-sm text-muted-foreground">
                 Adjust reminders, intervals, and notes. Your progress history stays intact.
               </p>
             </div>
           </div>
-          <Button variant="ghost" className="rounded-2xl text-zinc-300 hover:text-white" onClick={() => router.push("/")}>
+          <Button variant="ghost" className="rounded-2xl text-muted-foreground hover:text-fg" onClick={() => router.push("/")}>
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to dashboard
           </Button>
         </div>

@@ -1,0 +1,60 @@
+/* Base tokens in HSL for Tailwind var() usage */
+:root {
+  /* surfaces */
+  --bg: 0 0% 100%;
+  --fg: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --muted: 210 16% 93%;
+  --muted-foreground: 215 16% 47%;
+  --border: 214 32% 91%;
+  --ring: 222 84% 56%;
+
+  /* accents */
+  --accent: 221 83% 53%;
+  --accent-foreground: 210 40% 98%;
+
+  /* chart neutrals */
+  --grid: 220 14% 92%;
+  --axis: 215 16% 47%;
+
+  /* semantic statuses */
+  --success: 142 71% 45%;
+  --warn: 45 93% 47%;
+  --error: 0 84% 60%;
+
+  /* overlays */
+  --overlay: 210 20% 96%;
+  --overlay-foreground: 222 47% 11%;
+  --inverse: 210 40% 98%;
+  --inverse-foreground: 222 47% 11%;
+  --shadow: 222 47% 15%;
+}
+
+/* Dark overrides */
+.dark {
+  --bg: 222 47% 6%;
+  --fg: 210 40% 98%;
+  --card: 222 47% 8%;
+  --card-foreground: 210 40% 98%;
+  --muted: 217 19% 27%;
+  --muted-foreground: 220 15% 70%;
+  --border: 217 19% 27%;
+  --ring: 221 83% 53%;
+
+  --accent: 221 83% 53%;
+  --accent-foreground: 210 40% 98%;
+
+  --grid: 223 10% 20%;
+  --axis: 220 15% 65%;
+
+  --success: 142 71% 45%;
+  --warn: 45 93% 47%;
+  --error: 0 84% 60%;
+
+  --overlay: 217 33% 12%;
+  --overlay-foreground: 210 40% 98%;
+  --inverse: 210 40% 98%;
+  --inverse-foreground: 222 47% 6%;
+  --shadow: 222 47% 4%;
+}
