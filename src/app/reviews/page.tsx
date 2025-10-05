@@ -32,8 +32,8 @@ export default function ReviewsPage() {
   return (
     <section className="space-y-6">
       <header className="flex flex-col gap-2">
-        <h1 className="text-3xl font-semibold text-fg">Today’s Reviews</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="reviews-header text-3xl font-semibold">Today’s Reviews</h1>
+        <p className="reviews-subtext text-sm">
           Focus on the topics that are due right now. Knock them out to keep your streak alive.
         </p>
       </header>
@@ -51,8 +51,8 @@ export default function ReviewsPage() {
       ) : (
         <div className="space-y-4">
           <div className="flex items-center justify-between rounded-2xl border border-inverse/10 bg-inverse/5 px-4 py-3 text-sm text-muted-foreground">
-            <span className="font-medium text-fg">{dueTopics.length} topic{dueTopics.length === 1 ? "" : "s"} waiting</span>
-            <span className="text-xs text-muted-foreground">Next up {formatRelativeToNow(dueTopics[0]!.nextReviewDate)}</span>
+            <span className="reviews-summary font-medium">{dueTopics.length} topic{dueTopics.length === 1 ? "" : "s"} waiting</span>
+            <span className="review-date text-xs">Next up {formatRelativeToNow(dueTopics[0]!.nextReviewDate)}</span>
           </div>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {dueTopics.map((topic) => (

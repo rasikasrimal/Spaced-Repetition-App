@@ -249,4 +249,257 @@
   body.dark .ring-warn\/40 { --tw-ring-color: rgba(245, 166, 35, 0.4); }
   body.light .ring-error\/40 { --tw-ring-color: rgba(229, 72, 77, 0.4); }
   body.dark .ring-error\/40 { --tw-ring-color: rgba(248, 113, 113, 0.4); }
+
+  /* navigation links */
+  body.light .nav-link {
+    color: #444444;
+    background-color: transparent;
+  }
+
+  body.light .nav-link:hover {
+    color: #000000;
+    background-color: #f0f0f0;
+  }
+
+  body.light .nav-link.active {
+    color: #21ce99;
+    background-color: #e6f7f0;
+    font-weight: 600;
+  }
+
+  body.dark .nav-link {
+    color: #a0a0a0;
+    background-color: transparent;
+  }
+
+  body.dark .nav-link:hover {
+    color: #ffffff;
+    background-color: #1f232a;
+  }
+
+  body.dark .nav-link.active {
+    color: #3dea95;
+    background-color: #16251f;
+    font-weight: 600;
+  }
+
+  /* status text helpers */
+  body.light .status-text {
+    font-weight: 600;
+  }
+
+  body.dark .status-text {
+    font-weight: 600;
+  }
+
+  body.light .status-text--overdue {
+    color: #e63946;
+  }
+
+  body.dark .status-text--overdue {
+    color: #f87171;
+  }
+
+  body.light .status-text--due {
+    color: #f59e0b;
+  }
+
+  body.dark .status-text--due {
+    color: #f5a623;
+  }
+
+  body.light .status-text--upcoming {
+    color: #2563eb;
+  }
+
+  body.dark .status-text--upcoming {
+    color: #3dea95;
+  }
+
+  /* status badge helpers */
+  body.light .status-chip {
+    background-color: #f8f9fa;
+    border: 1px solid #dcdcdc;
+    color: #1f2933;
+    font-weight: 600;
+  }
+
+  body.dark .status-chip {
+    background-color: #1f232a;
+    border: 1px solid #30343a;
+    color: #e5e7eb;
+    font-weight: 600;
+  }
+
+  body.light .status-chip--due,
+  body.light .status-chip--overdue {
+    background-color: #fde8ea;
+    border-color: #f5b5ba;
+    color: #e63946;
+  }
+
+  body.dark .status-chip--due,
+  body.dark .status-chip--overdue {
+    background-color: #31161a;
+    border-color: #7f1d1d;
+    color: #f87171;
+  }
+
+  body.light .status-chip--due-today {
+    background-color: #fff4e5;
+    border-color: #f8d0a2;
+    color: #f59e0b;
+  }
+
+  body.dark .status-chip--due-today {
+    background-color: #332414;
+    border-color: #a3651b;
+    color: #f5a623;
+  }
+
+  body.light .status-chip--upcoming {
+    background-color: #e8f0fe;
+    border-color: #c7d2fe;
+    color: #2563eb;
+  }
+
+  body.dark .status-chip--upcoming {
+    background-color: #15243b;
+    border-color: #1d3b82;
+    color: #8ab4ff;
+  }
+
+  body.light .status-chip--completed {
+    background-color: #e6f7f0;
+    border-color: #9fe7c9;
+    color: #1b7f5a;
+  }
+
+  body.dark .status-chip--completed {
+    background-color: #152923;
+    border-color: #2d9467;
+    color: #3dea95;
+  }
+
+  /* progress summary */
+  body.light .progress-summary__label,
+  body.light .progress-summary__headline {
+    color: #1a1a1a;
+  }
+
+  body.light .progress-summary__body,
+  body.light .progress-summary__details {
+    color: #333333;
+  }
+
+  body.light .progress-summary__metric {
+    color: #111111;
+    font-weight: 600;
+  }
+
+  body.light .progress-summary__subtext {
+    color: #555555;
+  }
+
+  body.dark .progress-summary__metric {
+    color: #fefefe;
+  }
+
+  body.light .progress-summary__subtext[data-complete="true"] {
+    color: #1b7f5a;
+  }
+
+  body.dark .progress-summary__subtext[data-complete="true"] {
+    color: #3dea95;
+  }
+
+  /* checkpoint cards */
+  body.light .checkpoint-title {
+    color: #1a1a1a;
+    font-weight: 600;
+  }
+
+  body.light .checkpoint-date {
+    color: #444444;
+  }
+
+  body.light .checkpoint-status {
+    font-weight: 600;
+  }
+
+  body.light .checkpoint-status--due {
+    background-color: #fdecea;
+    border: 1px solid #f5b5b8;
+    color: #d62828;
+  }
+
+  body.dark .checkpoint-status--due {
+    background-color: #36191c;
+    border: 1px solid #7f1d1d;
+    color: #f87171;
+  }
+
+  body.light .checkpoint-status--scheduled {
+    background-color: #e8f0fe;
+    border: 1px solid #c7d2fe;
+    color: #2563eb;
+  }
+
+  body.dark .checkpoint-status--scheduled {
+    background-color: #14243d;
+    border: 1px solid #1d3b82;
+    color: #8ab4ff;
+  }
+
+  /* reviews page */
+  body.light .reviews-header {
+    color: #1a1a1a;
+  }
+
+  body.light .reviews-subtext {
+    color: #333333;
+  }
+
+  body.light .reviews-summary {
+    color: #444444;
+  }
+
+  body.light .review-due-now {
+    color: #d62828;
+    font-weight: 600;
+  }
+
+  body.dark .review-due-now {
+    color: #f87171;
+    font-weight: 600;
+  }
+
+  body.light .review-skip {
+    color: #666666;
+    background-color: #ffffff;
+    border-color: #dcdcdc;
+  }
+
+  body.light .review-skip:hover {
+    color: #000000;
+    background-color: #f0f0f0;
+  }
+
+  body.dark .review-skip {
+    color: #d1d5db;
+    background-color: #181b20;
+    border-color: #30343a;
+  }
+
+  body.light .reviews-summary {
+    color: #1a1a1a;
+  }
+
+  body.light .review-date {
+    color: #333333;
+  }
+
+  body.dark .review-date {
+    color: #d1d5db;
+  }
 }

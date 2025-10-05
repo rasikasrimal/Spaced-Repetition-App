@@ -72,7 +72,7 @@ export const NavigationBar: React.FC = () => {
           </Link>
         </div>
 
-        <nav className="hidden items-center gap-2 text-sm font-medium text-muted-foreground md:flex">
+        <nav className="hidden items-center gap-2 text-sm font-medium md:flex">
           {navItems.map((item) => {
             const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
             const Icon = item.icon;
@@ -80,8 +80,8 @@ export const NavigationBar: React.FC = () => {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 transition-colors ${
-                  isActive ? "bg-accent/15 text-accent-foreground" : "hover:bg-muted/60 hover:text-fg"
+                className={`nav-link inline-flex items-center gap-2 rounded-xl px-3 py-2 transition-colors ${
+                  isActive ? "active" : ""
                 }`}
               >
                 <Icon className="h-4 w-4" />

@@ -342,17 +342,17 @@ const ProgressTodayModule = ({
   const summaryText = `${completed}/${safeTotal} reviews completed • ${safePercent}% complete. Keep up the rhythm — every checkmark keeps your memory sharp.`;
 
   return (
-    <section className="rounded-3xl bg-accent/20 px-6 py-8 text-fg md:px-8">
+    <section className="progress-summary rounded-3xl bg-accent/20 px-6 py-8 text-fg md:px-8">
       <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
         <div className="space-y-4 md:max-w-xl">
           <div className="space-y-1">
-            <p className="text-sm font-medium uppercase tracking-wide text-accent-foreground/80">Progress today</p>
-            <h2 className="text-3xl font-semibold">
+            <p className="progress-summary__label text-sm font-medium uppercase tracking-wide">Progress today</p>
+            <h2 className="progress-summary__headline text-3xl font-semibold">
               {completed}/{safeTotal} reviews completed
             </h2>
-            <p className="text-sm text-fg/70">{summaryText}</p>
+            <p className="progress-summary__body text-sm">{summaryText}</p>
           </div>
-          <div className="space-y-3 text-sm text-fg/80">
+          <div className="progress-summary__details space-y-3 text-sm">
             <div className="h-2 w-full overflow-hidden rounded-full bg-inverse/20">
               <div
                 className="h-full rounded-full bg-inverse/90 transition-all"
@@ -361,10 +361,13 @@ const ProgressTodayModule = ({
               />
             </div>
             <div className="flex flex-wrap items-center gap-3 font-medium">
-              <span className="rounded-full bg-inverse/15 px-3 py-1 text-xs uppercase tracking-wide text-fg/80">
+              <span className="progress-summary__metric rounded-full bg-inverse/15 px-3 py-1 text-xs uppercase tracking-wide">
                 {safePercent}% complete
               </span>
-              <span className={isComplete ? "text-success/20" : "text-accent/20"}>
+              <span
+                className="progress-summary__subtext"
+                data-complete={isComplete ? "true" : "false"}
+              >
                 {isComplete
                   ? "Great work! You’ve completed today’s reviews."
                   : "Finish today to extend your streak."}
@@ -441,9 +444,24 @@ const PersonalizedReviewPlanModule = ({
         </div>
 
         <div className="grid flex-1 gap-3 text-fg/90 sm:grid-cols-2 lg:grid-cols-[repeat(3,minmax(0,1fr))_auto] lg:gap-4">
-          <StatPill label="Due today" value={dueCount} icon={Flame} tone="text-error/20" />
-          <StatPill label="Upcoming" value={upcomingCount} icon={CalendarClock} tone="text-warn/30" />
-          <StatPill label="Streak" value={`${streak} day${streak === 1 ? "" : "s"}`} icon={Trophy} tone="text-success/20" />
+          <StatPill
+            label="Due today"
+            value={dueCount}
+            icon={Flame}
+            tone="status-text status-text--overdue"
+          />
+          <StatPill
+            label="Upcoming"
+            value={upcomingCount}
+            icon={CalendarClock}
+            tone="status-text status-text--upcoming"
+          />
+          <StatPill
+            label="Streak"
+            value={`${streak} day${streak === 1 ? "" : "s"}`}
+            icon={Trophy}
+            tone="status-text status-text--due"
+          />
           <div className="flex min-w-[14rem] flex-col gap-2 rounded-2xl border border-inverse/10 bg-card/80 p-4">
             <Button onClick={onAddTopic} size="sm" className="gap-2 rounded-full">
               <Plus className="h-4 w-4" /> Add topic

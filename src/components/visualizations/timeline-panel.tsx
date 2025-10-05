@@ -1791,14 +1791,16 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                       style={{ backgroundColor: due ? palette.warn : resolveTopicColor(topic) }}
                     />
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-fg">{topic.title}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="checkpoint-title text-sm font-medium">{topic.title}</p>
+                      <p className="checkpoint-date text-xs">
                         {formatDateWithWeekday(topic.nextReviewDate)}  {formatRelativeToNow(topic.nextReviewDate)}
                       </p>
                     </div>
-                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide ${
-                      due ? "bg-error/20 text-error/20" : "bg-accent/15 text-accent/20"
-                    }`}>
+                    <span
+                      className={`checkpoint-status inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] uppercase tracking-wide ${
+                        due ? "checkpoint-status--due" : "checkpoint-status--scheduled"
+                      }`}
+                    >
                       <Check className="h-3 w-3" /> {due ? "Due" : "Scheduled"}
                     </span>
                   </div>

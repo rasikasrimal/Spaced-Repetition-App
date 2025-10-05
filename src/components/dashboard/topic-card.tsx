@@ -368,19 +368,19 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
     due: {
       label: "Due now",
       helper: `${formatRelativeToNow(topic.nextReviewDate)} • ${formatDateWithWeekday(topic.nextReviewDate)}`,
-      className: "border border-error/20 bg-error/15 text-error/20",
+      className: "status-chip status-chip--due",
       icon: <Flame className="h-4 w-4" />
     },
     upcoming: {
       label: "Upcoming",
       helper: `${formatRelativeToNow(topic.nextReviewDate)} • ${formatDateWithWeekday(topic.nextReviewDate)}`,
-      className: "border border-accent/20 bg-accent/15 text-accent/20",
+      className: "status-chip status-chip--upcoming",
       icon: <CalendarClock className="h-4 w-4" />
     },
     completed: {
       label: "Completed",
       helper: `Reviewed today • Next ${formatDateWithWeekday(topic.nextReviewDate)}`,
-      className: "border border-success/20 bg-success/15 text-success/20",
+      className: "status-chip status-chip--completed",
       icon: <CheckCircle2 className="h-4 w-4" />
     }
   };
@@ -463,7 +463,8 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
               <span
                 className={cn(
                   "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold",
-                  statusStyles[currentStatus].className
+                  statusStyles[currentStatus].className,
+                  currentStatus === "due" ? "review-due-now" : undefined
                 )}
               >
                 {statusStyles[currentStatus].icon}
@@ -585,14 +586,14 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
               <CheckCircle2 className="h-4 w-4" />
               {due ? "Mark review complete" : "Revise now"}
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="min-w-[150px] gap-2 rounded-2xl border-warn/40 text-warn/20 hover:bg-warn/10"
-              onClick={handleSkipToday}
-            >
-              <SkipForward className="h-4 w-4" /> Skip today
-            </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="review-skip min-w-[150px] gap-2 rounded-2xl"
+            onClick={handleSkipToday}
+          >
+            <SkipForward className="h-4 w-4" /> Skip today
+          </Button>
           </div>
           {!due && hasUsedReviseToday ? (
             <div className="space-y-1 text-right text-xs sm:text-left">

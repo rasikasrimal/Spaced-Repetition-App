@@ -66,23 +66,26 @@ export const NO_SUBJECT_KEY = "__none";
 const SEARCH_STORAGE_KEY = "dashboard-topic-search";
 const SORT_STORAGE_KEY = "dashboard-topic-sort";
 
-const STATUS_META: Record<TopicStatus, { label: string; tone: string; subtle: string; icon: React.ReactNode }> = {
+const STATUS_META: Record<
+  TopicStatus,
+  { label: string; badgeClass: string; textClass: string; icon: React.ReactNode }
+> = {
   overdue: {
     label: "Overdue",
-    tone: "bg-error/15 text-error/20 border border-error/20",
-    subtle: "text-error/20",
+    badgeClass: "status-chip status-chip--overdue",
+    textClass: "status-text status-text--overdue",
     icon: <Flame className="h-3.5 w-3.5" aria-hidden="true" />
   },
   "due-today": {
     label: "Due today",
-    tone: "bg-warn/15 text-warn/30 border border-warn/20",
-    subtle: "text-warn/30",
+    badgeClass: "status-chip status-chip--due-today",
+    textClass: "status-text status-text--due",
     icon: <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />
   },
   upcoming: {
     label: "Upcoming",
-    tone: "bg-accent/15 text-accent/20 border border-accent/20",
-    subtle: "text-accent/20",
+    badgeClass: "status-chip status-chip--upcoming",
+    textClass: "status-text status-text--upcoming",
     icon: <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
   }
 };
@@ -945,7 +948,7 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
                 <span className="inline-flex items-center gap-1">
                   <CalendarClock className="h-3 w-3" aria-hidden="true" /> {nextReviewRelativeLabel}
                 </span>
-                <span className="inline-flex items-center gap-1">
+                <span className={cn("inline-flex items-center gap-1", statusMeta.textClass)}>
                   {statusMeta.icon}
                   {statusMeta.label}
                 </span>
@@ -969,7 +972,12 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
           <span className="text-xs text-muted-foreground">{nextReviewRelativeLabel}</span>
         </div>
         <div className="hidden md:flex">
-          <span className={cn("inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium", statusMeta.tone)}>
+          <span
+            className={cn(
+              "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs",
+              statusMeta.badgeClass
+            )}
+          >
             {statusMeta.icon}
             {statusMeta.label}
           </span>

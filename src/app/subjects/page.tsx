@@ -54,10 +54,22 @@ const toDateInputValue = (value: string | null | undefined) => {
 
 type TopicStatus = "overdue" | "due-today" | "upcoming";
 
-const STATUS_META: Record<TopicStatus, { label: string; tone: string }> = {
-  overdue: { label: "Overdue", tone: "bg-error/20 text-error/20" },
-  "due-today": { label: "Due today", tone: "bg-warn/20 text-warn/20" },
-  upcoming: { label: "Upcoming", tone: "bg-accent/20 text-accent/20" }
+const STATUS_META: Record<TopicStatus, { label: string; badgeClass: string; textClass: string }> = {
+  overdue: {
+    label: "Overdue",
+    badgeClass: "status-chip status-chip--overdue",
+    textClass: "status-text status-text--overdue"
+  },
+  "due-today": {
+    label: "Due today",
+    badgeClass: "status-chip status-chip--due-today",
+    textClass: "status-text status-text--due"
+  },
+  upcoming: {
+    label: "Upcoming",
+    badgeClass: "status-chip status-chip--upcoming",
+    textClass: "status-text status-text--upcoming"
+  }
 };
 
 const DEFAULT_SUBJECT_ID = "subject-general";
@@ -653,7 +665,7 @@ const SubjectAdminPage: React.FC = () => {
                               </div>
                               <div className="flex flex-wrap items-center gap-2">
                                 <span
-                                  className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${statusMeta.tone}`}
+                                  className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs uppercase tracking-wide ${statusMeta.badgeClass}`}
                                 >
                                   {statusMeta.label}
                                 </span>
