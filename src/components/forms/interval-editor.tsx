@@ -80,11 +80,11 @@ export const IntervalEditor: React.FC<IntervalEditorProps> = ({ value, onChange 
               className="h-11 w-32 rounded-xl"
               aria-label={`Interval ${index + 1} in days`}
             />
-            <span className="text-sm text-zinc-300">days</span>
+            <span className="text-sm text-muted-foreground">days</span>
             <Button
               type="button"
               variant="ghost"
-              className="ml-auto text-xs text-zinc-400 hover:text-white"
+              className="ml-auto text-xs text-muted-foreground hover:text-fg"
               onClick={() => handleRemove(index)}
             >
               Remove
@@ -97,7 +97,7 @@ export const IntervalEditor: React.FC<IntervalEditorProps> = ({ value, onChange 
         Add interval
       </Button>
 
-      <p className="text-xs text-zinc-400">
+      <p className="text-xs text-muted-foreground">
         Intervals determine when the topic will be reviewed again. The first interval schedules the next session, and you can
         add or remove steps at any time to stay flexible.
       </p>

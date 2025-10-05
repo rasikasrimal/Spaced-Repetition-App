@@ -83,7 +83,7 @@ Zoom controls, drag panning, and shift-scroll translate into domain updates that
 - Form controls: `rounded-lg border border-border bg-card/60 px-3 py-2 text-sm` and accent focus ring; the dashboard search input is elevated with `border-white/10 bg-slate-950/85` and includes quick-key hints.
 
 ## Card & Panel Treatments
-- Containers use `rounded-3xl`, translucent surfaces (`bg-white/5`), soft borders (`border-white/5`), `shadow-lg`–`shadow-2xl`, and `backdrop-blur`
+- Containers use `rounded-3xl`, translucent surfaces (`bg-white/5`), and soft borders (`border-white/5`)
 - Empty states: dashed borders `border-dashed border-white/10`, icon tiles `rounded-2xl bg-accent/20`
 
 ## Iconography

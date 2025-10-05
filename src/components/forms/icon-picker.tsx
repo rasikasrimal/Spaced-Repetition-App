@@ -17,14 +17,14 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange }) => {
         <Button
           variant="outline"
           size="lg"
-          className="h-11 w-full justify-start gap-3 rounded-xl border-white/10 bg-white/10 text-left text-sm text-zinc-200 hover:bg-white/15"
+          className="h-11 w-full justify-start gap-3 rounded-xl border-inverse/10 bg-inverse/10 text-left text-sm text-fg/80 hover:bg-inverse/15"
         >
           <IconPreview name={value} className="h-5 w-5" />
           <span className="font-medium tracking-tight">{value}</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-72 space-y-3" sideOffset={12}>
-        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Icon</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Icon</p>
         <div className="grid grid-cols-4 gap-3">
           {ICON_OPTIONS.map((option) => (
             <button
@@ -32,7 +32,7 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange }) => {
               type="button"
               onClick={() => onChange(option)}
               className={cn(
-                "flex h-12 items-center justify-center rounded-xl border border-white/10 bg-white/5 transition-colors hover:border-white/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                "flex h-12 items-center justify-center rounded-xl border border-inverse/10 bg-inverse/5 transition-colors hover:border-inverse/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
                 option === value && "border-accent"
               )}
             >
