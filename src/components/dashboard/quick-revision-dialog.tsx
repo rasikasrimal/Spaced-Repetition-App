@@ -158,7 +158,7 @@ export function QuickRevisionDialog({
         aria-modal="true"
         aria-labelledby="quick-revision-title"
         aria-describedby="quick-revision-description"
-        className="relative w-full max-w-md max-h-[calc(100vh-3rem)] overflow-y-auto rounded-3xl border border-inverse/10 bg-card/95 p-6 text-fg shadow-2xl outline-none sm:max-h-[min(520px,calc(100vh-6rem))] sm:p-8"
+        className="relative w-full max-w-md max-h-[calc(100vh-3rem)] overflow-y-auto rounded-3xl border border-inverse/10 bg-card/95 p-6 text-fg outline-none sm:max-h-[min(520px,calc(100vh-6rem))] sm:p-8"
         tabIndex={-1}
       >
         <button

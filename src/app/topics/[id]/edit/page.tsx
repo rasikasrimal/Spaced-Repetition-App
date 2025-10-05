@@ -23,7 +23,7 @@ export default function EditTopicPage() {
   if (!topic) {
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-4 py-12 md:px-6 lg:px-8">
-        <div className="rounded-3xl border border-inverse/5 bg-card/60 p-8 text-center shadow-xl">
+        <div className="rounded-3xl border border-inverse/5 bg-card/60 p-8 text-center">
           <h1 className="text-2xl font-semibold text-fg">Topic unavailable</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             We couldn&apos;t find that topic. It might have been removed or hasn&apos;t been created yet.

@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Toggle } from "@/components/ui/toggle";
+import { useTheme } from "next-themes";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { downloadSvg, downloadSvgAsPng } from "@/lib/export-svg";
 import { buildCurveSegments, sampleSegment } from "@/selectors/curves";
@@ -40,7 +41,9 @@ import {
   SquareDashedMousePointer,
   Maximize2,
   Minimize2,
-  Type
+  Type,
+  Moon,
+  Sun
 } from "lucide-react";
 import {
   daysBetween,
@@ -503,6 +506,8 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
       map.delete(subjectId);
     }
   }, []);
+  const { theme, resolvedTheme, setTheme } = useTheme();
+  const activeTheme = (theme ?? resolvedTheme ?? "light") as "light" | "dark";
 
   const domainMeta = React.useMemo(
     () => computeTimelineDomain(topics, subjects, resolvedTimezone),
@@ -1216,8 +1221,8 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   };
 
   const cardClasses = variant === "compact"
-    ? "rounded-3xl border border-inverse/5 bg-card/50 p-5 shadow-lg shadow-slate-900/30"
-    : "rounded-3xl border border-inverse/5 bg-card/40 p-6 md:p-8 shadow-xl shadow-slate-900/30";
+    ? "rounded-3xl border border-inverse/5 bg-card/50 p-5"
+    : "rounded-3xl border border-inverse/5 bg-card/40 p-6 md:p-8";
 
   return (
     <>
@@ -1511,6 +1516,16 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
           >
             <Type className="h-3.5 w-3.5" />
             <span>Topic Labels</span>
+          </Toggle>
+          <Toggle
+            type="button"
+            pressed={activeTheme === "dark"}
+            onPressedChange={(pressed) => setTheme(pressed ? "dark" : "light")}
+            aria-label="Toggle theme"
+            title={activeTheme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+          >
+            {activeTheme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+            <span>Theme</span>
           </Toggle>
         </div>
         {categoryFilter.size > 0 ? (

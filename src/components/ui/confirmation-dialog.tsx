@@ -149,7 +149,7 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
             transition={{ type: "spring", stiffness: 260, damping: 26 }}
-            className="w-full max-w-md rounded-3xl border border-inverse/10 bg-card/90 p-6 shadow-2xl"
+            className="w-full max-w-md rounded-3xl border border-inverse/10 bg-card/90 p-6"
           >
             <div className="flex items-start gap-3">
               {icon ? <span className="mt-1 rounded-2xl bg-inverse/10 p-2 text-accent" aria-hidden="true">{icon}</span> : null}

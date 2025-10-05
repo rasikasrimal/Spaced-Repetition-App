@@ -757,7 +757,7 @@ export const TopicForm: React.FC<TopicFormProps> = ({ topicId = null, onSubmitCo
 
 
 
-      <div className="rounded-3xl border border-inverse/5 bg-bg/60 p-5 shadow-lg shadow-slate-900/30 backdrop-blur">
+      <div className="rounded-3xl border border-inverse/5 bg-bg/60 p-5 backdrop-blur">
 
         <header className="mb-4 space-y-1">
 

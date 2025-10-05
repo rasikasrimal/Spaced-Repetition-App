@@ -385,7 +385,7 @@ export function TopicList({
   return (
     <div
       id={id}
-      className="rounded-[32px] border border-inverse/5 bg-card/50 p-5 shadow-xl shadow-slate-950/40 backdrop-blur xl:p-8"
+      className="rounded-[32px] border border-inverse/5 bg-card/50 p-5 backdrop-blur xl:p-8"
     >
       <div className="flex flex-col gap-5 xl:gap-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:gap-8">
@@ -395,8 +395,8 @@ export function TopicList({
             </label>
             <div
               className={cn(
-                "group relative flex h-12 w-full min-w-0 items-center rounded-2xl border border-inverse/10 bg-bg/85 px-4 text-base text-fg shadow-lg shadow-slate-950/60 transition",
-                "hover:border-inverse/20 hover:shadow-xl hover:shadow-slate-950/70",
+                "group relative flex h-12 w-full min-w-0 items-center rounded-2xl border border-inverse/10 bg-bg/85 px-4 text-base text-fg transition",
+                "hover:border-inverse/20",
                 searchFocused
                   ? "border-accent ring-2 ring-accent/45 ring-offset-2 ring-offset-bg"
                   : "focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/45 focus-within:ring-offset-2 focus-within:ring-offset-bg"
@@ -509,7 +509,7 @@ export function TopicList({
                   <ChevronDown className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-72 rounded-2xl border border-inverse/10 bg-card/95 p-3 text-sm text-fg shadow-xl">
+              <PopoverContent className="w-72 rounded-2xl border border-inverse/10 bg-card/95 p-3 text-sm text-fg">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Subjects</span>
                   <div className="flex items-center gap-2">

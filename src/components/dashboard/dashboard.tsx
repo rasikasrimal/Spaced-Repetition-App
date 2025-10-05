@@ -256,7 +256,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
       />
 
       {!hideSubjectNudge && subjects.length === 0 ? (
-        <div className="flex items-center justify-between gap-3 rounded-3xl border border-inverse/5 bg-card/40 p-4 text-sm text-fg/80 shadow-lg shadow-slate-900/30">
+        <div className="flex items-center justify-between gap-3 rounded-3xl border border-inverse/5 bg-card/40 p-4 text-sm text-fg/80">
           <div className="flex items-center gap-3">
             <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-accent/15 text-accent">
               <Info className="h-4 w-4" />
@@ -342,7 +342,7 @@ const ProgressTodayModule = ({
   const summaryText = `${completed}/${safeTotal} reviews completed • ${safePercent}% complete. Keep up the rhythm — every checkmark keeps your memory sharp.`;
 
   return (
-    <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-accent/25 via-accent/20 to-transparent px-6 py-8 text-fg shadow-xl shadow-slate-950/30 md:px-8">
+    <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-accent/25 via-accent/20 to-transparent px-6 py-8 text-fg md:px-8">
       <div
         className="absolute inset-y-0 right-0 h-full w-1/2 bg-[radial-gradient(circle_at_top,_hsl(var(--bg)_/_0.35),_transparent_65%)]"
         aria-hidden="true"
@@ -414,7 +414,7 @@ const PersonalizedReviewPlanModule = ({
   const nextDateLabel = nextTopic ? formatDateWithWeekday(nextTopic.nextReviewDate) : null;
 
   return (
-    <section className="rounded-3xl border border-inverse/10 bg-bg/60 px-6 py-6 shadow-lg shadow-slate-950/30 backdrop-blur md:px-8">
+    <section className="rounded-3xl border border-inverse/10 bg-bg/60 px-6 py-6 backdrop-blur md:px-8">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-4 lg:flex-1">
           <div className="space-y-3">

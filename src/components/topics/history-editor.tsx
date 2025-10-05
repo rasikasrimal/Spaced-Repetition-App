@@ -604,7 +604,7 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
       animate={{ scale: 1, opacity: 1 }}
       exit={{ scale: 0.9, opacity: 0 }}
       transition={{ type: "spring", stiffness: 260, damping: 26 }}
-      className="flex max-h-[90vh] w-full max-w-4xl flex-col gap-6 rounded-3xl border border-inverse/10 bg-card/95 p-6 shadow-2xl"
+      className="flex max-h-[90vh] w-full max-w-4xl flex-col gap-6 rounded-3xl border border-inverse/10 bg-card/95 p-6"
     >
       {panelBody}
     </motion.div>
@@ -615,7 +615,7 @@ export const TopicHistoryEditor: React.FC<TopicHistoryEditorProps> = ({
       role="region"
       aria-labelledby="history-editor-title"
       aria-describedby="history-editor-description"
-      className="flex w-full max-w-4xl flex-col gap-6 rounded-3xl border border-inverse/10 bg-card/95 p-6 shadow-2xl"
+      className="flex w-full max-w-4xl flex-col gap-6 rounded-3xl border border-inverse/10 bg-card/95 p-6"
     >
       {panelBody}
     </div>

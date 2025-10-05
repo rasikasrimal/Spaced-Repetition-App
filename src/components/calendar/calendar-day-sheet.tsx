@@ -148,7 +148,7 @@ export function CalendarDaySheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby="calendar-day-sheet-title"
-        className="relative flex w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-inverse/10 bg-card/95 text-fg shadow-2xl"
+        className="relative flex w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-inverse/10 bg-card/95 text-fg"
       >
         <header className="flex items-start justify-between gap-4 border-b border-inverse/5 px-6 py-5">
           <div className="space-y-2">

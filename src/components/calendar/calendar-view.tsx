@@ -366,7 +366,7 @@ export function CalendarView() {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-4 rounded-3xl border border-inverse/10 bg-card/60 p-5 text-fg shadow-lg backdrop-blur">
+      <header className="flex flex-col gap-4 rounded-3xl border border-inverse/10 bg-card/60 p-5 text-fg backdrop-blur">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="inline-flex items-center gap-3">
             <CalendarIcon className="h-5 w-5 text-accent" aria-hidden="true" />
@@ -487,7 +487,7 @@ export function CalendarView() {
       </header>
 
       {hasSubjects ? (
-        <div className="rounded-3xl border border-inverse/10 bg-bg/70 p-4 text-fg shadow-sm">
+        <div className="rounded-3xl border border-inverse/10 bg-bg/70 p-4 text-fg">
           <div className="flex flex-wrap items-center gap-3 border-b border-inverse/5 pb-3 text-xs uppercase tracking-wide text-muted-foreground">
             <span>Subjects</span>
             {subjectOptions.map((subject) => (

@@ -29,11 +29,6 @@ const config: Config = {
         success: "hsl(var(--success))",
         warn: "hsl(var(--warn))",
         error: "hsl(var(--error))",
-        slate: {
-          900: "hsl(var(--shadow))",
-          950: "hsl(var(--shadow))"
-        },
-        black: "hsl(var(--shadow))",
         overlay: "hsl(var(--overlay))",
         "overlay-foreground": "hsl(var(--overlay-foreground))",
         inverse: "hsl(var(--inverse))",

@@ -1,32 +1,35 @@
 "use client";
 
 import { useTheme } from "next-themes";
+import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-const TOGGLE_OPTIONS = [
-  { key: "light", label: "Light" },
-  { key: "dark", label: "Dark" },
-  { key: "system", label: "System" }
-] as const;
+interface ThemeToggleProps {
+  className?: string;
+  size?: "sm" | "default";
+}
 
-export function ThemeToggle() {
+export function ThemeToggle({ className, size = "sm" }: ThemeToggleProps) {
   const { theme, resolvedTheme, setTheme } = useTheme();
-  const activeTheme = theme ?? resolvedTheme;
+  const activeTheme = (theme ?? resolvedTheme ?? "light") as "light" | "dark";
+  const isDark = activeTheme === "dark";
+  const nextTheme = isDark ? "light" : "dark";
 
   return (
-    <div className="flex items-center gap-2">
-      {TOGGLE_OPTIONS.map((option) => (
-        <Button
-          key={option.key}
-          type="button"
-          variant={activeTheme === option.key ? "default" : "outline"}
-          size="sm"
-          onClick={() => setTheme(option.key)}
-          aria-label={`${option.label} theme`}
-        >
-          {option.label}
-        </Button>
-      ))}
-    </div>
+    <Button
+      type="button"
+      variant="outline"
+      size={size}
+      onClick={() => setTheme(nextTheme)}
+      aria-pressed={isDark}
+      aria-label={`Switch to ${nextTheme} theme`}
+      className={cn("inline-flex items-center gap-2", className)}
+    >
+      {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      <span className="text-xs font-medium uppercase tracking-wide">
+        {isDark ? "Light" : "Dark"}
+      </span>
+    </Button>
   );
 }

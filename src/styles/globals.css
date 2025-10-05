@@ -2,14 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: light;
-}
-
-.dark {
-  color-scheme: dark;
-}
-
 body {
   @apply bg-bg text-fg font-sans antialiased;
 }

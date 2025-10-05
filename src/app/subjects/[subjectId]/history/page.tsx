@@ -170,7 +170,7 @@ const SubjectHistoryPage: React.FC<SubjectHistoryPageProps> = ({ params }) => {
           </span>
         </div>
 
-        <section className="space-y-4 rounded-3xl border border-inverse/10 bg-bg/80 p-6 shadow-2xl shadow-black/40">
+        <section className="space-y-4 rounded-3xl border border-inverse/10 bg-bg/80 p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-4">
               <span

@@ -53,7 +53,7 @@ export default function SettingsPage() {
         <p className="text-sm text-muted-foreground">Keep your details and notification preferences up to date.</p>
       </header>
 
-      <form onSubmit={handleSubmit} className="space-y-6 rounded-3xl border border-inverse/5 bg-card/60 p-6 shadow-xl">
+      <form onSubmit={handleSubmit} className="space-y-6 rounded-3xl border border-inverse/5 bg-card/60 p-6">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="profile-name">Name</Label>

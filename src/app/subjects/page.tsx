@@ -337,7 +337,7 @@ const SubjectAdminPage: React.FC = () => {
         <Button
           size="lg"
           onClick={() => setIsCreateOpen(true)}
-          className="self-start rounded-full bg-accent px-6 py-3 text-base font-semibold shadow-[0_20px_60px_-20px_hsl(var(--accent)_/_0.6)] transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 md:absolute md:right-0 md:top-0"
+          className="self-start rounded-full bg-accent px-6 py-3 text-base font-semibold transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 md:absolute md:right-0 md:top-0"
           aria-haspopup="dialog"
           aria-expanded={isCreateOpen}
           aria-controls="create-subject-drawer"
@@ -393,7 +393,7 @@ const SubjectAdminPage: React.FC = () => {
               return (
                 <div
                   key={subject.id}
-                  className={`relative overflow-hidden rounded-3xl border border-inverse/10 bg-bg/70 p-6 shadow-xl shadow-slate-950/40 ${urgencyMeta.accentClass}`}
+                  className={`relative overflow-hidden rounded-3xl border border-inverse/10 bg-bg/70 p-6 ${urgencyMeta.accentClass}`}
                 >
                   <div
                     aria-hidden="true"
@@ -481,7 +481,7 @@ const SubjectAdminPage: React.FC = () => {
             return (
               <article
                 key={subject.id}
-                className={`relative overflow-hidden rounded-3xl border border-inverse/10 bg-bg/70 p-6 shadow-xl shadow-slate-950/40 ${urgencyMeta.accentClass}`}
+                className={`relative overflow-hidden rounded-3xl border border-inverse/10 bg-bg/70 p-6 ${urgencyMeta.accentClass}`}
               >
                 <div
                   aria-hidden="true"
@@ -705,7 +705,7 @@ const SubjectAdminPage: React.FC = () => {
             onClick={() => setIsCreateOpen(false)}
             aria-hidden="true"
           />
-          <aside className="relative ml-auto flex h-full w-full max-w-md flex-col overflow-y-auto bg-bg/95 p-6 shadow-2xl shadow-black/50">
+          <aside className="relative ml-auto flex h-full w-full max-w-md flex-col overflow-y-auto bg-bg/95 p-6">
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1">
                 <h2 className="text-2xl font-semibold text-fg">Create a subject</h2>

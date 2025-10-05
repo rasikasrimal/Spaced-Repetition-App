@@ -368,22 +368,19 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
     due: {
       label: "Due now",
       helper: `${formatRelativeToNow(topic.nextReviewDate)} • ${formatDateWithWeekday(topic.nextReviewDate)}`,
-      className:
-        "border border-error/20 bg-error/15 text-error/20 shadow-[0_1px_10px_hsl(var(--error)_/_0.15)]",
+      className: "border border-error/20 bg-error/15 text-error/20",
       icon: <Flame className="h-4 w-4" />
     },
     upcoming: {
       label: "Upcoming",
       helper: `${formatRelativeToNow(topic.nextReviewDate)} • ${formatDateWithWeekday(topic.nextReviewDate)}`,
-      className:
-        "border border-accent/20 bg-accent/15 text-accent/20 shadow-[0_1px_10px_hsl(var(--accent)_/_0.12)]",
+      className: "border border-accent/20 bg-accent/15 text-accent/20",
       icon: <CalendarClock className="h-4 w-4" />
     },
     completed: {
       label: "Completed",
       helper: `Reviewed today • Next ${formatDateWithWeekday(topic.nextReviewDate)}`,
-      className:
-        "border border-success/20 bg-success/15 text-success/20 shadow-[0_1px_10px_hsl(var(--success)_/_0.12)]",
+      className: "border border-success/20 bg-success/15 text-success/20",
       icon: <CheckCircle2 className="h-4 w-4" />
     }
   };
@@ -436,13 +433,13 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
       <motion.article
         layout
         transition={{ type: "spring", stiffness: 260, damping: 26 }}
-        className="group relative flex h-full flex-col justify-between rounded-3xl border border-inverse/5 bg-card/40 p-6 shadow-lg shadow-slate-900/30 backdrop-blur-xl"
+        className="group relative flex h-full flex-col justify-between rounded-3xl border border-inverse/5 bg-card/40 p-6 backdrop-blur-xl"
       >
         <div className="space-y-4">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-start gap-3">
               <span
-                className="flex h-12 w-12 items-center justify-center rounded-2xl shadow-inner"
+                className="flex h-12 w-12 items-center justify-center rounded-2xl"
                 style={{ backgroundColor: `${identityColor}1f` }}
               >
                 <IconPreview name={identityIcon} className="h-5 w-5" />
@@ -753,7 +750,7 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
             transition={{ type: "spring", stiffness: 260, damping: 26 }}
-            className="w-full max-w-md rounded-3xl border border-inverse/10 bg-card/90 p-6 shadow-2xl"
+            className="w-full max-w-md rounded-3xl border border-inverse/10 bg-card/90 p-6"
           >
             <div className="flex items-start gap-3">
               {icon ? <span className="mt-1 rounded-2xl bg-inverse/10 p-2 text-accent">{icon}</span> : null}

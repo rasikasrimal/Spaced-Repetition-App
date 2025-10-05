@@ -1253,7 +1253,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
               aria-label={`Exam date for ${marker.subjectName}, ${examDateFormatter.format(new Date(marker.dateISO))}`}
             >
               <foreignObject x={-80} y={-18} width={160} height={26}>
-                <div className="pointer-events-none flex items-center gap-1 rounded-full bg-card/90 px-3 py-1 text-[10px] font-medium text-fg shadow-lg">
+                <div className="pointer-events-none flex items-center gap-1 rounded-full bg-card/90 px-3 py-1 text-[10px] font-medium text-fg">
                   <span className="inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: marker.color }} />
                   <span className="uppercase text-[9px] tracking-wide text-accent">Exam</span>
                   <span className="max-w-[90px] truncate">{marker.subjectName}</span>
@@ -1295,7 +1295,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
           aria-label={`Upcoming exams: ${cluster.items.map((item) => item.subjectName).join(", ")}`}
         >
           <foreignObject x={-70} y={-18} width={140} height={26}>
-            <div className="pointer-events-none flex items-center justify-center rounded-full bg-card/90 px-3 py-1 text-[10px] font-semibold text-fg shadow-lg">
+            <div className="pointer-events-none flex items-center justify-center rounded-full bg-card/90 px-3 py-1 text-[10px] font-semibold text-fg">
               {label}
             </div>
           </foreignObject>
@@ -1490,7 +1490,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                   width={220}
                   height={64}
                 >
-                  <div className="pointer-events-none rounded-md bg-bg/80 px-3 py-2 text-[11px] text-fg shadow-lg">
+                  <div className="pointer-events-none rounded-md bg-bg/80 px-3 py-2 text-[11px] text-fg">
                     <div className="font-semibold">{selectionLabel.primary}</div>
                     {selectionRect.shift && selectionLabel.secondary ? (
                       <div className="text-[10px] text-accent/20">{selectionLabel.secondary}</div>

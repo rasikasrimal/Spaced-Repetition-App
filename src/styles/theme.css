@@ -1,60 +1,67 @@
-/* Base tokens in HSL for Tailwind var() usage */
-:root {
-  /* surfaces */
+html {
+  color-scheme: light;
+
   --bg: 0 0% 100%;
-  --fg: 222 47% 11%;
-  --card: 0 0% 100%;
-  --card-foreground: 222 47% 11%;
+  --fg: 0 0% 10%;
+  --card: 210 20% 98%;
+  --card-foreground: 0 0% 10%;
   --muted: 210 16% 93%;
-  --muted-foreground: 215 16% 47%;
-  --border: 214 32% 91%;
-  --ring: 222 84% 56%;
+  --muted-foreground: 0 0% 40%;
+  --border: 0 0% 86%;
+  --ring: 215 100% 52%;
 
-  /* accents */
-  --accent: 221 83% 53%;
-  --accent-foreground: 210 40% 98%;
+  --accent: 215 100% 52%;
+  --accent-foreground: 0 0% 100%;
 
-  /* chart neutrals */
-  --grid: 220 14% 92%;
-  --axis: 215 16% 47%;
+  --grid: 210 16% 86%;
+  --axis: 0 0% 40%;
 
-  /* semantic statuses */
   --success: 142 71% 45%;
   --warn: 45 93% 47%;
   --error: 0 84% 60%;
 
-  /* overlays */
-  --overlay: 210 20% 96%;
-  --overlay-foreground: 222 47% 11%;
-  --inverse: 210 40% 98%;
-  --inverse-foreground: 222 47% 11%;
-  --shadow: 222 47% 15%;
+  --overlay: 0 0% 100%;
+  --overlay-foreground: 0 0% 10%;
+  --inverse: 210 25% 96%;
+  --inverse-foreground: 0 0% 25%;
+
+  --chart-line: 158 72% 47%;
+  --chart-fill-top: 158 72% 47%;
+  --chart-fill-bottom: 158 72% 47%;
 }
 
-/* Dark overrides */
-.dark {
-  --bg: 222 47% 6%;
-  --fg: 210 40% 98%;
-  --card: 222 47% 8%;
-  --card-foreground: 210 40% 98%;
-  --muted: 217 19% 27%;
-  --muted-foreground: 220 15% 70%;
-  --border: 217 19% 27%;
-  --ring: 221 83% 53%;
+html.light {
+  color-scheme: light;
+}
 
-  --accent: 221 83% 53%;
-  --accent-foreground: 210 40% 98%;
+html.dark {
+  color-scheme: dark;
 
-  --grid: 223 10% 20%;
-  --axis: 220 15% 65%;
+  --bg: 220 19% 7%;
+  --fg: 0 0% 96%;
+  --card: 220 16% 11%;
+  --card-foreground: 0 0% 96%;
+  --muted: 215 12% 24%;
+  --muted-foreground: 0 0% 70%;
+  --border: 215 12% 20%;
+  --ring: 152 69% 53%;
+
+  --accent: 152 69% 53%;
+  --accent-foreground: 0 0% 10%;
+
+  --grid: 220 14% 24%;
+  --axis: 0 0% 70%;
 
   --success: 142 71% 45%;
   --warn: 45 93% 47%;
   --error: 0 84% 60%;
 
-  --overlay: 217 33% 12%;
-  --overlay-foreground: 210 40% 98%;
-  --inverse: 210 40% 98%;
-  --inverse-foreground: 222 47% 6%;
-  --shadow: 222 47% 4%;
+  --overlay: 215 14% 12%;
+  --overlay-foreground: 0 0% 96%;
+  --inverse: 220 16% 18%;
+  --inverse-foreground: 0 0% 96%;
+
+  --chart-line: 152 80% 63%;
+  --chart-fill-top: 152 80% 63%;
+  --chart-fill-bottom: 152 80% 63%;
 }
