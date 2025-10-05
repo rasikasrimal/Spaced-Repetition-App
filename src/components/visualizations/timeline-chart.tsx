@@ -918,10 +918,8 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
             );
           })
           : null}
-        {line.events.map((event) => {
-          if (!showReviewMarkers && event.type === "reviewed") {
-            return null;
-          }
+        {showReviewMarkers
+          ? line.events.map((event) => {
           const x = scaleX(event.t);
           let yValue = 1;
           if (event.type === "checkpoint") {
@@ -1009,7 +1007,8 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
               onMouseLeave={hideTooltip}
             />
           );
-        })}
+          })
+          : null}
         {line.nowPoint && line.nowPoint.t >= xDomain[0] && line.nowPoint.t <= xDomain[1] ? (
           (() => {
             const x = scaleX(line.nowPoint!.t);
