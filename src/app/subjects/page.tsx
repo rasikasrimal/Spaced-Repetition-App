@@ -8,6 +8,7 @@ import { FALLBACK_SUBJECT_COLOR } from "@/lib/colors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { ColorPicker } from "@/components/forms/color-picker";
 import { IconPicker } from "@/components/forms/icon-picker";
@@ -87,7 +88,6 @@ type SortOption = "urgency" | "exam-date" | "name";
 
 interface ExamUrgencyMeta {
   label: string;
-  badgeClass: string;
   description: string;
   accentClass: string;
 }
@@ -96,7 +96,6 @@ const getExamUrgencyMeta = (daysLeft: number | null): ExamUrgencyMeta => {
   if (daysLeft === null) {
     return {
       label: "No exam date",
-      badgeClass: "bg-muted/80 text-fg/80",
       description: "Set an exam date to unlock countdowns and exam alerts.",
       accentClass: "ring-1 ring-inset ring-border/60"
     };
@@ -105,7 +104,6 @@ const getExamUrgencyMeta = (daysLeft: number | null): ExamUrgencyMeta => {
   if (daysLeft < 0) {
     return {
       label: "Exam passed",
-      badgeClass: "bg-muted/80 text-fg/80",
       description: "This exam date has passed. Plan a new milestone when you are ready.",
       accentClass: "ring-1 ring-inset ring-border/60"
     };
@@ -114,7 +112,6 @@ const getExamUrgencyMeta = (daysLeft: number | null): ExamUrgencyMeta => {
   if (daysLeft <= 7) {
     return {
       label: "Urgent",
-      badgeClass: "bg-error/20 text-error",
       description: "Exam is around the corner. Prioritise these reviews.",
       accentClass: "ring-1 ring-inset ring-error/40"
     };
@@ -123,7 +120,6 @@ const getExamUrgencyMeta = (daysLeft: number | null): ExamUrgencyMeta => {
   if (daysLeft <= 30) {
     return {
       label: "Next up",
-      badgeClass: "bg-warn/15 text-warn",
       description: "Exam is approaching. Keep momentum steady.",
       accentClass: "ring-1 ring-inset ring-warn/40"
     };
@@ -131,7 +127,6 @@ const getExamUrgencyMeta = (daysLeft: number | null): ExamUrgencyMeta => {
 
   return {
     label: "Plenty of time",
-    badgeClass: "bg-success/15 text-success",
     description: "Planned well ahead. Maintain a consistent cadence.",
     accentClass: "ring-1 ring-inset ring-success/40"
   };
@@ -523,12 +518,13 @@ const SubjectAdminPage: React.FC = () => {
                         <h3 className="text-xl font-semibold text-fg">{subject.name}</h3>
                         <div className="space-y-2 text-sm text-muted-foreground">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span
-                              className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide transition-colors duration-200 ${urgencyMeta.badgeClass}`}
-                            >
-                              <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
-                              {examBadgeText}
-                            </span>
+                            <StatusBadge
+                              type="exam"
+                              className="exam-date"
+                              icon={CalendarDays}
+                              label={examBadgeText}
+                              date={subject.examDate ?? undefined}
+                            />
                             {subject.examDate ? (
                               <span className={examInfoClassName}>
                                 Exam on {formatFullDate(subject.examDate)}

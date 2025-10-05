@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { QuickRevisionDialog } from "@/components/dashboard/quick-revision-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { IconPreview } from "@/components/icon-preview";
 import { useTopicStore } from "@/stores/topics";
 import { Subject, Topic } from "@/types/topic";
 import type { RiskScore } from "@/lib/forgetting-curve";
@@ -17,6 +16,7 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
+  ChevronRight,
   Ellipsis,
   Flame,
   Pencil,
@@ -237,7 +237,7 @@ export function TopicList({
   }, [clearSearch]);
 
   const handleResetFilters = React.useCallback(() => {
-    onStatusFilterChange("all");
+    onStatusFilterChange("due-today");
     onSubjectFilterChange(null);
     setSubjectOpen(false);
   }, [onStatusFilterChange, onSubjectFilterChange]);
@@ -294,8 +294,11 @@ export function TopicList({
 
   const filterDescriptions = React.useMemo(() => {
     const descriptions: string[] = [];
-    if (statusFilter !== "all") {
-      descriptions.push(`Status ${STATUS_META[statusFilter].label}`);
+    if (statusFilter !== "due-today") {
+      const statusMeta = statusFilter === "all" ? null : STATUS_META[statusFilter];
+      if (statusMeta) {
+        descriptions.push(`Status ${statusMeta.label}`);
+      }
     }
     if (subjectFilter !== null) {
       if (subjectFilter.size === 0) {
@@ -391,8 +394,8 @@ export function TopicList({
       className="rounded-[32px] border border-inverse/5 bg-card/50 p-5 backdrop-blur xl:p-8"
     >
       <div className="flex flex-col gap-5 xl:gap-6">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:gap-8">
-          <div role="search" className="w-full xl:flex-1 xl:min-w-0">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div role="search" className="w-full lg:max-w-2xl lg:flex-1 lg:min-w-0">
             <label htmlFor="dashboard-topic-search" className="sr-only">
               Search topics
             </label>
@@ -472,170 +475,170 @@ export function TopicList({
               </p>
             </div>
           </div>
-          <div className="flex flex-col gap-3 xl:flex-1">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <Button
-                type="button"
-                onClick={onCreateTopic}
-                className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition hover:bg-accent/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
-              >
-                <Sparkles className="h-4 w-4" aria-hidden="true" /> Add topic
-              </Button>
+          <div className="flex flex-none items-start justify-end">
+            <Button
+              type="button"
+              onClick={onCreateTopic}
+              className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition hover:bg-accent/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+            >
+              <Sparkles className="h-4 w-4" aria-hidden="true" /> Add topic
+            </Button>
+          </div>
+        </div>
 
-              <div className="flex flex-1 flex-wrap items-center gap-2 text-xs text-muted-foreground xl:flex-nowrap xl:justify-end xl:gap-3">
-                <div
-                  className="flex items-center gap-1 rounded-full border border-inverse/10 bg-card/60 p-1"
-                  role="group"
-                  aria-label="Filter by status"
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div
+              className="flex min-w-0 gap-2 overflow-x-auto whitespace-nowrap scrollbar-none scroll-smooth snap-x snap-mandatory"
+              role="group"
+              aria-label="Filter by status"
+            >
+              {statusFilters.map(({ value, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => onStatusFilterChange(value)}
+                  aria-pressed={statusFilter === value}
+                  className={cn(
+                    "flex-shrink-0 snap-start rounded-md border px-3 py-1.5 text-sm font-medium uppercase tracking-wide transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
+                    statusFilter === value
+                      ? "border-primary bg-primary/10 text-primary font-semibold hover:bg-primary/15"
+                      : "border-transparent text-muted-foreground hover:bg-accent/20 hover:text-fg"
+                  )}
                 >
-                  {statusFilters.map(({ value, label }) => (
-                    <Button
-                      key={value}
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => onStatusFilterChange(value)}
-                      aria-pressed={statusFilter === value}
-                      className={cn(
-                        "rounded-full px-3 py-1 text-xs transition",
-                        statusFilter === value
-                          ? "bg-accent text-accent-foreground hover:bg-accent/90"
-                          : "text-muted-foreground hover:text-fg"
-                      )}
-                    >
-                      {label}
-                    </Button>
-                  ))}
-                </div>
+                  {label}
+                </button>
+              ))}
+            </div>
 
-                <Popover open={subjectOpen} onOpenChange={setSubjectOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="inline-flex items-center gap-2 rounded-full border-inverse/15 bg-card/60 px-3 py-1 text-xs text-fg/80 hover:border-inverse/25 hover:text-fg"
-                    >
-                      <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-                      {subjectsLabel}
-                      <ChevronDown className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-72 rounded-2xl border border-inverse/10 bg-card/95 p-3 text-sm text-fg">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Subjects</span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          className="text-xs font-medium text-accent hover:underline"
-                          onClick={() => {
-                            onSubjectFilterChange(null);
-                            setSubjectOpen(false);
-                          }}
-                        >
-                          Select all
-                        </button>
-                        <button
-                          type="button"
-                          className="text-xs font-medium text-muted-foreground hover:underline"
-                          onClick={() => onSubjectFilterChange(new Set<string>())}
-                        >
-                          Clear all
-                        </button>
-                      </div>
+            <div className="flex flex-none items-center gap-2 whitespace-nowrap">
+              <Popover open={subjectOpen} onOpenChange={setSubjectOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="inline-flex items-center gap-2 rounded-full border-inverse/15 bg-card/60 px-3 py-1 text-xs text-fg/80 hover:border-inverse/25 hover:text-fg"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                    {subjectsLabel}
+                    <ChevronDown className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72 rounded-2xl border border-inverse/10 bg-card/95 p-3 text-sm text-fg">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Subjects</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="text-xs font-medium text-accent hover:underline"
+                        onClick={() => {
+                          onSubjectFilterChange(null);
+                          setSubjectOpen(false);
+                        }}
+                      >
+                        Select all
+                      </button>
+                      <button
+                        type="button"
+                        className="text-xs font-medium text-muted-foreground hover:underline"
+                        onClick={() => onSubjectFilterChange(new Set<string>())}
+                      >
+                        Clear all
+                      </button>
                     </div>
-                    <div className="mt-3">
-                      <label htmlFor="subject-filter-search" className="sr-only">
-                        Search subjects
-                      </label>
-                      <div className="relative">
-                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/80" aria-hidden="true" />
-                        <Input
-                          id="subject-filter-search"
-                          type="search"
-                          value={subjectSearch}
-                          onChange={(event) => setSubjectSearch(event.target.value)}
-                          placeholder="Search subjects"
-                          className="h-9 w-full rounded-xl border-inverse/10 bg-bg/80 pl-9 pr-3 text-xs text-fg placeholder:text-muted-foreground/80 focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/40"
-                        />
-                      </div>
+                  </div>
+                  <div className="mt-3">
+                    <label htmlFor="subject-filter-search" className="sr-only">
+                      Search subjects
+                    </label>
+                    <div className="relative">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/80" aria-hidden="true" />
+                      <Input
+                        id="subject-filter-search"
+                        type="search"
+                        value={subjectSearch}
+                        onChange={(event) => setSubjectSearch(event.target.value)}
+                        placeholder="Search subjects"
+                        className="h-9 w-full rounded-xl border-inverse/10 bg-bg/80 pl-9 pr-3 text-xs text-fg placeholder:text-muted-foreground/80 focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/40"
+                      />
                     </div>
-                    <div className="mt-3 max-h-64 space-y-1 overflow-y-auto">
-                      {subjectOptions.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">No subjects yet.</p>
-                      ) : filteredSubjectOptions.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">No matching subjects.</p>
-                      ) : (
-                        filteredSubjectOptions.map((option) => {
-                          const isChecked = subjectFilter === null ? true : subjectFilter.has(option.id);
-                          return (
-                            <button
-                              key={option.id}
-                              type="button"
-                              onClick={() => toggleSubject(option.id)}
-                              role="menuitemcheckbox"
-                              aria-checked={isChecked}
-                              className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition hover:bg-inverse/10"
-                            >
-                              <span className="flex items-center gap-2">
-                                <span className="flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: option.color }} />
-                                {option.name}
+                  </div>
+                  <div className="mt-3 max-h-64 space-y-1 overflow-y-auto">
+                    {subjectOptions.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No subjects yet.</p>
+                    ) : filteredSubjectOptions.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No matching subjects.</p>
+                    ) : (
+                      filteredSubjectOptions.map((option) => {
+                        const isChecked = subjectFilter === null ? true : subjectFilter.has(option.id);
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => toggleSubject(option.id)}
+                            role="menuitemcheckbox"
+                            aria-checked={isChecked}
+                            className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition hover:bg-inverse/10"
+                          >
+                            <span className="flex items-center gap-2">
+                              <span className="flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: option.color }} />
+                              {option.name}
+                            </span>
+                            <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                              {option.count}
+                              <span
+                                className={cn(
+                                  "flex h-5 w-5 items-center justify-center rounded-full border",
+                                  isChecked
+                                    ? "border-accent bg-accent/20 text-accent"
+                                    : "border-inverse/20 text-muted-foreground/80"
+                                )}
+                              >
+                                {isChecked ? <Check className="h-3 w-3" aria-hidden="true" /> : null}
                               </span>
-                              <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                                {option.count}
-                                <span
-                                  className={cn(
-                                    "flex h-5 w-5 items-center justify-center rounded-full border",
-                                    isChecked
-                                      ? "border-accent bg-accent/20 text-accent"
-                                      : "border-inverse/20 text-muted-foreground/80"
-                                  )}
-                                >
-                                  {isChecked ? <Check className="h-3 w-3" aria-hidden="true" /> : null}
-                                </span>
-                              </span>
-                            </button>
-                          );
-                        })
-                      )}
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                            </span>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
 
-                <Popover open={sortOpen} onOpenChange={setSortOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="inline-flex items-center gap-2 rounded-full border-inverse/15 bg-card/60 px-3 py-1 text-xs text-fg/80 hover:border-inverse/25 hover:text-fg"
-                    >
-                      <ChevronDown className="h-3 w-3 text-muted-foreground" aria-hidden="true" /> Sort by: {sortLabels[sortOption]}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-56 rounded-2xl border border-inverse/10 bg-card/95 p-2 text-sm text-fg">
-                    <div className="space-y-1">
-                      {(Object.keys(sortLabels) as SortOption[]).map((value) => (
-                        <button
-                          key={value}
-                          type="button"
-                          onClick={() => {
-                            setSortOption(value);
-                            setSortOpen(false);
-                          }}
-                          className={cn(
-                            "flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left transition",
-                            sortOption === value ? "bg-accent/20 text-fg" : "hover:bg-inverse/10 hover:text-fg"
-                          )}
-                        >
-                          <span>{sortLabels[value]}</span>
-                          {sortOption === value ? <CheckCircle2 className="h-3.5 w-3.5 text-accent" aria-hidden="true" /> : null}
-                        </button>
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </div>
+              <Popover open={sortOpen} onOpenChange={setSortOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="inline-flex items-center gap-2 rounded-full border-inverse/15 bg-card/60 px-3 py-1 text-xs text-fg/80 hover:border-inverse/25 hover:text-fg"
+                  >
+                    <ChevronDown className="h-3 w-3 text-muted-foreground" aria-hidden="true" /> Sort by: {sortLabels[sortOption]}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 rounded-2xl border border-inverse/10 bg-card/95 p-2 text-sm text-fg">
+                  <div className="space-y-1">
+                    {(Object.keys(sortLabels) as SortOption[]).map((value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => {
+                          setSortOption(value);
+                          setSortOpen(false);
+                        }}
+                        className={cn(
+                          "flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left transition",
+                          sortOption === value ? "bg-accent/20 text-fg" : "hover:bg-inverse/10 hover:text-fg"
+                        )}
+                      >
+                        <span>{sortLabels[value]}</span>
+                        {sortOption === value ? <CheckCircle2 className="h-3.5 w-3.5 text-accent" aria-hidden="true" /> : null}
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </div>
@@ -645,11 +648,11 @@ export function TopicList({
             Showing {totalFilteredCount} of {items.length} topics
             {totalHiddenCount > 0 ? ` • ${totalHiddenCount} hidden by filters` : ""}
           </span>
-          {(searchInput || statusFilter !== "all" || subjectFilter !== null) && totalHiddenCount > 0 ? (
+          {searchInput || statusFilter !== "due-today" || subjectFilter !== null ? (
             <button
               type="button"
               onClick={handleResetFilters}
-              className="rounded-full border border-inverse/10 px-3 py-1 text-[11px] uppercase tracking-wide text-muted-foreground transition hover:border-inverse/30 hover:text-fg"
+              className="ml-auto text-xs font-medium text-muted-foreground transition hover:text-fg hover:underline"
             >
               Clear filters
             </button>
@@ -689,7 +692,7 @@ export function TopicList({
                   type="button"
                   variant="outline"
                   onClick={handleResetFilters}
-                  disabled={statusFilter === "all" && (subjectFilter === null || subjectFilter.size === totalSubjectOptions)}
+                  disabled={statusFilter === "due-today" && (subjectFilter === null || subjectFilter.size === totalSubjectOptions)}
                   className="rounded-full border-inverse/20 bg-transparent px-4 py-2 text-sm text-fg transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:opacity-40"
                 >
                   Reset filters
@@ -697,26 +700,42 @@ export function TopicList({
               </div>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-3xl border border-inverse/5 bg-bg/40">
-              <div className="hidden border-b border-inverse/5 px-6 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid md:grid-cols-[minmax(0,2.5fr)_minmax(0,1.2fr)_minmax(0,1.3fr)_minmax(0,1fr)_auto]">
-                <span>Topic</span>
-                <span>Subject</span>
-                <span>Next review</span>
-                <span>Status</span>
-                <span className="text-right">Actions</span>
-              </div>
-              <div className="divide-y divide-border/40">
-                {filteredItems.map((row) => (
-                  <TopicListRow
-                    key={row.topic.id}
-                    item={row}
-                    subject={row.subject ?? subjectLookup.get(row.topic.subjectId ?? "") ?? null}
-                    timezone={timezone}
-                    zonedNow={zonedNow}
-                    onEdit={() => handleEdit(row.topic.id)}
-                    editing={editingId === row.topic.id}
-                  />
-                ))}
+            <div className="overflow-hidden rounded-xl border border-border/60 bg-card/70">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-border/50">
+                  <thead className="bg-muted/20 text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">
+                    <tr>
+                      <th scope="col" className="w-[32%] min-w-[200px] px-4 py-3 text-left">
+                        Topic
+                      </th>
+                      <th scope="col" className="w-[20%] min-w-[160px] px-4 py-3 text-left">
+                        Subject
+                      </th>
+                      <th scope="col" className="w-[20%] min-w-[160px] px-4 py-3 text-left">
+                        Next review
+                      </th>
+                      <th scope="col" className="w-[16%] min-w-[140px] px-4 py-3 text-left">
+                        Status
+                      </th>
+                      <th scope="col" className="min-w-[140px] px-4 py-3 text-right">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/50">
+                    {filteredItems.map((row) => (
+                      <TopicListRow
+                        key={row.topic.id}
+                        item={row}
+                        subject={row.subject ?? subjectLookup.get(row.topic.subjectId ?? "") ?? null}
+                        timezone={timezone}
+                        zonedNow={zonedNow}
+                        onEdit={() => handleEdit(row.topic.id)}
+                        editing={editingId === row.topic.id}
+                      />
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
@@ -854,6 +873,7 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
   };
 
   const handleReviseNow = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
     if (hasUsedReviseToday) {
       trackReviseNowBlocked();
       toast.error(REVISE_LOCKED_MESSAGE);
@@ -915,46 +935,62 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
 
   const nextReviewDateLabel = formatDateWithWeekday(item.topic.nextReviewDate);
   const nextReviewRelativeLabel = formatRelativeToNow(item.topic.nextReviewDate);
+  const detailRowId = `topic-details-${item.topic.id}`;
+  const subjectName = subject ? subject.name : "No subject";
+  const subjectColor = subject?.color ?? FALLBACK_SUBJECT_COLOR;
+
+  const handleRowClick = React.useCallback(() => {
+    setExpanded((value) => !value);
+  }, [setExpanded]);
+
+  const handleRowKeyDown = React.useCallback((event: React.KeyboardEvent<HTMLTableRowElement>) => {
+    if (event.target !== event.currentTarget) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      setExpanded((value) => !value);
+    }
+  }, [setExpanded]);
 
   return (
-    <div className={cn("transition-colors", recentlyRevised ? "bg-success/10" : "bg-transparent")}
-    >
-      <div className="flex flex-col gap-3 px-4 py-4 md:grid md:grid-cols-[minmax(0,2.5fr)_minmax(0,1.2fr)_minmax(0,1.3fr)_minmax(0,1fr)_auto] md:items-center md:gap-4 md:px-6">
-        <div className="flex flex-col gap-2">
+    <>
+      <tr
+        className={cn(
+          "group cursor-pointer align-top transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+          recentlyRevised ? "bg-success/10" : "hover:bg-muted/30"
+        )}
+        onClick={handleRowClick}
+        onKeyDown={handleRowKeyDown}
+        tabIndex={0}
+        role="button"
+        aria-expanded={expanded}
+        aria-controls={detailRowId}
+      >
+        <td className="px-4 py-3 align-top">
           <div className="flex items-start gap-3">
-            <button
-              type="button"
-              onClick={() => setExpanded((value) => !value)}
-              className="mt-0.5 inline-flex h-11 w-11 flex-none items-center justify-center rounded-full border border-inverse/10 bg-inverse/5 text-fg transition hover:bg-inverse/10"
-              aria-expanded={expanded}
-              aria-controls={`topic-details-${item.topic.id}`}
-              title={expanded ? "Hide details" : "Show details"}
+            <span
+              aria-hidden="true"
+              className={cn(
+                "mt-1 inline-flex h-6 w-6 flex-none items-center justify-center rounded-full border border-border/60 bg-muted/20 text-muted-foreground transition-transform",
+                expanded ? "rotate-90 text-primary" : ""
+              )}
             >
-              <ChevronDown
-                className={cn("h-4 w-4 transition-transform", expanded ? "rotate-180" : "")}
-                aria-hidden="true"
-              />
-            </button>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </span>
             <div className="min-w-0 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-                <p className="truncate text-base font-semibold text-fg" title={item.topic.title}>
+                <span className="truncate text-sm font-semibold text-fg" title={item.topic.title}>
                   {item.topic.title}
-                </p>
+                </span>
                 {editing ? (
-                  <span className="rounded-full bg-inverse/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-accent">
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
                     Editing…
                   </span>
                 ) : null}
               </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground md:hidden">
-                <span
-                  className="inline-flex items-center gap-2 rounded-full border border-inverse/10 bg-inverse/5 px-2.5 py-1"
-                  style={{ backgroundColor: `${(subject?.color ?? FALLBACK_SUBJECT_COLOR)}1f` }}
-                >
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-inverse/15 text-fg">
-                    <IconPreview name={subject?.icon ?? "Sparkles"} className="h-3.5 w-3.5" />
-                  </span>
-                  <span>{subject ? subject.name : "No subject"}</span>
+              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground md:hidden">
+                <span className="inline-flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: subjectColor }} />
+                  {subjectName}
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <CalendarClock className="h-3 w-3" aria-hidden="true" /> {nextReviewRelativeLabel}
@@ -966,140 +1002,153 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
               </div>
             </div>
           </div>
-        </div>
-        <div className="hidden min-w-0 items-center gap-2 text-sm text-fg/80 md:flex">
-          <span
-            className="inline-flex items-center gap-2 rounded-full border border-inverse/10 bg-inverse/5 px-3 py-1 text-xs font-medium"
-            style={{ backgroundColor: `${(subject?.color ?? FALLBACK_SUBJECT_COLOR)}1f` }}
-          >
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-inverse/15 text-fg">
-              <IconPreview name={subject?.icon ?? "Sparkles"} className="h-3.5 w-3.5" />
-            </span>
-            {subject ? subject.name : "No subject"}
-          </span>
-        </div>
-        <div className="hidden min-w-0 flex-col text-sm text-inverse md:flex">
-          <span className="font-medium text-fg">{nextReviewDateLabel}</span>
-          <span className="text-xs text-muted-foreground">{nextReviewRelativeLabel}</span>
-        </div>
-        <div className="hidden md:flex">
+        </td>
+        <td className="hidden px-4 py-3 align-top text-sm text-muted-foreground md:table-cell">
+          <div className="flex items-center gap-2 truncate">
+            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: subjectColor }} />
+            <span className="truncate">{subjectName}</span>
+          </div>
+        </td>
+        <td className="hidden px-4 py-3 align-top md:table-cell">
+          <div className="flex flex-col gap-1 text-sm">
+            <span className="font-medium text-fg">{nextReviewDateLabel}</span>
+            <span className="text-xs text-muted-foreground">{nextReviewRelativeLabel}</span>
+          </div>
+        </td>
+        <td className="hidden px-4 py-3 align-top lg:table-cell">
           <span
             className={cn(
-              "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs",
+              "inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-semibold",
               statusMeta.badgeClass
             )}
           >
             {statusMeta.icon}
             {statusMeta.label}
           </span>
-        </div>
-        <div className="flex items-center justify-end gap-3">
-          <Button
-            size="lg"
-            onClick={(event) => handleReviseNow(event)}
-            disabled={hasUsedReviseToday || isLoggingRevision}
-            className="min-w-[6.5rem] rounded-full px-5"
-            title={hasUsedReviseToday ? nextAvailabilityMessage : "Log today’s revision"}
-            aria-label={hasUsedReviseToday ? "Revise locked until after midnight" : "Log today’s revision"}
-            aria-describedby={hasUsedReviseToday ? lockedDescriptionId : undefined}
-          >
-            Revise
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={onEdit}
-            title="Edit topic"
-            aria-label="Edit topic"
-            className="h-11 w-11 rounded-full text-muted-foreground hover:text-fg"
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Popover>
-            <PopoverTrigger asChild>
+        </td>
+        <td className="px-4 py-3 align-top">
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button
+                size="sm"
+                onClick={handleReviseNow}
+                disabled={hasUsedReviseToday || isLoggingRevision}
+                className="rounded-full px-4"
+                title={hasUsedReviseToday ? nextAvailabilityMessage : "Log today’s revision"}
+                aria-label={hasUsedReviseToday ? "Revise locked until after midnight" : "Log today’s revision"}
+                aria-describedby={hasUsedReviseToday ? lockedDescriptionId : undefined}
+              >
+                Revise
+              </Button>
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-11 w-11 rounded-full text-muted-foreground hover:text-fg"
-                title="More actions"
-                aria-label="More topic actions"
-              >
-                <Ellipsis className="h-4 w-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-48 rounded-2xl border border-inverse/10 bg-card/95 p-2 text-sm text-fg">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowSkipConfirm(true);
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onEdit();
                 }}
-                className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-fg/80 transition hover:bg-inverse/10"
+                title="Edit topic"
+                aria-label="Edit topic"
+                className="h-9 w-9 rounded-full text-muted-foreground hover:text-fg"
               >
-                <RefreshCw className="h-4 w-4" aria-hidden="true" /> Skip today
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowDeleteConfirm(true)}
-                className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-error/20 transition hover:bg-error/20"
-              >
-                <Trash2 className="h-4 w-4" aria-hidden="true" /> Delete topic
-              </button>
-            </PopoverContent>
-          </Popover>
-        </div>
-      </div>
-      {hasUsedReviseToday ? (
-        <>
-          <p className="px-6 text-[11px] text-muted-foreground/80 md:text-right">{nextAvailabilitySubtext}</p>
-          <span id={lockedDescriptionId} className="sr-only">
-            {nextAvailabilityMessage}
-          </span>
-        </>
-      ) : null}
-      {expanded ? (
-        <div
-          id={`topic-details-${item.topic.id}`}
-          className="border-t border-inverse/5 bg-bg/40 px-4 py-4 text-sm text-muted-foreground md:px-6"
-        >
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Schedule</p>
-              <ul className="space-y-1 text-xs text-muted-foreground">
-                <li>
-                  <span className="text-muted-foreground">Reminder:</span> {reminderLabel}
-                </li>
-                <li>
-                  <span className="text-muted-foreground">Intervals:</span> {intervalsLabel}
-                </li>
-                <li>
-                  <span className="text-muted-foreground">Last reviewed:</span> {lastReviewedLabel}
-                </li>
-                <li>
-                  <span className="text-muted-foreground">Total reviews:</span> {totalReviews}
-                </li>
-                {examDateLabel ? (
-                  <li>
-                    <span className="text-muted-foreground">Exam:</span> {examDateLabel}
-                    {typeof daysUntilExam === "number" ? ` • ${daysUntilExam} day${daysUntilExam === 1 ? "" : "s"} left` : ""}
-                  </li>
-                ) : null}
-              </ul>
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={(event) => event.stopPropagation()}
+                    className="h-9 w-9 rounded-full text-muted-foreground hover:text-fg"
+                    title="More actions"
+                    aria-label="More topic actions"
+                  >
+                    <Ellipsis className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-48 rounded-xl border border-border/60 bg-card/95 p-2 text-sm text-fg shadow-lg">
+                  {item.status === "due-today" ? (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setShowSkipConfirm(true);
+                      }}
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-muted-foreground transition hover:bg-muted/30 hover:text-foreground"
+                    >
+                      <RefreshCw className="h-4 w-4" aria-hidden="true" /> Skip today
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setShowDeleteConfirm(true);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-error/80 transition hover:bg-error/10"
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden="true" /> Delete topic
+                  </button>
+                </PopoverContent>
+              </Popover>
             </div>
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Notes</p>
-              <p className="whitespace-pre-line text-xs text-fg/80">{notesPreview}</p>
-              {notes.length > 180 ? (
-                <button
-                  type="button"
-                  onClick={() => setShowFullNotes((value) => !value)}
-                  className="text-xs font-semibold text-accent hover:underline"
-                >
-                  {showFullNotes ? "Show less" : "View more"}
-                </button>
-              ) : null}
-            </div>
+            {hasUsedReviseToday ? (
+              <>
+                <p className="text-[11px] text-muted-foreground">{nextAvailabilitySubtext}</p>
+                <span id={lockedDescriptionId} className="sr-only">
+                  {nextAvailabilityMessage}
+                </span>
+              </>
+            ) : null}
           </div>
-        </div>
+        </td>
+      </tr>
+      {expanded ? (
+        <tr id={detailRowId} className="bg-muted/15 text-sm text-muted-foreground">
+          <td colSpan={5} className="px-4 py-4">
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Schedule</p>
+                <ul className="space-y-1 text-xs text-muted-foreground">
+                  <li>
+                    <span className="text-muted-foreground">Reminder:</span> {reminderLabel}
+                  </li>
+                  <li>
+                    <span className="text-muted-foreground">Intervals:</span> {intervalsLabel}
+                  </li>
+                  <li>
+                    <span className="text-muted-foreground">Last reviewed:</span> {lastReviewedLabel}
+                  </li>
+                  <li>
+                    <span className="text-muted-foreground">Total reviews:</span> {totalReviews}
+                  </li>
+                  {examDateLabel ? (
+                    <li>
+                      <span className="text-muted-foreground">Exam:</span> {examDateLabel}
+                      {typeof daysUntilExam === "number" ? ` • ${daysUntilExam} day${daysUntilExam === 1 ? "" : "s"} left` : ""}
+                    </li>
+                  ) : null}
+                </ul>
+              </div>
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Notes</p>
+                <p className="whitespace-pre-line text-xs text-fg/80">{notesPreview}</p>
+                {notes.length > 180 ? (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setShowFullNotes((value) => !value);
+                    }}
+                    className="text-xs font-semibold text-accent hover:underline"
+                  >
+                    {showFullNotes ? "Show less" : "View more"}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          </td>
+        </tr>
       ) : null}
 
       <ConfirmationDialog
@@ -1177,6 +1226,6 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
             : null
         ].filter(Boolean) as { label: string; action: () => void }[]}
       />
-    </div>
+    </>
   );
 }
