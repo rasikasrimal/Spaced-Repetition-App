@@ -39,7 +39,8 @@ import {
   Hand,
   SquareDashedMousePointer,
   Maximize2,
-  Minimize2
+  Minimize2,
+  Type
 } from "lucide-react";
 import {
   daysBetween,
@@ -53,6 +54,7 @@ import {
   STABILITY_MIN_DAYS,
   computeRetrievability
 } from "@/lib/forgetting-curve";
+import { FALLBACK_SUBJECT_COLOR, generateTopicColorMap } from "@/lib/colors";
 
 const DEFAULT_WINDOW_DAYS = 30;
 const MIN_ZOOM_SPAN = DAY_MS;
@@ -124,6 +126,7 @@ const deriveSeries = (
       color,
       points: [],
       segments: [],
+      connectors: [],
       stitches: [],
       events: [
         {
@@ -216,6 +219,37 @@ const deriveSeries = (
               ? `Reviewed → next interval ${(segment.start.intervalDays ?? 0).toFixed(2)} days`
               : undefined
         });
+
+        if (Number.isFinite(prevStart)) {
+          const intervalMs = Math.max(0, reviewTime - prevStart);
+          const epsilonMs = Math.max(60_000, Math.min(intervalMs * 0.1, 12 * 60 * 60 * 1000));
+          const connectorStartTime = Math.max(prevStart, reviewTime - epsilonMs);
+          const connectorElapsed = Math.max(0, connectorStartTime - prevStart);
+          const connectorRetention = computeRetrievability(
+            previousRenderableSegment.stabilityDays,
+            connectorElapsed
+          );
+          const nowSpan = nowMs - prevStart;
+          const computeOpacity = (timestamp: number) => {
+            if (!Number.isFinite(timestamp)) return 0;
+            if (nowSpan <= 0) {
+              return timestamp >= prevStart ? 1 : 0;
+            }
+            const ratio = (timestamp - prevStart) / nowSpan;
+            return Math.max(0, Math.min(1, ratio));
+          };
+          if (connectorStartTime < reviewTime) {
+            pack.connectors.push({
+              id: `connector-${segment.start.id}`,
+              from: {
+                t: connectorStartTime,
+                r: connectorRetention,
+                opacity: computeOpacity(connectorStartTime)
+              },
+              to: { t: reviewTime, r: 1, opacity: 1 }
+            });
+          }
+        }
       }
 
       if (hasSamples) {
@@ -254,6 +288,7 @@ const deriveSeries = (
     pack.points.sort((a, b) => a.t - b.t);
     pack.events.sort((a, b) => a.t - b.t);
     pack.stitches.sort((a, b) => a.t - b.t);
+    pack.connectors.sort((a, b) => a.from.t - b.from.t);
     series.push(pack);
   }
 
@@ -414,10 +449,13 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     return map;
   }, [storeSubjects]);
 
-  const resolveTopicColor = React.useCallback(
-    (topic: Topic) => {
-      const subject = topic.subjectId ? subjectLookup.get(topic.subjectId) : undefined;
-      return subject?.color ?? "#7c3aed";
+  const resolveSubjectColor = React.useCallback(
+    (subjectId: string | null | undefined) => {
+      if (!subjectId) {
+        return FALLBACK_SUBJECT_COLOR;
+      }
+      const subject = subjectLookup.get(subjectId);
+      return subject?.color ?? FALLBACK_SUBJECT_COLOR;
     },
     [subjectLookup]
   );
@@ -448,6 +486,8 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   const setShowReviewMarkers = useTimelinePreferencesStore((state) => state.setShowReviewMarkers);
   const showEventDots = useTimelinePreferencesStore((state) => state.showEventDots);
   const setShowEventDots = useTimelinePreferencesStore((state) => state.setShowEventDots);
+  const showTopicLabels = useTimelinePreferencesStore((state) => state.showTopicLabels);
+  const setShowTopicLabels = useTimelinePreferencesStore((state) => state.setShowTopicLabels);
   const svgRef = React.useRef<SVGSVGElement | null>(null);
   const perSubjectSvgRefs = React.useRef(new Map<string, SVGSVGElement | null>());
   const perSubjectContainerRef = React.useRef<HTMLDivElement | null>(null);
@@ -791,6 +831,38 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     return sorted;
   }, [topics, categoryFilter, search, sortView]);
 
+  const singleSubjectColorOverrides = React.useMemo(() => {
+    if (filteredTopics.length === 0) return null;
+    const uniqueSubjectKeys = new Set(
+      filteredTopics.map((topic) => topic.subjectId ?? DEFAULT_SUBJECT_ID)
+    );
+    if (uniqueSubjectKeys.size !== 1) return null;
+    const [singleKey] = Array.from(uniqueSubjectKeys);
+    const subjectId = singleKey === DEFAULT_SUBJECT_ID ? null : singleKey;
+    const baseColor = resolveSubjectColor(subjectId);
+    return generateTopicColorMap(baseColor, filteredTopics);
+  }, [filteredTopics, resolveSubjectColor]);
+
+  const singleSubjectLegend = React.useMemo(() => {
+    if (!singleSubjectColorOverrides || singleSubjectColorOverrides.size <= 1) {
+      return null;
+    }
+    const sorted = filteredTopics
+      .filter((topic) => singleSubjectColorOverrides.has(topic.id))
+      .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
+    if (sorted.length <= 1) return null;
+    const limit = 14;
+    const visible = sorted.slice(0, limit);
+    const remaining = sorted.length - visible.length;
+    return { visible, remaining };
+  }, [filteredTopics, singleSubjectColorOverrides]);
+
+  const resolveTopicColor = React.useCallback(
+    (topic: Topic) =>
+      singleSubjectColorOverrides?.get(topic.id) ?? resolveSubjectColor(topic.subjectId),
+    [singleSubjectColorOverrides, resolveSubjectColor]
+  );
+
   const [nowMs, setNowMs] = React.useState(() => Date.now());
 
   React.useEffect(() => {
@@ -816,21 +888,29 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     }
     const items: SubjectSeriesGroup[] = [];
     for (const [subjectId, list] of grouped) {
-      const subject = subjectLookup.get(subjectId) ?? null;
-      const derived = deriveSeries(list, visibility, resolveTopicColor, nowMs, showCheckpoints);
+      const actualSubjectId = subjectId === DEFAULT_SUBJECT_ID ? null : subjectId;
+      const subject = actualSubjectId ? subjectLookup.get(actualSubjectId) ?? null : null;
+      const baseColor = resolveSubjectColor(actualSubjectId);
+      const palette = generateTopicColorMap(baseColor, list);
+      const derived = deriveSeries(
+        list,
+        visibility,
+        (topic) => palette.get(topic.id) ?? resolveSubjectColor(topic.subjectId),
+        nowMs,
+        showCheckpoints
+      );
       if (derived.length === 0) continue;
-      const color = subject?.color ?? resolveTopicColor(list[0]);
       items.push({
         subjectId,
         subject,
         label: subject?.name ?? "Unassigned",
-        color,
+        color: baseColor,
         series: derived
       });
     }
     items.sort((a, b) => a.label.localeCompare(b.label));
     return items;
-  }, [filteredTopics, subjectLookup, visibility, resolveTopicColor, nowMs, showCheckpoints]);
+  }, [filteredTopics, subjectLookup, visibility, resolveSubjectColor, nowMs, showCheckpoints]);
 
   React.useEffect(() => {
     if (!fullscreenTarget) return;
@@ -982,6 +1062,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
             showOpacityGradient={showOpacityGradient}
             showReviewMarkers={showReviewMarkers}
             showEventDots={showEventDots}
+            showTopicLabels={showTopicLabels}
           />
         )
       } as const;
@@ -1017,6 +1098,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
           showOpacityGradient={showOpacityGradient}
           showReviewMarkers={showReviewMarkers}
           showEventDots={showEventDots}
+          showTopicLabels={showTopicLabels}
         />
       )
     } as const;
@@ -1042,7 +1124,8 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     examMarkersBySubject,
     showOpacityGradient,
     showReviewMarkers,
-    showEventDots
+    showEventDots,
+    showTopicLabels
   ]);
 
   const isFullscreenOpen = Boolean(fullscreenConfig);
@@ -1419,6 +1502,16 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
             <Droplet className="h-3.5 w-3.5" />
             <span>Opacity Gradient</span>
           </Toggle>
+          <Toggle
+            type="button"
+            pressed={showTopicLabels}
+            onPressedChange={(pressed) => setShowTopicLabels(Boolean(pressed))}
+            aria-label="Toggle topic labels"
+            title="Toggle topic labels"
+          >
+            <Type className="h-3.5 w-3.5" />
+            <span>Topic Labels</span>
+          </Toggle>
         </div>
         {categoryFilter.size > 0 ? (
           <Button size="sm" variant="ghost" onClick={() => setCategoryFilter(new Set())}>
@@ -1467,29 +1560,65 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
       {viewMode === "combined"
         ? hasStudyActivity && domain && yDomain
           ? (
-              <TimelineChart
-                ref={svgRef}
-                series={series}
-                xDomain={domain}
-                yDomain={yDomain}
-                onViewportChange={(next, options) => handleViewportChange(next, { push: options?.push })}
-                height={variant === "compact" ? 320 : 460}
-                showGrid
-                fullDomain={fullDomain ?? undefined}
-                fullYDomain={fullYDomain ?? undefined}
-                examMarkers={showExamMarkers ? examMarkers : []}
-                timeZone={resolvedTimezone}
-                onResetDomain={handleResetDomain}
-                ariaDescribedBy={`timeline-zoom-shortcuts ${pointerInstructionId}`}
-                interactionMode={interactionMode}
-                temporaryPan={spacePanning}
-                onRequestStepBack={handleStepBack}
-                onTooSmallSelection={handleTooSmallSelection}
-                keyboardSelection={keyboardSelection}
-                showOpacityGradient={showOpacityGradient}
-                showReviewMarkers={showReviewMarkers}
-                showEventDots={showEventDots}
-              />
+              <div className="space-y-3">
+                <TimelineChart
+                  ref={svgRef}
+                  series={series}
+                  xDomain={domain}
+                  yDomain={yDomain}
+                  onViewportChange={(next, options) => handleViewportChange(next, { push: options?.push })}
+                  height={variant === "compact" ? 320 : 460}
+                  showGrid
+                  fullDomain={fullDomain ?? undefined}
+                  fullYDomain={fullYDomain ?? undefined}
+                  examMarkers={showExamMarkers ? examMarkers : []}
+                  timeZone={resolvedTimezone}
+                  onResetDomain={handleResetDomain}
+                  ariaDescribedBy={`timeline-zoom-shortcuts ${pointerInstructionId}`}
+                  interactionMode={interactionMode}
+                  temporaryPan={spacePanning}
+                  onRequestStepBack={handleStepBack}
+                  onTooSmallSelection={handleTooSmallSelection}
+                  keyboardSelection={keyboardSelection}
+                  showOpacityGradient={showOpacityGradient}
+                  showReviewMarkers={showReviewMarkers}
+                  showEventDots={showEventDots}
+                  showTopicLabels={showTopicLabels}
+                />
+                {singleSubjectLegend ? (
+                  <div
+                    className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-slate-900/60 px-3 py-2 text-xs text-zinc-300"
+                    aria-label="Topic color legend"
+                  >
+                    <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+                      Topic colors
+                    </span>
+                    {singleSubjectLegend.visible.map((topic) => {
+                      const color =
+                        singleSubjectColorOverrides?.get(topic.id) ?? resolveTopicColor(topic);
+                      return (
+                        <span
+                          key={topic.id}
+                          className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2 py-1"
+                        >
+                          <span
+                            className="inline-flex h-2 w-2 rounded-full"
+                            style={{ backgroundColor: color }}
+                          />
+                          <span className="max-w-[10rem] truncate text-[11px] text-zinc-200">
+                            {topic.title}
+                          </span>
+                        </span>
+                      );
+                    })}
+                    {singleSubjectLegend.remaining > 0 ? (
+                      <span className="text-[11px] text-zinc-400">
+                        +{singleSubjectLegend.remaining} more
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
             )
           : (
               <div className="flex h-60 items-center justify-center rounded-3xl border border-dashed border-white/10 bg-slate-900/40 text-sm text-zinc-400">
@@ -1565,6 +1694,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                         showOpacityGradient={showOpacityGradient}
                         showReviewMarkers={showReviewMarkers}
                         showEventDots={showEventDots}
+                        showTopicLabels={showTopicLabels}
                       />
                     </div>
                   );
