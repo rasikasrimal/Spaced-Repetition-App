@@ -39,7 +39,8 @@ import {
   Hand,
   SquareDashedMousePointer,
   Maximize2,
-  Minimize2
+  Minimize2,
+  Type
 } from "lucide-react";
 import {
   daysBetween,
@@ -485,6 +486,8 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   const setShowReviewMarkers = useTimelinePreferencesStore((state) => state.setShowReviewMarkers);
   const showEventDots = useTimelinePreferencesStore((state) => state.showEventDots);
   const setShowEventDots = useTimelinePreferencesStore((state) => state.setShowEventDots);
+  const showTopicLabels = useTimelinePreferencesStore((state) => state.showTopicLabels);
+  const setShowTopicLabels = useTimelinePreferencesStore((state) => state.setShowTopicLabels);
   const svgRef = React.useRef<SVGSVGElement | null>(null);
   const perSubjectSvgRefs = React.useRef(new Map<string, SVGSVGElement | null>());
   const perSubjectContainerRef = React.useRef<HTMLDivElement | null>(null);
@@ -1059,6 +1062,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
             showOpacityGradient={showOpacityGradient}
             showReviewMarkers={showReviewMarkers}
             showEventDots={showEventDots}
+            showTopicLabels={showTopicLabels}
           />
         )
       } as const;
@@ -1094,6 +1098,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
           showOpacityGradient={showOpacityGradient}
           showReviewMarkers={showReviewMarkers}
           showEventDots={showEventDots}
+          showTopicLabels={showTopicLabels}
         />
       )
     } as const;
@@ -1119,7 +1124,8 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     examMarkersBySubject,
     showOpacityGradient,
     showReviewMarkers,
-    showEventDots
+    showEventDots,
+    showTopicLabels
   ]);
 
   const isFullscreenOpen = Boolean(fullscreenConfig);
@@ -1496,6 +1502,16 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
             <Droplet className="h-3.5 w-3.5" />
             <span>Opacity Gradient</span>
           </Toggle>
+          <Toggle
+            type="button"
+            pressed={showTopicLabels}
+            onPressedChange={(pressed) => setShowTopicLabels(Boolean(pressed))}
+            aria-label="Toggle topic labels"
+            title="Toggle topic labels"
+          >
+            <Type className="h-3.5 w-3.5" />
+            <span>Topic Labels</span>
+          </Toggle>
         </div>
         {categoryFilter.size > 0 ? (
           <Button size="sm" variant="ghost" onClick={() => setCategoryFilter(new Set())}>
@@ -1567,6 +1583,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                   showOpacityGradient={showOpacityGradient}
                   showReviewMarkers={showReviewMarkers}
                   showEventDots={showEventDots}
+                  showTopicLabels={showTopicLabels}
                 />
                 {singleSubjectLegend ? (
                   <div
@@ -1677,6 +1694,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                         showOpacityGradient={showOpacityGradient}
                         showReviewMarkers={showReviewMarkers}
                         showEventDots={showEventDots}
+                        showTopicLabels={showTopicLabels}
                       />
                     </div>
                   );

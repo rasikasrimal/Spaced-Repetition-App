@@ -7,9 +7,11 @@ type TimelinePreferencesState = {
   showOpacityGradient: boolean;
   showReviewMarkers: boolean;
   showEventDots: boolean;
+  showTopicLabels: boolean;
   setShowOpacityGradient: (value: boolean) => void;
   setShowReviewMarkers: (value: boolean) => void;
   setShowEventDots: (value: boolean) => void;
+  setShowTopicLabels: (value: boolean) => void;
 };
 
 export const useTimelinePreferencesStore = create<TimelinePreferencesState>()(
@@ -18,13 +20,15 @@ export const useTimelinePreferencesStore = create<TimelinePreferencesState>()(
       showOpacityGradient: true,
       showReviewMarkers: false,
       showEventDots: true,
+      showTopicLabels: true,
       setShowOpacityGradient: (value) => set({ showOpacityGradient: value }),
       setShowReviewMarkers: (value) => set({ showReviewMarkers: value }),
-      setShowEventDots: (value) => set({ showEventDots: value })
+      setShowEventDots: (value) => set({ showEventDots: value }),
+      setShowTopicLabels: (value) => set({ showTopicLabels: value })
     }),
     {
       name: "timeline-preferences",
-      version: 2,
+      version: 3,
       migrate: (persistedState) => {
         if (!persistedState || typeof persistedState !== "object") {
           return persistedState as TimelinePreferencesState;
@@ -47,10 +51,14 @@ export const useTimelinePreferencesStore = create<TimelinePreferencesState>()(
         const showEventDots =
           typeof state.showEventDots === "boolean" ? state.showEventDots : true;
 
+        const showTopicLabels =
+          typeof state.showTopicLabels === "boolean" ? state.showTopicLabels : true;
+
         return {
           showOpacityGradient,
           showReviewMarkers,
-          showEventDots
+          showEventDots,
+          showTopicLabels
         } as TimelinePreferencesState;
       }
     }
