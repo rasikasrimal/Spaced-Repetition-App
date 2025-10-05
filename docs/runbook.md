@@ -12,8 +12,13 @@ This runbook helps troubleshoot common production issues. Because the app is loc
 - Confirm that the deployment loads without console errors in the browser DevTools.
 - Verify that `localStorage.getItem("spaced-repetition-store")` returns data after creating a topic.
 - Check that the "Review Today" count updates when marking a topic as reviewed.
+- Ensure the dashboard renders only the daily summary, review table, and progress card—no timeline widgets should appear here after the simplification.
 - Run the modal overlay checklist: open Quick Revision, confirmation dialogs, and dropdowns to ensure no clipping or scroll lock regressions.
 - Toggle the Subjects dropdown on Dashboard, Calendar, and Timeline to confirm the shared filter stays in sync.
+- Flip the theme toggle between light and dark to ensure surfaces update instantly and the choice persists on reload.
+- In light mode, scan the navigation, review statuses, and subject exam labels to ensure the hardened contrast styles remain legible.
+- Open the Timeline fullscreen control from both Combined and Per-subject views to verify the chart retains zoom, filters, and labels on entry and exit.
+- Expand a subject below the timeline and hover revision badges to ensure tooltips display review dates and the table colours match the active theme.
 
 ## Common incidents
 

@@ -25,9 +25,9 @@ const QUALITY_LABEL: Record<ReviewQuality, string> = {
 };
 
 const QUALITY_TONE: Record<ReviewQuality, string> = {
-  1: "text-emerald-300",
-  0.5: "text-amber-300",
-  0: "text-rose-300"
+  1: "text-success/40",
+  0.5: "text-warn/40",
+  0: "text-error/40"
 };
 
 type SubjectReview = {
@@ -45,7 +45,7 @@ const resolveUrgency = (examDate: string | null | undefined) => {
   if (!examDate) {
     return {
       label: "No exam date",
-      tone: "bg-zinc-800/80 text-zinc-200",
+      tone: "bg-muted/80 text-fg/80",
       description: "Set an exam date to unlock countdowns and exam alerts.",
       daysLeft: null
     };
@@ -57,7 +57,7 @@ const resolveUrgency = (examDate: string | null | undefined) => {
   if (daysLeft < 0) {
     return {
       label: "Exam passed",
-      tone: "bg-zinc-800/80 text-zinc-200",
+      tone: "bg-muted/80 text-fg/80",
       description: "This exam date has passed. Plan a new milestone when you are ready.",
       daysLeft
     };
@@ -66,7 +66,7 @@ const resolveUrgency = (examDate: string | null | undefined) => {
   if (daysLeft <= 7) {
     return {
       label: "Urgent",
-      tone: "bg-rose-500/20 text-rose-100",
+      tone: "bg-error/20 text-error/20",
       description: "Exam is around the corner. Prioritise these reviews.",
       daysLeft
     };
@@ -75,7 +75,7 @@ const resolveUrgency = (examDate: string | null | undefined) => {
   if (daysLeft <= 30) {
     return {
       label: "Next up",
-      tone: "bg-amber-500/20 text-amber-100",
+      tone: "bg-warn/20 text-warn/20",
       description: "Exam is approaching. Keep momentum steady.",
       daysLeft
     };
@@ -83,7 +83,7 @@ const resolveUrgency = (examDate: string | null | undefined) => {
 
   return {
     label: "Plenty of time",
-    tone: "bg-emerald-500/20 text-emerald-100",
+    tone: "bg-success/20 text-success/20",
     description: "Planned well ahead. Maintain a consistent cadence.",
     daysLeft
   };
@@ -125,10 +125,10 @@ const SubjectHistoryPage: React.FC<SubjectHistoryPageProps> = ({ params }) => {
 
   if (!subject) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center bg-slate-950/30 px-4 text-center">
+      <main className="flex min-h-screen flex-col items-center justify-center bg-bg/30 px-4 text-center">
         <div className="space-y-4">
-          <h1 className="text-2xl font-semibold text-white">Subject not found</h1>
-          <p className="text-sm text-zinc-400">
+          <h1 className="text-2xl font-semibold text-fg">Subject not found</h1>
+          <p className="text-sm text-muted-foreground">
             The subject you tried to open could not be located. It may have been removed or renamed.
           </p>
           <Button asChild variant="outline" className="gap-2">
@@ -155,35 +155,35 @@ const SubjectHistoryPage: React.FC<SubjectHistoryPageProps> = ({ params }) => {
   );
 
   return (
-    <main className="min-h-screen bg-slate-950/30 px-4 py-10">
+    <main className="min-h-screen bg-bg/30 px-4 py-10">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
         <div className="flex items-center justify-between gap-4">
-          <Button asChild variant="ghost" size="sm" className="gap-2 text-zinc-300 hover:text-white">
+          <Button asChild variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-fg">
             <Link href="/subjects">
               <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Back to subjects
             </Link>
           </Button>
           <span
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-zinc-300"
+            className="inline-flex items-center gap-2 rounded-full border border-inverse/10 bg-inverse/5 px-3 py-1 text-xs text-muted-foreground"
           >
             <Layers className="h-3.5 w-3.5" aria-hidden="true" /> {topicCount} topic{topicCount === 1 ? "" : "s"}
           </span>
         </div>
 
-        <section className="space-y-4 rounded-3xl border border-white/10 bg-slate-950/80 p-6 shadow-2xl shadow-black/40">
+        <section className="space-y-4 rounded-3xl border border-inverse/10 bg-bg/80 p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-4">
               <span
-                className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10"
+                className="flex h-14 w-14 items-center justify-center rounded-2xl border border-inverse/10"
                 style={{ backgroundColor: `${subject.color}22`, color: subject.color }}
                 aria-hidden="true"
               >
                 <IconPreview name={subject.icon} className="h-6 w-6" />
               </span>
               <div className="space-y-1">
-                <p className="text-xs uppercase tracking-wide text-zinc-400">Subject history</p>
-                <h1 className="text-3xl font-semibold text-white">{subject.name}</h1>
-                <p className="text-sm text-zinc-400">Chronological log of every review recorded for this subject.</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Subject history</p>
+                <h1 className="text-3xl font-semibold text-fg">{subject.name}</h1>
+                <p className="text-sm text-muted-foreground">Chronological log of every review recorded for this subject.</p>
               </div>
             </div>
             <div className="flex flex-col items-start gap-2 text-sm sm:items-end">
@@ -191,48 +191,48 @@ const SubjectHistoryPage: React.FC<SubjectHistoryPageProps> = ({ params }) => {
                 <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
                 {urgency.label}
               </span>
-              <p className="text-zinc-300">
+              <p className="text-muted-foreground">
                 {subject.examDate ? formatFullDate(subject.examDate) : "No exam scheduled"}
               </p>
               {typeof urgency.daysLeft === "number" ? (
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-muted-foreground/80">
                   {urgency.daysLeft >= 0 ? `${urgency.daysLeft} days left` : `${Math.abs(urgency.daysLeft)} days ago`}
                 </p>
               ) : null}
-              <p className="max-w-xs text-xs text-zinc-500 text-left sm:text-right">{urgency.description}</p>
+              <p className="max-w-xs text-xs text-muted-foreground/80 text-left sm:text-right">{urgency.description}</p>
             </div>
           </div>
-          <div className="grid gap-3 rounded-2xl border border-white/5 bg-slate-900/70 p-4 sm:grid-cols-3">
+          <div className="grid gap-3 rounded-2xl border border-inverse/5 bg-card/70 p-4 sm:grid-cols-3">
             <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Recorded reviews</p>
-              <p className="text-2xl font-semibold text-white">{reviews.length}</p>
-              <p className="text-xs text-zinc-500">Each entry contributes to retention projections and exam readiness.</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Recorded reviews</p>
+              <p className="text-2xl font-semibold text-fg">{reviews.length}</p>
+              <p className="text-xs text-muted-foreground/80">Each entry contributes to retention projections and exam readiness.</p>
             </div>
             <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Topics contributing</p>
-              <p className="text-2xl font-semibold text-white">{topicCount}</p>
-              <p className="text-xs text-zinc-500">Aggregated across every topic linked to this subject.</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Topics contributing</p>
+              <p className="text-2xl font-semibold text-fg">{topicCount}</p>
+              <p className="text-xs text-muted-foreground/80">Aggregated across every topic linked to this subject.</p>
             </div>
             <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Most recent review</p>
-              <p className="text-lg font-semibold text-white">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Most recent review</p>
+              <p className="text-lg font-semibold text-fg">
                 {hasReviews ? formatDateWithWeekday(reviews[0].reviewDate) : "No reviews yet"}
               </p>
               {hasReviews ? (
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-muted-foreground/80">
                   {formatRelativeToNow(reviews[0].reviewDate)} • {reviews[0].topicTitle}
                 </p>
               ) : (
-                <p className="text-xs text-zinc-500">Review history updates here once you log study sessions.</p>
+                <p className="text-xs text-muted-foreground/80">Review history updates here once you log study sessions.</p>
               )}
             </div>
           </div>
         </section>
 
-        <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-6">
+        <section className="rounded-3xl border border-inverse/10 bg-bg/70 p-6">
           <div className="mb-4 flex items-center justify-between gap-4">
-            <h2 className="text-lg font-semibold text-white">Review timeline</h2>
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-zinc-300">
+            <h2 className="text-lg font-semibold text-fg">Review timeline</h2>
+            <div className="inline-flex items-center gap-2 rounded-full border border-inverse/10 bg-inverse/5 px-3 py-1 text-xs text-muted-foreground">
               <NotebookPen className="h-3.5 w-3.5" aria-hidden="true" /> Chronological order
             </div>
           </div>
@@ -243,9 +243,9 @@ const SubjectHistoryPage: React.FC<SubjectHistoryPageProps> = ({ params }) => {
                 const label = formatDateWithWeekday(`${day}T00:00:00Z`);
                 return (
                   <li key={day} className="space-y-3">
-                    <div className="flex items-center gap-2 text-sm text-zinc-300">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <CalendarDays className="h-4 w-4" aria-hidden="true" />
-                      <span className="font-medium text-white">{label}</span>
+                      <span className="font-medium text-fg">{label}</span>
                     </div>
                     <ul className="space-y-3">
                       {entries
@@ -255,12 +255,12 @@ const SubjectHistoryPage: React.FC<SubjectHistoryPageProps> = ({ params }) => {
                           return (
                             <li
                               key={entry.id}
-                              className="rounded-2xl border border-white/10 bg-slate-900/80 p-4 text-sm text-zinc-300"
+                              className="rounded-2xl border border-inverse/10 bg-card/80 p-4 text-sm text-muted-foreground"
                             >
                               <div className="flex flex-wrap items-center justify-between gap-3">
                                 <div className="space-y-1">
-                                  <p className="text-base font-semibold text-white">{entry.topicTitle}</p>
-                                  <p className="text-xs text-zinc-500">
+                                  <p className="text-base font-semibold text-fg">{entry.topicTitle}</p>
+                                  <p className="text-xs text-muted-foreground/80">
                                     Logged {formatRelativeToNow(entry.reviewDate)} • {formatInTimeZone(entry.reviewDate, timezone, {
                                       hour: "numeric",
                                       minute: "2-digit"
@@ -272,14 +272,14 @@ const SubjectHistoryPage: React.FC<SubjectHistoryPageProps> = ({ params }) => {
                                     {QUALITY_LABEL[entry.quality]}
                                   </span>
                                   {typeof entry.intervalDays === "number" ? (
-                                    <span className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1 text-xs text-zinc-200">
+                                    <span className="inline-flex items-center gap-2 rounded-full border border-inverse/10 px-3 py-1 text-xs text-fg/80">
                                       <Clock className="h-3.5 w-3.5" aria-hidden="true" /> {entry.intervalDays} day interval
                                     </span>
                                   ) : null}
                                 </div>
                               </div>
                               {entry.notes ? (
-                                <p className="mt-3 text-sm text-zinc-300">{entry.notes}</p>
+                                <p className="mt-3 text-sm text-muted-foreground">{entry.notes}</p>
                               ) : null}
                             </li>
                           );
@@ -290,10 +290,10 @@ const SubjectHistoryPage: React.FC<SubjectHistoryPageProps> = ({ params }) => {
               })}
             </ol>
           ) : (
-            <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-white/10 bg-slate-900/60 p-12 text-center">
-              <CalendarDays className="h-6 w-6 text-zinc-500" aria-hidden="true" />
-              <p className="text-sm font-medium text-white">No past reviews yet</p>
-              <p className="max-w-sm text-xs text-zinc-500">
+            <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-inverse/10 bg-card/60 p-12 text-center">
+              <CalendarDays className="h-6 w-6 text-muted-foreground/80" aria-hidden="true" />
+              <p className="text-sm font-medium text-fg">No past reviews yet</p>
+              <p className="max-w-sm text-xs text-muted-foreground/80">
                 Once you log study sessions for topics in this subject, they will appear here chronologically with cadence and quality details.
               </p>
             </div>

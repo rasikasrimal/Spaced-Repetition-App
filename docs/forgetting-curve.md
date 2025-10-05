@@ -21,7 +21,7 @@ Our scheduler uses an explicit exponential forgetting curve to determine when ea
 - Subject difficulty modifiers scale the stability (`S_eff = S · d`) with `d ∈ [0.5, 1.5]` before interval calculation.
 - All scheduling happens in UTC timestamps but “today” boundaries use the learner’s profile timezone (Asia/Colombo by default).
 
-We persist each review interval as a piecewise exponential segment. Historic segments remain visible (faded) while the active segment renders in full colour. When a review happens we stitch the curve vertically back to ~100% so the timeline shows a continuous story: previous decay → the pre-review retention → the reset and next decay.
+We persist each review interval as a piecewise exponential segment. Historic segments remain visible (faded) while the active segment renders in full colour. When a review happens we stitch the curve vertically back to ~100% so the timeline shows a continuous story: previous decay → the pre-review retention → the reset and next decay. Connector segments inherit the same opacity model as the decay, so fade mode blends from the prior opacity into the reset rather than flashing at full strength.
 
 ```mermaid
 flowchart TD

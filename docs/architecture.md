@@ -45,9 +45,13 @@ Subjects define identity (icon/colour) and optional exam dates. Topics reference
 ## Key modules
 
 - **App Router (`src/app`)** – Hosts dashboard, calendar, reviews, timeline, subjects, and settings pages. Each route uses the shared layout shell so navigation feels consistent.
-- **UI components (`src/components`)** – Presentational and form components that render topic cards, subject summaries, day sheets, and settings controls.
+- **Dashboard modules (`src/components/dashboard`)** – Deliver the streamlined daily workspace: headline summary, review filters, action toolbar, and the topic table with statuses.
+- **UI components (`src/components`)** – Presentational and form components that render topic cards, subject summaries, day sheets, revision tables, and settings controls.
 - **State management (`src/stores/topics.ts`)** – A persisted Zustand store that encapsulates subjects, topics, and review metrics. It owns all mutations and enforces constraints (e.g., unique subject names, interval recalculation, exam date clamping, revise daily lockout).
 - **Profile store (`src/stores/profile.ts`)** – Holds learner preferences (name, avatar colour, timezone). The timezone governs local-midnight logic throughout the UI.
+- **Theme store (`src/stores/theme.ts`)** – Persists the light/dark choice in `localStorage`, applies the matching hard-coded palette class to the document body, and exposes helpers for the high-contrast nav/status styles.
+- **Timeline preferences store (`src/stores/timeline-preferences.ts`)** – Keeps toolbar toggles (opacity fade, review markers, topic labels, event dots, fullscreen) in sync across combined and per-subject views.
+- **Revision tables (`src/components/visualizations/subject-revision-table.tsx`)** – Provide flat, per-subject audit tables with hoverable revision badges beneath the timeline charts.
 - **Lib utilities (`src/lib`)** – Date helpers, feature flags, and formatting utilities used across views.
 
 ## Scheduling & cutoff flow
@@ -84,7 +88,7 @@ graph LR
   A -- toolbar/search/filters --> A
   B -- day sheet --> A
   C -- view schedule CTA --> D
-  D -- export/zoom/pan --> D
+  D -- export/zoom/pan/fullscreen --> D
   E -- edit subject identity --> A
   F -- timezone controls daily resets --> A
 ```
@@ -166,9 +170,9 @@ flowchart TD
 graph TD
   V[View switch] --> C[Combined chart]
   V --> P[Per-subject small multiples]
-  P --> P1[Subject A chart]
-  P --> P2[Subject B chart]
-  P --> P3[Subject C chart]
+  P --> P1[Subject A chart + revision table]
+  P --> P2[Subject B chart + revision table]
+  P --> P3[Subject C chart + revision table]
 ```
 
 ## Deployment considerations
