@@ -23,3 +23,10 @@
 - **Skip action guard** – Confirm the “Skip today” button renders only for rows whose status is `due-today`; upcoming topics should not expose the control.
 - **Expansion details** – Toggle a row open and verify that schedule metadata (intervals, last reviewed, exam countdown) and notes render within the detail panel.
 - **Responsive layout** – Resize the viewport to mobile widths to confirm the table scrolls horizontally, the condensed metadata appears under the topic title, and action buttons remain usable.
+
+## Dark mode contrast
+
+- **Global scan** – Enable dark mode and review dashboard summaries, subject cards, and reviews tables to ensure secondary copy (`text-muted-foreground`) stays legible.
+- **Placeholder sweep** – Focus each major search/input field to confirm placeholder text resolves to the brighter slate tone instead of fading out.
+- **Status chips** – Inspect overdue, upcoming, and exam badges on dark backgrounds for ≥4.5:1 contrast between text and pill fill.
+- **Assistive text** – Check captions, tooltips, and muted helper text for readable hierarchy without dipping below AA contrast ratios.

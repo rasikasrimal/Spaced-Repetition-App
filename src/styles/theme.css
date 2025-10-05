@@ -55,6 +55,18 @@ body.light :where(small, .muted) {
     color: #555555;
   }
 
+body.dark :where(h1, h2, h3, h4) {
+    color: #f4f4f5;
+  }
+
+body.dark :where(p, span, label) {
+    color: #d4d4d8;
+  }
+
+body.dark :where(small, .muted) {
+    color: #a1a1aa;
+  }
+
 /* background surfaces */
 body.light .bg-bg { background-color: #ffffff; }
 body.dark .bg-bg { background-color: #0f1115; }
@@ -402,18 +414,20 @@ body.dark .text-error { color: #f87171; }
 
 /* text colors */
 body.light .text-fg { color: #1a1a1a; }
-body.dark .text-fg { color: #ffffff; }
+body.dark .text-fg { color: #eaeaea; }
 body.light .text-fg\/70 { color: rgba(26, 26, 26, 0.7); }
-body.dark .text-fg\/70 { color: rgba(255, 255, 255, 0.7); }
+body.dark .text-fg\/70 { color: rgba(234, 234, 234, 0.7); }
 body.light .text-fg\/80 { color: rgba(26, 26, 26, 0.8); }
-body.dark .text-fg\/80 { color: rgba(255, 255, 255, 0.8); }
+body.dark .text-fg\/80 { color: rgba(234, 234, 234, 0.8); }
 body.light .text-fg\/90 { color: rgba(26, 26, 26, 0.9); }
-body.dark .text-fg\/90 { color: rgba(255, 255, 255, 0.9); }
+body.dark .text-fg\/90 { color: rgba(234, 234, 234, 0.9); }
 
 body.light .text-muted-foreground { color: #999999; }
-body.dark .text-muted-foreground { color: #808080; }
+body.dark .text-muted-foreground { color: #d4d4d8; }
 body.light .text-muted-foreground\/80 { color: rgba(153, 153, 153, 0.8); }
-body.dark .text-muted-foreground\/80 { color: rgba(128, 128, 128, 0.8); }
+body.dark .text-muted-foreground\/80 { color: rgba(212, 212, 216, 0.8); }
+body.light .text-muted-foreground\/70 { color: rgba(153, 153, 153, 0.7); }
+body.dark .text-muted-foreground\/70 { color: rgba(212, 212, 216, 0.7); }
 
 body.light .text-accent { color: #21ce99; }
 body.dark .text-accent { color: #3dea95; }
@@ -423,6 +437,16 @@ body.light .text-accent\/30 { color: rgba(33, 206, 153, 0.3); }
 body.dark .text-accent\/30 { color: rgba(61, 234, 149, 0.3); }
 body.light .text-accent\/80 { color: rgba(33, 206, 153, 0.8); }
 body.dark .text-accent\/80 { color: rgba(61, 234, 149, 0.8); }
+
+body.light ::placeholder {
+  color: #6b7280;
+  opacity: 1;
+}
+
+body.dark ::placeholder {
+  color: #9ca3af;
+  opacity: 1;
+}
 
 body.light .text-accent-foreground { color: #ffffff; }
 body.dark .text-accent-foreground { color: #0f1115; }

@@ -32,3 +32,9 @@
 - Limited the “Skip today” shortcut to topics due today while keeping other actions available.
 - Retired the review-load preview chart to focus on actionable rows.
 - Rebuilt the reviews table with a responsive, GitHub-inspired layout, hoverable rows, and inline expansion for schedule and notes.
+
+### Dark Mode Contrast Improvements
+- Brightened core dark-mode text tokens to keep secondary copy legible against slate backgrounds.
+- Raised muted and placeholder greys for improved hierarchy without sacrificing comfort.
+- Updated status hues so overdue, upcoming, and exam accents clear WCAG contrast targets.
+- Confirmed readability across dashboard summaries, tables, and subject cards in low-light themes.
