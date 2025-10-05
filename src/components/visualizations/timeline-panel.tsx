@@ -459,38 +459,6 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     [subjectLookup]
   );
 
-  const singleSubjectColorOverrides = React.useMemo(() => {
-    if (filteredTopics.length === 0) return null;
-    const uniqueSubjectKeys = new Set(
-      filteredTopics.map((topic) => topic.subjectId ?? DEFAULT_SUBJECT_ID)
-    );
-    if (uniqueSubjectKeys.size !== 1) return null;
-    const [singleKey] = Array.from(uniqueSubjectKeys);
-    const subjectId = singleKey === DEFAULT_SUBJECT_ID ? null : singleKey;
-    const baseColor = resolveSubjectColor(subjectId);
-    return generateTopicColorMap(baseColor, filteredTopics);
-  }, [filteredTopics, resolveSubjectColor]);
-
-  const singleSubjectLegend = React.useMemo(() => {
-    if (!singleSubjectColorOverrides || singleSubjectColorOverrides.size <= 1) {
-      return null;
-    }
-    const sorted = filteredTopics
-      .filter((topic) => singleSubjectColorOverrides.has(topic.id))
-      .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
-    if (sorted.length <= 1) return null;
-    const limit = 14;
-    const visible = sorted.slice(0, limit);
-    const remaining = sorted.length - visible.length;
-    return { visible, remaining };
-  }, [filteredTopics, singleSubjectColorOverrides]);
-
-  const resolveTopicColor = React.useCallback(
-    (topic: Topic) =>
-      singleSubjectColorOverrides?.get(topic.id) ?? resolveSubjectColor(topic.subjectId),
-    [singleSubjectColorOverrides, resolveSubjectColor]
-  );
-
   const [visibility, setVisibility] = React.useState<TopicVisibility>({});
   const [viewMode, setViewMode] = React.useState<TimelineViewMode>("combined");
   const [categoryFilter, setCategoryFilter] = React.useState<Set<string>>(new Set());
@@ -859,6 +827,38 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
 
     return sorted;
   }, [topics, categoryFilter, search, sortView]);
+
+  const singleSubjectColorOverrides = React.useMemo(() => {
+    if (filteredTopics.length === 0) return null;
+    const uniqueSubjectKeys = new Set(
+      filteredTopics.map((topic) => topic.subjectId ?? DEFAULT_SUBJECT_ID)
+    );
+    if (uniqueSubjectKeys.size !== 1) return null;
+    const [singleKey] = Array.from(uniqueSubjectKeys);
+    const subjectId = singleKey === DEFAULT_SUBJECT_ID ? null : singleKey;
+    const baseColor = resolveSubjectColor(subjectId);
+    return generateTopicColorMap(baseColor, filteredTopics);
+  }, [filteredTopics, resolveSubjectColor]);
+
+  const singleSubjectLegend = React.useMemo(() => {
+    if (!singleSubjectColorOverrides || singleSubjectColorOverrides.size <= 1) {
+      return null;
+    }
+    const sorted = filteredTopics
+      .filter((topic) => singleSubjectColorOverrides.has(topic.id))
+      .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
+    if (sorted.length <= 1) return null;
+    const limit = 14;
+    const visible = sorted.slice(0, limit);
+    const remaining = sorted.length - visible.length;
+    return { visible, remaining };
+  }, [filteredTopics, singleSubjectColorOverrides]);
+
+  const resolveTopicColor = React.useCallback(
+    (topic: Topic) =>
+      singleSubjectColorOverrides?.get(topic.id) ?? resolveSubjectColor(topic.subjectId),
+    [singleSubjectColorOverrides, resolveSubjectColor]
+  );
 
   const [nowMs, setNowMs] = React.useState(() => Date.now());
 
