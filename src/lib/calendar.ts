@@ -1,4 +1,5 @@
 import { Subject, Topic } from "@/types/topic";
+import { FALLBACK_SUBJECT_COLOR } from "@/lib/colors";
 import {
   addMonthsInTimeZone,
   formatInTimeZone,
@@ -77,7 +78,7 @@ const deriveFallbackSubject = (subjects: Subject[]): SubjectInfo => {
     return {
       id: NO_SUBJECT_ID,
       name: "General",
-      color: "#38bdf8",
+      color: FALLBACK_SUBJECT_COLOR,
       icon: "Sparkles",
       examDate: null
     };

@@ -25,6 +25,8 @@ This document outlines the lightweight testing strategy for the Spaced Repetitio
 | Subjects filter persistence | Toggle subjects in dashboard dropdown → navigate to Calendar and Timeline | Selected subjects remain active across views and legend reflects the same subset. |
 | Calendar dots & exam chip | Apply subject filter, inspect month grid for multi-subject days, open a future day sheet | Dots display one per subject colour, overflow shows `+N` with tooltip list, future days display “Scheduled for this day,” today enables Revise. |
 | Timeline zoom/pan/reset | Zoom in with controls, drag to pan, use Reset button, export PNG | Zooming clamps to minimum span, panning stays within domain, Reset returns to full range, export matches on-screen view including dotted exam markers when enabled. |
+| Theme toggle persistence | Switch between light and dark from the header toggle, reload the page | Selected theme applies immediately across dashboard, calendar, and timeline; reload restores the last choice without flashes. |
+| Light theme contrast | Switch to light mode, visit Dashboard, Reviews, and Subjects | Nav links, review statuses, and exam countdowns render with the hardened contrast palette (#444/#1a1a1a/#21ce99/#2563eb) and remain legible without shadows. |
 | Progress today updates | Complete reviews until 100% | Progress band shows `{completed}/{total} reviews completed • {X}% complete` message and success state “Great work! You’ve completed today’s reviews.” |
 | Backfill history accuracy | Subjects → expand subject → open Edit history → add Easy, Easy, Hard entries over the last month | Intervals extend after successive easies, shorten after the hard, and next due date matches the replayed schedule. |
 | Duplicate merge prompt | Subjects → Edit history → add the same date twice | Merge warning appears and saving keeps a single entry with the highest quality. |
@@ -37,7 +39,7 @@ This document outlines the lightweight testing strategy for the Spaced Repetitio
 - Pan respects data bounds and stays smooth when dragging with the mouse, trackpad, or touch.
 - The X-axis uses date-only ticks and adapts density to the current zoom range.
 - Exam markers and the Today line remain aligned at all zoom levels and appear in exports.
-- Tooltips stay suppressed while drawing a selection and re-enable as soon as the gesture completes.
+- Hover tooltips remain disabled so the inline topic labels near Today stay the sole annotation.
 - Keyboard and touch affordances (shortcuts, pinch, two-finger pan) provide complete parity with pointer interactions.
 
 ## Timeline zoom QA checklist
