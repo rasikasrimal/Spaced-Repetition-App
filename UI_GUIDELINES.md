@@ -33,3 +33,12 @@
 - **Spacing** – Maintain roughly `gap-10` between primary blocks and `space-y-6` within the divider stack so the layout breathes on both mobile and desktop breakpoints.
 - **Typography** – Reuse the standard section heading scale (`text-2xl font-semibold`) for the Progress today title, while keeping supporting copy in the muted foreground palette.
 - **Positive accents** – Style completion percentages and motivational copy with `text-success` (or equivalent positive tone) to reinforce achievement across themes.
+
+## Reviews Table Design
+
+- **Column order** – Topic, Subject, Next review, Status, Actions. Keep headers uppercase, `text-xs`, and left-aligned except for the Actions column, which should align right.
+- **Row behaviour** – Apply `cursor-pointer hover:bg-muted/30` to each `<tr>` so the entire row signals interactivity. Toggle expansion with Enter/Space when the row has focus and rotate the chevron indicator accordingly.
+- **Expanded details** – Render the schedule and notes summary inside a single detail row spanning all columns (`colSpan={5}`) with a muted background and 12–16px padding.
+- **Skip logic** – Only show the “Skip today” action for topics whose status is `due-today`. Upcoming topics should expose edit/delete without a skip affordance.
+- **Visual language** – Use flat borders (`border-border/50`), light neutral backgrounds, and compact `px-4 py-3` cell padding to mimic GitHub tables. Status badges reuse the shared `status-chip` palette.
+- **Responsive handling** – Wrap the table in `overflow-x-auto` for small screens and surface condensed metadata (subject, next review, status) beneath the topic title with `md:hidden` helpers.

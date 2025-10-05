@@ -26,3 +26,9 @@
 - Repositioned the “Progress today” module directly beneath the daily summary cards so completion status appears before filters.
 - Added soft divider rules above and below the progress module to separate major dashboard sections.
 - Balanced spacing and headings to match surrounding sections in both light and dark themes.
+
+### Reviews Page Enhancements
+- Fixed the runtime error triggered by the "All" filter by guarding invalid status lookups.
+- Limited the “Skip today” shortcut to topics due today while keeping other actions available.
+- Retired the review-load preview chart to focus on actionable rows.
+- Rebuilt the reviews table with a responsive, GitHub-inspired layout, hoverable rows, and inline expansion for schedule and notes.

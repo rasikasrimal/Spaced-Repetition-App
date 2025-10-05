@@ -1,76 +1,143 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useTopicStore } from "@/stores/topics";
 import { useProfileStore } from "@/stores/profile";
 import { useReviewPreferencesStore } from "@/stores/review-preferences";
-import { TopicCard } from "@/components/dashboard/topic-card";
-import { Button } from "@/components/ui/button";
-import { Clock } from "lucide-react";
-import { formatRelativeToNow, nowInTimeZone } from "@/lib/date";
+import {
+  TopicList,
+  TopicListItem,
+  TopicStatus,
+  StatusFilter,
+  SubjectFilterValue
+} from "@/components/dashboard/topic-list";
+import { useZonedNow } from "@/hooks/use-zoned-now";
+import { computeRiskScore, getAverageQuality } from "@/lib/forgetting-curve";
+import { startOfToday } from "@/lib/date";
+import type { Subject } from "@/types/topic";
+
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+const STATUS_STORAGE_KEY = "reviews-status-filter";
 
 export default function ReviewsPage() {
   const router = useRouter();
-  const topics = useTopicStore((state) => state.topics);
+  const { topics, subjects } = useTopicStore((state) => ({
+    topics: state.topics,
+    subjects: state.subjects
+  }));
   const timezone = useProfileStore((state) => state.profile.timezone) || "Asia/Colombo";
   const reviewTrigger = useReviewPreferencesStore((state) => state.reviewTrigger);
   const triggerPercent = Math.round(reviewTrigger * 100);
-  const [now, setNow] = React.useState(() => nowInTimeZone(timezone));
+  const zonedNow = useZonedNow(timezone);
+
+  const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("due-today");
+  const [subjectFilter, setSubjectFilter] = React.useState<SubjectFilterValue>(null);
 
   React.useEffect(() => {
-    const interval = window.setInterval(() => {
-      setNow(nowInTimeZone(timezone));
-    }, 60_000);
-    return () => window.clearInterval(interval);
-  }, [timezone]);
+    if (typeof window === "undefined") return;
+    const stored = window.sessionStorage.getItem(STATUS_STORAGE_KEY);
+    if (!stored) return;
+    if (stored === "all" || stored === "overdue" || stored === "due-today" || stored === "upcoming") {
+      setStatusFilter(stored);
+    }
+  }, []);
 
-  const dueTopics = React.useMemo(() => {
-    const reference = now.getTime();
-    return topics
-      .filter((topic) => new Date(topic.nextReviewDate).getTime() <= reference)
-      .sort((a, b) => new Date(a.nextReviewDate).getTime() - new Date(b.nextReviewDate).getTime());
-  }, [now, topics]);
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.sessionStorage.setItem(STATUS_STORAGE_KEY, statusFilter);
+  }, [statusFilter]);
+
+  const enrichedTopics = React.useMemo<TopicListItem[]>(() => {
+    const subjectMap = new Map<string, Subject>();
+    for (const subject of subjects) {
+      subjectMap.set(subject.id, subject);
+    }
+
+    const start = startOfToday().getTime();
+    const endOfTodayMs = start + DAY_IN_MS;
+
+    return topics.map((topic) => {
+      const nextTime = new Date(topic.nextReviewDate).getTime();
+      let status: TopicStatus;
+      if (!Number.isFinite(nextTime) || Number.isNaN(nextTime)) {
+        status = "upcoming";
+      } else if (nextTime < start) {
+        status = "overdue";
+      } else if (nextTime < endOfTodayMs) {
+        status = "due-today";
+      } else {
+        status = "upcoming";
+      }
+
+      const subject = topic.subjectId ? subjectMap.get(topic.subjectId) ?? null : null;
+
+      return {
+        topic,
+        subject,
+        status,
+        risk: computeRiskScore({
+          now: zonedNow,
+          stabilityDays: topic.stability,
+          targetRetrievability: topic.retrievabilityTarget,
+          lastReviewedAt: topic.lastReviewedAt,
+          nextReviewAt: topic.nextReviewDate,
+          reviewsCount: topic.reviewsCount,
+          averageQuality: getAverageQuality(
+            (topic.events ?? [])
+              .filter((event) => event.type === "reviewed" && typeof event.reviewQuality === "number")
+              .map((event) => event.reviewQuality as number)
+          ),
+          examDate: subject?.examDate ?? null,
+          difficultyModifier: subject?.difficultyModifier ?? topic.subjectDifficultyModifier ?? 1
+        })
+      } satisfies TopicListItem;
+    });
+  }, [topics, subjects, zonedNow]);
+
+  const actionableCount = React.useMemo(
+    () => enrichedTopics.filter((item) => item.status !== "upcoming").length,
+    [enrichedTopics]
+  );
+
+  const handleEditTopic = React.useCallback(
+    (id: string) => {
+      router.push(`/topics/${id}/edit`);
+    },
+    [router]
+  );
+
+  const handleCreateTopic = React.useCallback(() => {
+    router.push("/topics/new");
+  }, [router]);
 
   return (
-    <section className="space-y-6">
-      <header className="flex flex-col gap-2">
-        <h1 className="reviews-header text-3xl font-semibold">Today’s Reviews</h1>
-        <p className="reviews-subtext text-sm">
-          Focus on the topics that are due right now. Knock them out to keep your streak alive.
+    <section className="space-y-8">
+      <header className="space-y-2">
+        <h1 className="text-3xl font-semibold">Reviews</h1>
+        <p className="text-sm text-muted-foreground">
+          Stay on pace by tackling the topics that are due now. We’ll cue up new reviews when your predicted retention dips below
+          {" "}
+          {triggerPercent}%.
         </p>
         <p className="text-xs text-muted-foreground">
-          Upcoming cards surface automatically once retention is projected to slip below {triggerPercent}%.
+          {actionableCount} topic{actionableCount === 1 ? "" : "s"} currently need attention.
         </p>
       </header>
 
-      {dueTopics.length === 0 ? (
-        <div className="rounded-3xl border border-inverse/5 bg-inverse/5 p-8 text-center text-sm text-muted-foreground">
-          <Clock className="mx-auto mb-3 h-8 w-8 text-accent" />
-          You’re all caught up for today. Great work!
-          <div className="mt-4 flex justify-center">
-            <Button variant="outline" onClick={() => router.push("/timeline")}>
-              View schedule
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between rounded-2xl border border-inverse/10 bg-inverse/5 px-4 py-3 text-sm text-muted-foreground">
-            <span className="reviews-summary font-medium">{dueTopics.length} topic{dueTopics.length === 1 ? "" : "s"} waiting</span>
-            <span className="review-date text-xs">Next up {formatRelativeToNow(dueTopics[0]!.nextReviewDate)}</span>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {dueTopics.map((topic) => (
-              <TopicCard
-                key={topic.id}
-                topic={topic}
-                onEdit={() => router.push(`/topics/${topic.id}/edit`)}
-              />
-            ))}
-          </div>
-        </div>
-      )}
+      <TopicList
+        id="reviews-topic-list"
+        items={enrichedTopics}
+        subjects={subjects}
+        timezone={timezone}
+        zonedNow={zonedNow}
+        onEditTopic={handleEditTopic}
+        onCreateTopic={handleCreateTopic}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        subjectFilter={subjectFilter}
+        onSubjectFilterChange={setSubjectFilter}
+      />
     </section>
   );
 }

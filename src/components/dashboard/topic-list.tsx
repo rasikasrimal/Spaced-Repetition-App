@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { QuickRevisionDialog } from "@/components/dashboard/quick-revision-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { IconPreview } from "@/components/icon-preview";
 import { useTopicStore } from "@/stores/topics";
 import { Subject, Topic } from "@/types/topic";
 import type { RiskScore } from "@/lib/forgetting-curve";
@@ -17,6 +16,7 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
+  ChevronRight,
   Ellipsis,
   Flame,
   Pencil,
@@ -34,8 +34,7 @@ import {
   formatRelativeToNow,
   formatTime,
   getDayKeyInTimeZone,
-  nextStartOfDayInTimeZone,
-  startOfDayInTimeZone
+  nextStartOfDayInTimeZone
 } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import { FALLBACK_SUBJECT_COLOR } from "@/lib/colors";
@@ -66,15 +65,6 @@ export const NO_SUBJECT_KEY = "__none";
 
 const SEARCH_STORAGE_KEY = "dashboard-topic-search";
 const SORT_STORAGE_KEY = "dashboard-topic-sort";
-const DAY_IN_MS = 24 * 60 * 60 * 1000;
-const REVIEW_CHART_DAYS = 14;
-
-type ReviewLoadPoint = {
-  iso: string;
-  label: string;
-  axisLabel: string;
-  count: number;
-};
 
 const STATUS_META: Record<
   TopicStatus,
@@ -305,7 +295,10 @@ export function TopicList({
   const filterDescriptions = React.useMemo(() => {
     const descriptions: string[] = [];
     if (statusFilter !== "due-today") {
-      descriptions.push(`Status ${STATUS_META[statusFilter].label}`);
+      const statusMeta = statusFilter === "all" ? null : STATUS_META[statusFilter];
+      if (statusMeta) {
+        descriptions.push(`Status ${statusMeta.label}`);
+      }
     }
     if (subjectFilter !== null) {
       if (subjectFilter.size === 0) {
@@ -359,47 +352,6 @@ export function TopicList({
         }
       });
   }, [items, searchQuery, statusFilter, subjectFilter, sortOption]);
-
-  const dueNowCount = React.useMemo(
-    () => filteredItems.filter((item) => item.status !== "upcoming").length,
-    [filteredItems]
-  );
-
-  const reviewChartData = React.useMemo(() => {
-    const baseStart = startOfDayInTimeZone(zonedNow, timezone);
-    if (Number.isNaN(baseStart.getTime())) {
-      return [] as ReviewLoadPoint[];
-    }
-
-    const buckets = Array.from({ length: REVIEW_CHART_DAYS }, (_, index) => {
-      const bucketDate = new Date(baseStart.getTime() + index * DAY_IN_MS);
-      return {
-        iso: bucketDate.toISOString(),
-        label: formatInTimeZone(bucketDate, timezone, {
-          weekday: "short",
-          month: "short",
-          day: "numeric"
-        }),
-        axisLabel: formatInTimeZone(bucketDate, timezone, { weekday: "short" }),
-        count: 0
-      } satisfies ReviewLoadPoint;
-    });
-
-    const counts = new Array(REVIEW_CHART_DAYS).fill(0);
-
-    for (const item of filteredItems) {
-      const nextReviewStart = startOfDayInTimeZone(item.topic.nextReviewDate, timezone);
-      if (Number.isNaN(nextReviewStart.getTime())) continue;
-      const diff = Math.round((nextReviewStart.getTime() - baseStart.getTime()) / DAY_IN_MS);
-      const bucketIndex = Math.min(Math.max(diff, 0), REVIEW_CHART_DAYS - 1);
-      counts[bucketIndex] += 1;
-    }
-
-    return buckets.map((bucket, index) => ({
-      ...bucket,
-      count: counts[index]
-    }));
-  }, [filteredItems, timezone, zonedNow]);
 
   const [editingId, setEditingId] = React.useState<string | null>(null);
 
@@ -691,8 +643,6 @@ export function TopicList({
           </div>
         </div>
 
-        <ReviewLoadChart data={reviewChartData} dueNowCount={dueNowCount} totalCount={totalFilteredCount} />
-
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground" aria-live="polite">
           <span>
             Showing {totalFilteredCount} of {items.length} topics
@@ -750,235 +700,46 @@ export function TopicList({
               </div>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-3xl border border-inverse/5 bg-bg/40">
-              <div className="hidden border-b border-inverse/5 px-6 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid md:grid-cols-[minmax(0,2.5fr)_minmax(0,1.2fr)_minmax(0,1.3fr)_minmax(0,1fr)_auto]">
-                <span>Topic</span>
-                <span>Subject</span>
-                <span>Next review</span>
-                <span>Status</span>
-                <span className="text-right">Actions</span>
-              </div>
-              <div className="divide-y divide-border/40">
-                {filteredItems.map((row) => (
-                  <TopicListRow
-                    key={row.topic.id}
-                    item={row}
-                    subject={row.subject ?? subjectLookup.get(row.topic.subjectId ?? "") ?? null}
-                    timezone={timezone}
-                    zonedNow={zonedNow}
-                    onEdit={() => handleEdit(row.topic.id)}
-                    editing={editingId === row.topic.id}
-                  />
-                ))}
+            <div className="overflow-hidden rounded-xl border border-border/60 bg-card/70">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-border/50">
+                  <thead className="bg-muted/20 text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">
+                    <tr>
+                      <th scope="col" className="w-[32%] min-w-[200px] px-4 py-3 text-left">
+                        Topic
+                      </th>
+                      <th scope="col" className="w-[20%] min-w-[160px] px-4 py-3 text-left">
+                        Subject
+                      </th>
+                      <th scope="col" className="w-[20%] min-w-[160px] px-4 py-3 text-left">
+                        Next review
+                      </th>
+                      <th scope="col" className="w-[16%] min-w-[140px] px-4 py-3 text-left">
+                        Status
+                      </th>
+                      <th scope="col" className="min-w-[140px] px-4 py-3 text-right">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/50">
+                    {filteredItems.map((row) => (
+                      <TopicListRow
+                        key={row.topic.id}
+                        item={row}
+                        subject={row.subject ?? subjectLookup.get(row.topic.subjectId ?? "") ?? null}
+                        timezone={timezone}
+                        zonedNow={zonedNow}
+                        onEdit={() => handleEdit(row.topic.id)}
+                        editing={editingId === row.topic.id}
+                      />
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
         </div>
-      </div>
-    </div>
-  );
-}
-
-interface ReviewLoadChartProps {
-  data: ReviewLoadPoint[];
-  dueNowCount: number;
-  totalCount: number;
-}
-
-function ReviewLoadChart({ data, dueNowCount, totalCount }: ReviewLoadChartProps) {
-  const gradientId = React.useId();
-  const [hoverIndex, setHoverIndex] = React.useState<number | null>(null);
-  const [isHovered, setIsHovered] = React.useState(false);
-
-  const safeData = data.length > 0 ? data : Array.from({ length: REVIEW_CHART_DAYS }, (_, index) => ({
-    iso: `placeholder-${index}`,
-    label: "",
-    axisLabel: "",
-    count: 0
-  }));
-
-  const maxValue = React.useMemo(
-    () => safeData.reduce((acc, point) => Math.max(acc, point.count), 0),
-    [safeData]
-  );
-
-  const effectiveMax = maxValue === 0 ? 1 : maxValue;
-  const width = 100;
-  const height = 48;
-  const paddingX = 6;
-  const paddingY = 6;
-
-  const xForIndex = React.useCallback(
-    (index: number) => {
-      if (safeData.length <= 1) return paddingX;
-      const ratio = index / (safeData.length - 1);
-      return paddingX + ratio * (width - paddingX * 2);
-    },
-    [safeData.length]
-  );
-
-  const yForValue = React.useCallback(
-    (value: number) => {
-      const ratio = value / effectiveMax;
-      return height - paddingY - ratio * (height - paddingY * 2);
-    },
-    [effectiveMax]
-  );
-
-  const areaPath = React.useMemo(() => {
-    if (safeData.length === 0) return "";
-    const baseY = height - paddingY;
-    const segments = [`M ${xForIndex(0)} ${baseY}`, `L ${xForIndex(0)} ${yForValue(safeData[0].count)}`];
-    for (let index = 1; index < safeData.length; index += 1) {
-      segments.push(`L ${xForIndex(index)} ${yForValue(safeData[index].count)}`);
-    }
-    segments.push(`L ${xForIndex(safeData.length - 1)} ${baseY}`, "Z");
-    return segments.join(" ");
-  }, [safeData, xForIndex, yForValue, height, paddingY]);
-
-  const linePath = React.useMemo(() => {
-    if (safeData.length === 0) return "";
-    const commands: string[] = [];
-    for (let index = 0; index < safeData.length; index += 1) {
-      const point = safeData[index];
-      commands.push(`${index === 0 ? "M" : "L"} ${xForIndex(index)} ${yForValue(point.count)}`);
-    }
-    return commands.join(" ");
-  }, [safeData, xForIndex, yForValue]);
-
-  const handlePointerMove = React.useCallback(
-    (event: React.PointerEvent<SVGSVGElement>) => {
-      if (safeData.length === 0) return;
-      const bounds = event.currentTarget.getBoundingClientRect();
-      const ratio = bounds.width === 0 ? 0 : (event.clientX - bounds.left) / bounds.width;
-      const index = Math.round(ratio * (safeData.length - 1));
-      setHoverIndex(Math.max(0, Math.min(safeData.length - 1, index)));
-    },
-    [safeData.length]
-  );
-
-  const handlePointerEnter = React.useCallback(() => {
-    setIsHovered(true);
-  }, []);
-
-  const handlePointerLeave = React.useCallback(() => {
-    setIsHovered(false);
-    setHoverIndex(null);
-  }, []);
-
-  const hoveredPoint = hoverIndex !== null ? safeData[hoverIndex] : null;
-  const hoveredX = hoveredPoint !== null ? xForIndex(hoverIndex as number) : null;
-  const hoveredY = hoveredPoint !== null ? yForValue(hoveredPoint.count) : null;
-  const tooltipLeft = hoveredX !== null ? Math.max(0, Math.min(1, hoveredX / width)) * 100 : 0;
-
-  const labelStep = React.useMemo(() => {
-    if (safeData.length <= 1) return 1;
-    return Math.max(1, Math.ceil(safeData.length / 6));
-  }, [safeData.length]);
-
-  const srDescription = `Upcoming review load over the next ${safeData.length} days. ${dueNowCount} topics due now out of ${totalCount} filtered topics.`;
-
-  return (
-    <div className="group/chart relative mt-4 rounded-lg border border-border/40 bg-muted/30 p-4 shadow-sm transition-colors hover:bg-muted/40 dark:shadow-none">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Review load preview</p>
-        <span className="text-xs text-muted-foreground">{totalCount} topics filtered</span>
-      </div>
-      <p className="mt-1 text-[11px] text-muted-foreground">
-        Due now: <span className="font-semibold text-fg">{dueNowCount}</span>
-      </p>
-      <span className="sr-only">{srDescription}</span>
-      <div className="relative mt-3 w-full">
-        <svg
-          role="img"
-          aria-label="Area chart showing upcoming review counts"
-          viewBox={`0 0 ${width} ${height}`}
-          preserveAspectRatio="none"
-          className="h-36 w-full cursor-crosshair select-none text-accent transition-colors duration-200"
-          onPointerMove={handlePointerMove}
-          onPointerEnter={handlePointerEnter}
-          onPointerLeave={handlePointerLeave}
-        >
-          <defs>
-            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="currentColor" stopOpacity={0.35} />
-              <stop offset="100%" stopColor="currentColor" stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          {Array.from({ length: 4 }).map((_, index) => {
-            const ratio = index / 3;
-            const y = paddingY + ratio * (height - paddingY * 2);
-            return (
-              <line
-                key={`grid-${index}`}
-                x1={paddingX}
-                x2={width - paddingX}
-                y1={y}
-                y2={y}
-                stroke="currentColor"
-                strokeWidth={0.5}
-                strokeOpacity={isHovered ? 0.8 : 0.6}
-                className="text-muted-foreground/60 transition-opacity duration-200"
-              />
-            );
-          })}
-          <path d={areaPath} fill={`url(#${gradientId})`} opacity={isHovered ? 0.9 : 0.75} />
-          <path
-            d={linePath}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={isHovered ? 2.5 : 2}
-            className="transition-all duration-200"
-            style={{ filter: isHovered ? "drop-shadow(0px 6px 12px rgba(33, 206, 153, 0.25))" : "none" }}
-          />
-          {hoveredPoint && hoveredX !== null ? (
-            <>
-              <line
-                x1={hoveredX}
-                x2={hoveredX}
-                y1={paddingY}
-                y2={height - paddingY}
-                stroke="currentColor"
-                strokeOpacity={0.35}
-                strokeWidth={1}
-              />
-              <circle cx={hoveredX} cy={hoveredY ?? height - paddingY} r={3} fill="currentColor" />
-            </>
-          ) : null}
-        </svg>
-        <div
-          className={cn(
-            "pointer-events-none absolute -translate-x-1/2 -translate-y-3 rounded-md bg-card/90 px-2 py-1 text-xs font-medium text-fg shadow-sm transition-opacity duration-150",
-            hoveredPoint ? "opacity-100" : "opacity-0"
-          )}
-          style={{ left: `${tooltipLeft}%`, top: 0 }}
-        >
-          {hoveredPoint ? (
-            <>
-              <span className="block text-[11px] text-muted-foreground">{hoveredPoint.label}</span>
-              <span className="block text-sm font-semibold text-accent">{hoveredPoint.count} topics</span>
-            </>
-          ) : null}
-        </div>
-      </div>
-      <div className="mt-2 flex items-center justify-between gap-1 text-[10px] text-muted-foreground/80">
-        {safeData.map((point, index) => {
-          const isEdge = index === 0 || index === safeData.length - 1;
-          const shouldShow = isEdge || index % labelStep === 0;
-          return (
-            <span
-              key={`${point.iso}-${index}`}
-              className={cn(
-                "flex-1 text-center",
-                index === 0 && "text-left",
-                index === safeData.length - 1 && "text-right"
-              )}
-              aria-hidden={!shouldShow}
-            >
-              {shouldShow ? point.axisLabel : "\u00a0"}
-            </span>
-          );
-        })}
       </div>
     </div>
   );
@@ -1112,6 +873,7 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
   };
 
   const handleReviseNow = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
     if (hasUsedReviseToday) {
       trackReviseNowBlocked();
       toast.error(REVISE_LOCKED_MESSAGE);
@@ -1173,46 +935,62 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
 
   const nextReviewDateLabel = formatDateWithWeekday(item.topic.nextReviewDate);
   const nextReviewRelativeLabel = formatRelativeToNow(item.topic.nextReviewDate);
+  const detailRowId = `topic-details-${item.topic.id}`;
+  const subjectName = subject ? subject.name : "No subject";
+  const subjectColor = subject?.color ?? FALLBACK_SUBJECT_COLOR;
+
+  const handleRowClick = React.useCallback(() => {
+    setExpanded((value) => !value);
+  }, [setExpanded]);
+
+  const handleRowKeyDown = React.useCallback((event: React.KeyboardEvent<HTMLTableRowElement>) => {
+    if (event.target !== event.currentTarget) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      setExpanded((value) => !value);
+    }
+  }, [setExpanded]);
 
   return (
-    <div className={cn("transition-colors", recentlyRevised ? "bg-success/10" : "bg-transparent")}
-    >
-      <div className="flex flex-col gap-3 px-4 py-4 md:grid md:grid-cols-[minmax(0,2.5fr)_minmax(0,1.2fr)_minmax(0,1.3fr)_minmax(0,1fr)_auto] md:items-center md:gap-4 md:px-6">
-        <div className="flex flex-col gap-2">
+    <>
+      <tr
+        className={cn(
+          "group cursor-pointer align-top transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+          recentlyRevised ? "bg-success/10" : "hover:bg-muted/30"
+        )}
+        onClick={handleRowClick}
+        onKeyDown={handleRowKeyDown}
+        tabIndex={0}
+        role="button"
+        aria-expanded={expanded}
+        aria-controls={detailRowId}
+      >
+        <td className="px-4 py-3 align-top">
           <div className="flex items-start gap-3">
-            <button
-              type="button"
-              onClick={() => setExpanded((value) => !value)}
-              className="mt-0.5 inline-flex h-11 w-11 flex-none items-center justify-center rounded-full border border-inverse/10 bg-inverse/5 text-fg transition hover:bg-inverse/10"
-              aria-expanded={expanded}
-              aria-controls={`topic-details-${item.topic.id}`}
-              title={expanded ? "Hide details" : "Show details"}
+            <span
+              aria-hidden="true"
+              className={cn(
+                "mt-1 inline-flex h-6 w-6 flex-none items-center justify-center rounded-full border border-border/60 bg-muted/20 text-muted-foreground transition-transform",
+                expanded ? "rotate-90 text-primary" : ""
+              )}
             >
-              <ChevronDown
-                className={cn("h-4 w-4 transition-transform", expanded ? "rotate-180" : "")}
-                aria-hidden="true"
-              />
-            </button>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </span>
             <div className="min-w-0 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-                <p className="truncate text-base font-semibold text-fg" title={item.topic.title}>
+                <span className="truncate text-sm font-semibold text-fg" title={item.topic.title}>
                   {item.topic.title}
-                </p>
+                </span>
                 {editing ? (
-                  <span className="rounded-full bg-inverse/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-accent">
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
                     Editing…
                   </span>
                 ) : null}
               </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground md:hidden">
-                <span
-                  className="inline-flex items-center gap-2 rounded-full border border-inverse/10 bg-inverse/5 px-2.5 py-1"
-                  style={{ backgroundColor: `${(subject?.color ?? FALLBACK_SUBJECT_COLOR)}1f` }}
-                >
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-inverse/15 text-fg">
-                    <IconPreview name={subject?.icon ?? "Sparkles"} className="h-3.5 w-3.5" />
-                  </span>
-                  <span>{subject ? subject.name : "No subject"}</span>
+              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground md:hidden">
+                <span className="inline-flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: subjectColor }} />
+                  {subjectName}
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <CalendarClock className="h-3 w-3" aria-hidden="true" /> {nextReviewRelativeLabel}
@@ -1224,140 +1002,153 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
               </div>
             </div>
           </div>
-        </div>
-        <div className="hidden min-w-0 items-center gap-2 text-sm text-fg/80 md:flex">
-          <span
-            className="inline-flex items-center gap-2 rounded-full border border-inverse/10 bg-inverse/5 px-3 py-1 text-xs font-medium"
-            style={{ backgroundColor: `${(subject?.color ?? FALLBACK_SUBJECT_COLOR)}1f` }}
-          >
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-inverse/15 text-fg">
-              <IconPreview name={subject?.icon ?? "Sparkles"} className="h-3.5 w-3.5" />
-            </span>
-            {subject ? subject.name : "No subject"}
-          </span>
-        </div>
-        <div className="hidden min-w-0 flex-col text-sm text-inverse md:flex">
-          <span className="font-medium text-fg">{nextReviewDateLabel}</span>
-          <span className="text-xs text-muted-foreground">{nextReviewRelativeLabel}</span>
-        </div>
-        <div className="hidden md:flex">
+        </td>
+        <td className="hidden px-4 py-3 align-top text-sm text-muted-foreground md:table-cell">
+          <div className="flex items-center gap-2 truncate">
+            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: subjectColor }} />
+            <span className="truncate">{subjectName}</span>
+          </div>
+        </td>
+        <td className="hidden px-4 py-3 align-top md:table-cell">
+          <div className="flex flex-col gap-1 text-sm">
+            <span className="font-medium text-fg">{nextReviewDateLabel}</span>
+            <span className="text-xs text-muted-foreground">{nextReviewRelativeLabel}</span>
+          </div>
+        </td>
+        <td className="hidden px-4 py-3 align-top lg:table-cell">
           <span
             className={cn(
-              "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs",
+              "inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-semibold",
               statusMeta.badgeClass
             )}
           >
             {statusMeta.icon}
             {statusMeta.label}
           </span>
-        </div>
-        <div className="flex items-center justify-end gap-3">
-          <Button
-            size="lg"
-            onClick={(event) => handleReviseNow(event)}
-            disabled={hasUsedReviseToday || isLoggingRevision}
-            className="min-w-[6.5rem] rounded-full px-5"
-            title={hasUsedReviseToday ? nextAvailabilityMessage : "Log today’s revision"}
-            aria-label={hasUsedReviseToday ? "Revise locked until after midnight" : "Log today’s revision"}
-            aria-describedby={hasUsedReviseToday ? lockedDescriptionId : undefined}
-          >
-            Revise
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={onEdit}
-            title="Edit topic"
-            aria-label="Edit topic"
-            className="h-11 w-11 rounded-full text-muted-foreground hover:text-fg"
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Popover>
-            <PopoverTrigger asChild>
+        </td>
+        <td className="px-4 py-3 align-top">
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button
+                size="sm"
+                onClick={handleReviseNow}
+                disabled={hasUsedReviseToday || isLoggingRevision}
+                className="rounded-full px-4"
+                title={hasUsedReviseToday ? nextAvailabilityMessage : "Log today’s revision"}
+                aria-label={hasUsedReviseToday ? "Revise locked until after midnight" : "Log today’s revision"}
+                aria-describedby={hasUsedReviseToday ? lockedDescriptionId : undefined}
+              >
+                Revise
+              </Button>
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-11 w-11 rounded-full text-muted-foreground hover:text-fg"
-                title="More actions"
-                aria-label="More topic actions"
-              >
-                <Ellipsis className="h-4 w-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-48 rounded-2xl border border-inverse/10 bg-card/95 p-2 text-sm text-fg">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowSkipConfirm(true);
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onEdit();
                 }}
-                className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-fg/80 transition hover:bg-inverse/10"
+                title="Edit topic"
+                aria-label="Edit topic"
+                className="h-9 w-9 rounded-full text-muted-foreground hover:text-fg"
               >
-                <RefreshCw className="h-4 w-4" aria-hidden="true" /> Skip today
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowDeleteConfirm(true)}
-                className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-error/20 transition hover:bg-error/20"
-              >
-                <Trash2 className="h-4 w-4" aria-hidden="true" /> Delete topic
-              </button>
-            </PopoverContent>
-          </Popover>
-        </div>
-      </div>
-      {hasUsedReviseToday ? (
-        <>
-          <p className="px-6 text-[11px] text-muted-foreground/80 md:text-right">{nextAvailabilitySubtext}</p>
-          <span id={lockedDescriptionId} className="sr-only">
-            {nextAvailabilityMessage}
-          </span>
-        </>
-      ) : null}
-      {expanded ? (
-        <div
-          id={`topic-details-${item.topic.id}`}
-          className="border-t border-inverse/5 bg-bg/40 px-4 py-4 text-sm text-muted-foreground md:px-6"
-        >
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Schedule</p>
-              <ul className="space-y-1 text-xs text-muted-foreground">
-                <li>
-                  <span className="text-muted-foreground">Reminder:</span> {reminderLabel}
-                </li>
-                <li>
-                  <span className="text-muted-foreground">Intervals:</span> {intervalsLabel}
-                </li>
-                <li>
-                  <span className="text-muted-foreground">Last reviewed:</span> {lastReviewedLabel}
-                </li>
-                <li>
-                  <span className="text-muted-foreground">Total reviews:</span> {totalReviews}
-                </li>
-                {examDateLabel ? (
-                  <li>
-                    <span className="text-muted-foreground">Exam:</span> {examDateLabel}
-                    {typeof daysUntilExam === "number" ? ` • ${daysUntilExam} day${daysUntilExam === 1 ? "" : "s"} left` : ""}
-                  </li>
-                ) : null}
-              </ul>
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={(event) => event.stopPropagation()}
+                    className="h-9 w-9 rounded-full text-muted-foreground hover:text-fg"
+                    title="More actions"
+                    aria-label="More topic actions"
+                  >
+                    <Ellipsis className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-48 rounded-xl border border-border/60 bg-card/95 p-2 text-sm text-fg shadow-lg">
+                  {item.status === "due-today" ? (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setShowSkipConfirm(true);
+                      }}
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-muted-foreground transition hover:bg-muted/30 hover:text-foreground"
+                    >
+                      <RefreshCw className="h-4 w-4" aria-hidden="true" /> Skip today
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setShowDeleteConfirm(true);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-error/80 transition hover:bg-error/10"
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden="true" /> Delete topic
+                  </button>
+                </PopoverContent>
+              </Popover>
             </div>
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Notes</p>
-              <p className="whitespace-pre-line text-xs text-fg/80">{notesPreview}</p>
-              {notes.length > 180 ? (
-                <button
-                  type="button"
-                  onClick={() => setShowFullNotes((value) => !value)}
-                  className="text-xs font-semibold text-accent hover:underline"
-                >
-                  {showFullNotes ? "Show less" : "View more"}
-                </button>
-              ) : null}
-            </div>
+            {hasUsedReviseToday ? (
+              <>
+                <p className="text-[11px] text-muted-foreground">{nextAvailabilitySubtext}</p>
+                <span id={lockedDescriptionId} className="sr-only">
+                  {nextAvailabilityMessage}
+                </span>
+              </>
+            ) : null}
           </div>
-        </div>
+        </td>
+      </tr>
+      {expanded ? (
+        <tr id={detailRowId} className="bg-muted/15 text-sm text-muted-foreground">
+          <td colSpan={5} className="px-4 py-4">
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Schedule</p>
+                <ul className="space-y-1 text-xs text-muted-foreground">
+                  <li>
+                    <span className="text-muted-foreground">Reminder:</span> {reminderLabel}
+                  </li>
+                  <li>
+                    <span className="text-muted-foreground">Intervals:</span> {intervalsLabel}
+                  </li>
+                  <li>
+                    <span className="text-muted-foreground">Last reviewed:</span> {lastReviewedLabel}
+                  </li>
+                  <li>
+                    <span className="text-muted-foreground">Total reviews:</span> {totalReviews}
+                  </li>
+                  {examDateLabel ? (
+                    <li>
+                      <span className="text-muted-foreground">Exam:</span> {examDateLabel}
+                      {typeof daysUntilExam === "number" ? ` • ${daysUntilExam} day${daysUntilExam === 1 ? "" : "s"} left` : ""}
+                    </li>
+                  ) : null}
+                </ul>
+              </div>
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Notes</p>
+                <p className="whitespace-pre-line text-xs text-fg/80">{notesPreview}</p>
+                {notes.length > 180 ? (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setShowFullNotes((value) => !value);
+                    }}
+                    className="text-xs font-semibold text-accent hover:underline"
+                  >
+                    {showFullNotes ? "Show less" : "View more"}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          </td>
+        </tr>
       ) : null}
 
       <ConfirmationDialog
@@ -1435,6 +1226,6 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
             : null
         ].filter(Boolean) as { label: string; action: () => void }[]}
       />
-    </div>
+    </>
   );
 }
