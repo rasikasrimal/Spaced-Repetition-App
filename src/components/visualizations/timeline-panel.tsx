@@ -1445,7 +1445,10 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
             size="sm"
             variant="outline"
             onClick={(event) => {
-              if (!domain || !yDomain) return;
+              const hasSeries = viewMode === "combined" ? series.length > 0 : perSubjectSeries.length > 0;
+              if (!hasSeries) {
+                return;
+              }
               fullscreenReturnFocusRef.current = event.currentTarget;
               if (viewMode === "combined") {
                 setFullscreenTarget({ type: "combined" });
@@ -1453,11 +1456,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                 setFullscreenTarget({ type: "per-subject-grid" });
               }
             }}
-            disabled={
-              !domain ||
-              !yDomain ||
-              (viewMode === "combined" ? series.length === 0 : perSubjectSeries.length === 0)
-            }
+            disabled={viewMode === "combined" ? series.length === 0 : perSubjectSeries.length === 0}
             className="inline-flex items-center gap-2"
             aria-label="Expand timeline to fullscreen"
             title="Expand timeline"
@@ -1775,10 +1774,13 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                             size="icon"
                             variant="ghost"
                             onClick={(event) => {
+                              if (group.series.length === 0) {
+                                return;
+                              }
                               fullscreenReturnFocusRef.current = event.currentTarget;
                               setFullscreenTarget({ type: "subject", subjectId: group.subjectId });
                             }}
-                            disabled={!domain || !yDomain || group.series.length === 0}
+                            disabled={group.series.length === 0}
                             aria-label={`Expand ${group.label} timeline`}
                             title="Expand timeline"
                           >
