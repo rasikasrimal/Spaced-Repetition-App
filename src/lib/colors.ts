@@ -4,9 +4,9 @@ const HSL_REGEX = /hsl\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%\s*\)/i;
 
 export type HSLColor = { h: number; s: number; l: number };
 
-export const FALLBACK_SUBJECT_COLOR = "#7c3aed";
+export const FALLBACK_SUBJECT_COLOR = "hsl(221, 83%, 53%)";
 
-const FALLBACK_HSL: HSLColor = { h: 265, s: 70, l: 55 };
+const FALLBACK_HSL: HSLColor = { h: 221, s: 83, l: 53 };
 
 const normalizeHex = (hex: string): string | null => {
   if (!hex) return null;

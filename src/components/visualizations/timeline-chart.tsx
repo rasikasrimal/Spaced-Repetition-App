@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { softenColorTone } from "@/lib/colors";
+import { useThemePalette } from "@/hooks/use-theme-palette";
 import { startOfDayInTimeZone } from "@/lib/date";
 
 export type TimelinePoint = { t: number; r: number; opacity: number };
@@ -292,6 +293,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
     const svgRef = React.useRef<SVGSVGElement | null>(null);
     React.useImperativeHandle(ref, () => svgRef.current as SVGSVGElement);
 
+    const palette = useThemePalette();
     const gradientPrefix = React.useId();
 
     const makeGradientId = React.useCallback(
@@ -1085,7 +1087,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                 <circle
                   key={event.id}
                   r={6}
-                  fill="white"
+                  fill={palette.inverseBackground}
                   stroke={color}
                   strokeWidth={2}
                   tabIndex={0}
@@ -1117,7 +1119,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                     <circle
                       r={4}
                       fill={color}
-                      stroke="white"
+                      stroke={palette.inverseBorder}
                       strokeWidth={1.5}
                       tabIndex={0}
                       aria-label={`${line.topicTitle} retention now ${Math.round(line.nowPoint!.r * 100)}%`}
@@ -1255,7 +1257,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
               aria-label={`Exam date for ${marker.subjectName}, ${examDateFormatter.format(new Date(marker.dateISO))}`}
             >
               <foreignObject x={-80} y={-18} width={160} height={26}>
-                <div className="pointer-events-none flex items-center gap-1 rounded-full bg-slate-900/90 px-3 py-1 text-[10px] font-medium text-white shadow-lg">
+                <div className="pointer-events-none flex items-center gap-1 rounded-full bg-card/90 px-3 py-1 text-[10px] font-medium text-fg">
                   <span className="inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: marker.color }} />
                   <span className="uppercase text-[9px] tracking-wide text-accent">Exam</span>
                   <span className="max-w-[90px] truncate">{marker.subjectName}</span>
@@ -1297,7 +1299,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
           aria-label={`Upcoming exams: ${cluster.items.map((item) => item.subjectName).join(", ")}`}
         >
           <foreignObject x={-70} y={-18} width={140} height={26}>
-            <div className="pointer-events-none flex items-center justify-center rounded-full bg-slate-900/90 px-3 py-1 text-[10px] font-semibold text-white shadow-lg">
+            <div className="pointer-events-none flex items-center justify-center rounded-full bg-card/90 px-3 py-1 text-[10px] font-semibold text-fg">
               {label}
             </div>
           </foreignObject>
@@ -1364,7 +1366,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
             onDoubleClick={() => onResetDomain?.()}
           />
           {showGrid ? (
-            <g className="stroke-white/12">
+            <g>
               {yTicks.map((tick) => (
                 <g key={tick.value}>
                   <line
@@ -1372,12 +1374,14 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                     y1={tick.pixel}
                     x2={width - PADDING_X}
                     y2={tick.pixel}
-                    className="stroke-white/12"
+                    stroke={palette.grid}
+                    strokeOpacity={0.35}
                   />
                   <text
                     x={12}
                     y={tick.pixel + 4}
-                    className="fill-zinc-400 text-[10px]"
+                    fill={palette.axis}
+                    className="text-[10px]"
                   >
                     {tick.label}
                   </text>
@@ -1391,17 +1395,19 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
               y1={height - PADDING_Y}
               x2={width - PADDING_X}
               y2={height - PADDING_Y}
-              className="stroke-white/12"
+              stroke={palette.grid}
+              strokeOpacity={0.35}
             />
             {ticks.map((tick) => {
               const x = scaleX(tick.time);
               return (
                 <g key={tick.time} transform={`translate(${x}, ${height - PADDING_Y})`}>
-                  <line y1={0} y2={6} className="stroke-white/25" />
+                  <line y1={0} y2={6} stroke={palette.grid} strokeOpacity={0.45} />
                   <text
                     y={18}
                     textAnchor="middle"
-                    className="fill-zinc-400 text-[10px]"
+                    fill={palette.axis}
+                    className="text-[10px]"
                   >
                     {tick.label}
                   </text>
@@ -1416,13 +1422,15 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                 x2={todayPosition}
                 y1={PADDING_Y}
                 y2={height - PADDING_Y}
-                className="stroke-red-400/70"
+                stroke={palette.accent}
+                strokeOpacity={0.7}
                 strokeWidth={1.5}
               />
               <text
                 x={todayPosition + 4}
                 y={PADDING_Y + 12}
-                className="fill-red-200 text-[10px]"
+                fill={palette.accentMuted}
+                className="text-[10px]"
               >
                 Today
               </text>
@@ -1439,10 +1447,12 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                   y={label.y}
                   textAnchor="start"
                   dominantBaseline="middle"
-                  fill="#FFFFFF"
-                  stroke="rgba(15,23,42,0.75)"
+                  fill="currentColor"
+                  stroke={palette.background}
+                  strokeOpacity={0.75}
                   strokeWidth={3}
                   style={{ paintOrder: "stroke fill" }}
+                  className="text-inverse"
                   fontSize={12}
                   fontWeight={600}
                 >
@@ -1451,7 +1461,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
               ))}
             </g>
           ) : null}
-          <text x={12} y={16} className="fill-zinc-400 text-[11px]">
+          <text x={12} y={16} fill={palette.axis} className="text-[11px]">
             Retention
           </text>
           {keyboardOverlay ? (
@@ -1460,8 +1470,10 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
               y={keyboardOverlay.y}
               width={keyboardOverlay.width}
               height={keyboardOverlay.height}
-              fill="rgba(56,189,248,0.12)"
-              stroke="rgba(56,189,248,0.7)"
+              fill={palette.accent}
+              fillOpacity={0.12}
+              stroke={palette.accent}
+              strokeOpacity={0.7}
               strokeDasharray="6 4"
               pointerEvents="none"
             />
@@ -1473,8 +1485,10 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                 y={Math.min(selectionRect.origin.y, selectionRect.current.y)}
                 width={Math.abs(selectionRect.current.x - selectionRect.origin.x)}
                 height={Math.abs(selectionRect.current.y - selectionRect.origin.y)}
-                fill="rgba(56,189,248,0.15)"
-                stroke="rgba(56,189,248,0.8)"
+                fill={palette.accent}
+                fillOpacity={0.15}
+                stroke={palette.accent}
+                strokeOpacity={0.8}
                 strokeDasharray="6 4"
               />
               {selectionLabel ? (
@@ -1484,10 +1498,10 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                   width={220}
                   height={64}
                 >
-                  <div className="pointer-events-none rounded-md bg-slate-950/80 px-3 py-2 text-[11px] text-white shadow-lg">
+                  <div className="pointer-events-none rounded-md bg-bg/80 px-3 py-2 text-[11px] text-fg">
                     <div className="font-semibold">{selectionLabel.primary}</div>
                     {selectionRect.shift && selectionLabel.secondary ? (
-                      <div className="text-[10px] text-sky-200">{selectionLabel.secondary}</div>
+                      <div className="text-[10px] text-accent/20">{selectionLabel.secondary}</div>
                     ) : null}
                   </div>
                 </foreignObject>
