@@ -124,8 +124,9 @@ interface TimelineChartProps {
   onRequestStepBack?: () => void;
   onTooSmallSelection?: () => void;
   keyboardSelection?: KeyboardBand | null;
-  showOpacityFade?: boolean;
+  showOpacityGradient?: boolean;
   showReviewMarkers?: boolean;
+  showEventDots?: boolean;
 }
 
 const PADDING_X = 48;
@@ -188,8 +189,9 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       onRequestStepBack,
       onTooSmallSelection,
       keyboardSelection,
-      showOpacityFade = true,
-      showReviewMarkers = false
+      showOpacityGradient = true,
+      showReviewMarkers = false,
+      showEventDots = true
     },
     ref
   ) => {
@@ -322,7 +324,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
     );
 
     const segmentGradients = React.useMemo(() => {
-      if (!showOpacityFade) return [] as React.ReactNode[];
+      if (!showOpacityGradient) return [] as React.ReactNode[];
       const defs: React.ReactNode[] = [];
       for (const line of series) {
         for (const segment of line.segments) {
@@ -368,7 +370,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
         }
       }
       return defs;
-    }, [series, scaleX, makeGradientId, showOpacityFade]);
+    }, [series, scaleX, makeGradientId, showOpacityGradient]);
 
     const todayPosition = React.useMemo(() => {
       const now = Date.now();
@@ -881,7 +883,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
         {line.segments.map((segment) => {
           if (segment.points.length === 0) return null;
           const gradientId = makeGradientId(line.topicId, segment.id);
-          const strokeColor = showOpacityFade ? `url(#${gradientId})` : line.color;
+          const strokeColor = showOpacityGradient ? `url(#${gradientId})` : line.color;
           return (
             <path
               key={segment.id}
@@ -893,7 +895,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
               strokeWidth={segment.isHistorical ? 1.5 : 2.5}
               strokeLinecap="round"
               strokeLinejoin="round"
-              strokeOpacity={showOpacityFade ? undefined : 1}
+              strokeOpacity={showOpacityGradient ? undefined : 1}
             />
           );
         })}
@@ -918,8 +920,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
             );
           })
           : null}
-        {showReviewMarkers
-          ? line.events.map((event) => {
+        {line.events.map((event) => {
           const x = scaleX(event.t);
           let yValue = 1;
           if (event.type === "checkpoint") {
@@ -940,7 +941,9 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
               notes: event.notes
             });
           const transform = `translate(${x}, ${y})`;
+
           if (event.type === "started") {
+            if (!showEventDots) return null;
             return (
               <rect
                 key={event.id}
@@ -959,6 +962,11 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
               />
             );
           }
+
+          if (!showReviewMarkers) {
+            return null;
+          }
+
           if (event.type === "skipped") {
             return (
               <polygon
@@ -975,6 +983,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
               />
             );
           }
+
           if (event.type === "checkpoint") {
             return (
               <circle
@@ -993,6 +1002,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
               />
             );
           }
+
           return (
             <circle
               key={event.id}
@@ -1007,8 +1017,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
               onMouseLeave={hideTooltip}
             />
           );
-          })
-          : null}
+        })}
         {line.nowPoint && line.nowPoint.t >= xDomain[0] && line.nowPoint.t <= xDomain[1] ? (
           (() => {
             const x = scaleX(line.nowPoint!.t);

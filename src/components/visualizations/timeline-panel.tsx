@@ -22,6 +22,7 @@ import {
   CalendarClock,
   Check,
   Droplet,
+  Dot,
   EllipsisVertical,
   Eye,
   EyeOff,
@@ -441,10 +442,12 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   const [hasStudyActivity, setHasStudyActivity] = React.useState(true);
   const [showExamMarkers, setShowExamMarkers] = React.useState(true);
   const [showCheckpoints, setShowCheckpoints] = React.useState(false);
-  const showOpacityFade = useTimelinePreferencesStore((state) => state.showOpacityFade);
-  const setShowOpacityFade = useTimelinePreferencesStore((state) => state.setShowOpacityFade);
+  const showOpacityGradient = useTimelinePreferencesStore((state) => state.showOpacityGradient);
+  const setShowOpacityGradient = useTimelinePreferencesStore((state) => state.setShowOpacityGradient);
   const showReviewMarkers = useTimelinePreferencesStore((state) => state.showReviewMarkers);
   const setShowReviewMarkers = useTimelinePreferencesStore((state) => state.setShowReviewMarkers);
+  const showEventDots = useTimelinePreferencesStore((state) => state.showEventDots);
+  const setShowEventDots = useTimelinePreferencesStore((state) => state.setShowEventDots);
   const svgRef = React.useRef<SVGSVGElement | null>(null);
   const perSubjectSvgRefs = React.useRef(new Map<string, SVGSVGElement | null>());
   const perSubjectContainerRef = React.useRef<HTMLDivElement | null>(null);
@@ -976,8 +979,9 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
             onRequestStepBack={handleStepBack}
             onTooSmallSelection={handleTooSmallSelection}
             keyboardSelection={keyboardSelection}
-            showOpacityFade={showOpacityFade}
+            showOpacityGradient={showOpacityGradient}
             showReviewMarkers={showReviewMarkers}
+            showEventDots={showEventDots}
           />
         )
       } as const;
@@ -1010,8 +1014,9 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
           onRequestStepBack={handleStepBack}
           onTooSmallSelection={handleTooSmallSelection}
           keyboardSelection={keyboardSelection}
-          showOpacityFade={showOpacityFade}
+          showOpacityGradient={showOpacityGradient}
           showReviewMarkers={showReviewMarkers}
+          showEventDots={showEventDots}
         />
       )
     } as const;
@@ -1035,8 +1040,9 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     keyboardSelection,
     perSubjectSeries,
     examMarkersBySubject,
-    showOpacityFade,
-    showReviewMarkers
+    showOpacityGradient,
+    showReviewMarkers,
+    showEventDots
   ]);
 
   const isFullscreenOpen = Boolean(fullscreenConfig);
@@ -1247,32 +1253,6 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
               Pan (Space)
             </Button>
           </div>
-          <div
-            className="flex items-center gap-1 rounded-2xl border border-white/10 bg-slate-900/60 p-1"
-            role="group"
-            aria-label="Timeline display options"
-          >
-            <Toggle
-              type="button"
-              pressed={showOpacityFade}
-              onPressedChange={(pressed) => setShowOpacityFade(Boolean(pressed))}
-              aria-label="Toggle opacity fade"
-              title="Toggle opacity fade"
-            >
-              <Droplet className="h-3.5 w-3.5" />
-              <span>Opacity Fade</span>
-            </Toggle>
-            <Toggle
-              type="button"
-              pressed={showReviewMarkers}
-              onPressedChange={(pressed) => setShowReviewMarkers(Boolean(pressed))}
-              aria-label="Toggle review markers"
-              title="Toggle review markers"
-            >
-              <EllipsisVertical className="h-3.5 w-3.5" />
-              <span>Review Markers</span>
-            </Toggle>
-          </div>
           <Button
             size="sm"
             variant="outline"
@@ -1384,28 +1364,62 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
             <SelectItem value="title">Topic name</SelectItem>
           </SelectContent>
         </Select>
-        <button
-          type="button"
-          onClick={() => setShowExamMarkers((prev) => !prev)}
-          className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs transition ${
-            showExamMarkers
-              ? "border-accent/40 bg-accent/20 text-white"
-              : "border-white/10 bg-transparent text-zinc-400 hover:text-white"
-          }`}
+        <div
+          className="flex flex-wrap items-center gap-1 rounded-2xl border border-white/10 bg-slate-900/60 p-1"
+          role="group"
+          aria-label="Timeline overlays"
         >
-          <CalendarClock className="h-3.5 w-3.5" /> Exam markers {showExamMarkers ? "on" : "off"}
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowCheckpoints((prev) => !prev)}
-          className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs transition ${
-            showCheckpoints
-              ? "border-accent/40 bg-accent/20 text-white"
-              : "border-white/10 bg-transparent text-zinc-400 hover:text-white"
-          }`}
-        >
-          <Milestone className="h-3.5 w-3.5" /> Checkpoints {showCheckpoints ? "on" : "off"}
-        </button>
+          <Toggle
+            type="button"
+            pressed={showExamMarkers}
+            onPressedChange={(pressed) => setShowExamMarkers(Boolean(pressed))}
+            aria-label="Toggle exam markers"
+            title="Toggle exam markers"
+          >
+            <CalendarClock className="h-3.5 w-3.5" />
+            <span>Exam Markers</span>
+          </Toggle>
+          <Toggle
+            type="button"
+            pressed={showCheckpoints}
+            onPressedChange={(pressed) => setShowCheckpoints(Boolean(pressed))}
+            aria-label="Toggle checkpoints"
+            title="Toggle checkpoints"
+          >
+            <Milestone className="h-3.5 w-3.5" />
+            <span>Checkpoints</span>
+          </Toggle>
+          <Toggle
+            type="button"
+            pressed={showReviewMarkers}
+            onPressedChange={(pressed) => setShowReviewMarkers(Boolean(pressed))}
+            aria-label="Toggle review markers"
+            title="Toggle review markers"
+          >
+            <EllipsisVertical className="h-3.5 w-3.5" />
+            <span>Review Markers</span>
+          </Toggle>
+          <Toggle
+            type="button"
+            pressed={showEventDots}
+            onPressedChange={(pressed) => setShowEventDots(Boolean(pressed))}
+            aria-label="Toggle event start dots"
+            title="Toggle event start dots"
+          >
+            <Dot className="h-3.5 w-3.5" />
+            <span>Event Dots</span>
+          </Toggle>
+          <Toggle
+            type="button"
+            pressed={showOpacityGradient}
+            onPressedChange={(pressed) => setShowOpacityGradient(Boolean(pressed))}
+            aria-label="Toggle opacity gradient"
+            title="Toggle opacity gradient"
+          >
+            <Droplet className="h-3.5 w-3.5" />
+            <span>Opacity Gradient</span>
+          </Toggle>
+        </div>
         {categoryFilter.size > 0 ? (
           <Button size="sm" variant="ghost" onClick={() => setCategoryFilter(new Set())}>
             Clear categories
@@ -1472,8 +1486,9 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                 onRequestStepBack={handleStepBack}
                 onTooSmallSelection={handleTooSmallSelection}
                 keyboardSelection={keyboardSelection}
-                showOpacityFade={showOpacityFade}
+                showOpacityGradient={showOpacityGradient}
                 showReviewMarkers={showReviewMarkers}
+                showEventDots={showEventDots}
               />
             )
           : (
@@ -1547,8 +1562,9 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                         onRequestStepBack={handleStepBack}
                         onTooSmallSelection={handleTooSmallSelection}
                         keyboardSelection={keyboardSelection}
-                        showOpacityFade={showOpacityFade}
+                        showOpacityGradient={showOpacityGradient}
                         showReviewMarkers={showReviewMarkers}
+                        showEventDots={showEventDots}
                       />
                     </div>
                   );
