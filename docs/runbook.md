@@ -15,6 +15,7 @@ This runbook helps troubleshoot common production issues. Because the app is loc
 - Run the modal overlay checklist: open Quick Revision, confirmation dialogs, and dropdowns to ensure no clipping or scroll lock regressions.
 - Toggle the Subjects dropdown on Dashboard, Calendar, and Timeline to confirm the shared filter stays in sync.
 - Flip the theme toggle between light and dark to ensure surfaces update instantly and the choice persists on reload.
+- In light mode, scan the navigation, review statuses, and subject exam labels to ensure the hardened contrast styles remain legible.
 
 ## Common incidents
 

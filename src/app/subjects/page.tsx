@@ -44,6 +44,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 const toDateInputValue = (value: string | null | undefined) => {
   if (!value) return "";
@@ -399,6 +400,10 @@ const SubjectAdminPage: React.FC = () => {
                 : daysLeft === 0
                 ? "Exam today"
                 : `Exam in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`;
+            const examInfoClassName = cn(
+              "subject-exam-info text-sm",
+              daysLeft === null ? undefined : daysLeft <= 7 ? "subject-exam-soon" : "subject-exam-far"
+            );
 
             if (isEditing) {
               const previewExamLabel = editDraft.examDate ? formatFullDate(editDraft.examDate) : "No exam date";
@@ -519,12 +524,12 @@ const SubjectAdminPage: React.FC = () => {
                               {examBadgeText}
                             </span>
                             {subject.examDate ? (
-                              <span className="text-sm text-muted-foreground">
+                              <span className={examInfoClassName}>
                                 Exam on {formatFullDate(subject.examDate)}
                                 {countdownText ? ` • ${countdownText}` : ""}
                               </span>
                             ) : (
-                              <span className="text-sm text-muted-foreground">{urgencyMeta.description}</span>
+                              <span className={examInfoClassName}>{urgencyMeta.description}</span>
                             )}
                           </div>
                         </div>

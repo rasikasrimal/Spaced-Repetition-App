@@ -20,6 +20,7 @@ The Spaced Repetition App is a local-first study companion built with Next.js, T
 - Introduced a light/dark theme toggle with hard-coded palettes so every surface, icon, and label reads consistently without relying on CSS variables.
 - Flattened the UI aesthetic—cards, dialogs, and inputs now use crisp borders instead of shadows while charts retain their soft gradients.
 - Polished the timeline with per-topic labels at the Today line, review-to-review connector segments, and opacity-aware fade controls.
+- Hardened light mode contrast so nav links, review statuses, and exam countdowns stay readable on bright surfaces.
 
 ## Key concepts
 

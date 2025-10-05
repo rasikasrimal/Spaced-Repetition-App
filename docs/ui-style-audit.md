@@ -61,15 +61,16 @@ Zoom controls, drag panning, and shift-scroll translate into domain updates that
 ## Typography
 - Primary page title (`Stay ahead of your reviews`): `text-3xl font-semibold` with `color: #ffffff` in dark mode / `#1a1a1a` in light mode.
 - Section titles (e.g. `Scheduled Reviews`, empty state heading): `text-2xl`/`text-xl` with `font-semibold` and the same theme-specific colour pairing.
-- Body copy: `text-sm leading-relaxed` with `color: #a0a0a0` (dark) or `#666666` (light).
-- Meta/badge text: `text-xs uppercase` with `color: #808080` (dark) or `#999999` (light).
+- Body copy: `text-sm leading-relaxed` with `color: #a0a0a0` (dark) or `#333333` (light).
+- Meta/badge text: `text-xs uppercase` with `color: #808080` (dark) or `#555555` (light).
 
 ## Colors & Surfaces
 - **Dark theme palette**: background `#0f1115`, primary surface `#181b20`, muted surface `#1b1e24`, border `#262a30`, accent `#3dea95`.
 - **Light theme palette**: background `#ffffff`, primary surface `#f8f9fa`, muted surface `#f2f3f5`, border `#dcdcdc`, accent `#21ce99`.
 - Surfaces are flat (no shadows); elevation is communicated solely through border contrast and spacing.
 - Charts keep soft area gradients (`rgba(61, 234, 149, 0.25 → 0)` dark / `rgba(33, 206, 153, 0.2 → 0)` light) while UI panels remain solid fills.
-- Text always pairs `textPrimary` against the background, while muted copy uses `#a0a0a0` (dark) or `#666666` (light).
+- Text always pairs `textPrimary` against the background, while muted copy uses `#a0a0a0` (dark) or `#555555` (light).
+- Light-mode navigation links default to `#444444` with hover `#000000` and an active state of `#21ce99` on `#e6f7f0`; review/status chips reuse `#d62828` (overdue), `#f59e0b` (due), and `#2563eb` (upcoming).
 
 ## Spacing & Layout
 - Page container: `max-w-[90rem]` with `px-4 md:px-6 lg:px-8 xl:px-10`, vertical rhythm via `gap-8`

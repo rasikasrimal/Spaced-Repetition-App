@@ -11,7 +11,7 @@ Welcome to the Spaced-Repetition-App knowledge base. This guide introduces the a
 1. **Adaptive Scheduling:** Automatically calculates the next review date based on the quality recorded after each review.
 2. **Subject & Topic Management:** Organise material into subjects, keep topics in sync with subject identity (colour, icon, exam date), and backfill history when migrating.
 3. **Timeline Analytics:** Explore combined or per-subject forgetting curves with opacity fades, review markers, and labels that surface current retention at the Today line.
-4. **Dual Themes:** Toggle between crisp light and deep dark palettes; both are hard-coded for predictable contrast without shadows.
+4. **Dual Themes:** Toggle between crisp light and deep dark palettes; both are hard-coded for predictable contrast with reinforced navigation/status colours and no shadows.
 5. **Offline-Ready Web App:** Built with Next.js and Zustand so you can review from any device without a backend.
 
 ## Getting Started
@@ -30,7 +30,7 @@ Welcome to the Spaced-Repetition-App knowledge base. This guide introduces the a
 - **Daily Reviews:** Aim to clear the “Due Today” list. Consistency beats marathon sessions.
 - **Subject Filters:** Use the shared subjects dropdown across Dashboard, Calendar, and Timeline to focus on specific courses.
 - **Today Labels:** Enable topic labels in the timeline toolbar to see retention percentages at a glance.
-- **Theme Preference:** Switch to light or dark from the header toggle—the choice persists across sessions.
+- **Theme Preference:** Switch to light or dark from the header toggle—the choice persists across sessions and light mode now boosts nav/status contrast automatically.
 
 ## Advanced Usage
 - **History Backfill:** Use the per-topic history editor to log prior study sessions in chronological order and recalculate intervals.

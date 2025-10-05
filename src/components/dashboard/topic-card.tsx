@@ -420,7 +420,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
             <CheckCircle2 className="h-3.5 w-3.5" /> Completed today
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1 text-accent/30">
+          <span className="review-motivation inline-flex items-center gap-1">
             <Sparkles className="h-3.5 w-3.5" /> Keep the momentum
           </span>
         )}
@@ -453,7 +453,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({ topic, onEdit }) => {
                   </span>
                 ) : null}
                 {examDateLabel ? (
-                  <span className="inline-flex items-center gap-2 rounded-full bg-warn/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-warn/20">
+                  <span className="exam-date inline-flex items-center gap-2 rounded-full bg-warn/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide">
                     <CalendarClock className="h-3.5 w-3.5" /> Exam {examDateLabel}
                   </span>
                 ) : null}
