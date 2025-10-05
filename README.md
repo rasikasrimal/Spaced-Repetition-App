@@ -11,6 +11,11 @@ The Spaced Repetition App is a local-first study companion built with Next.js, T
 - [Security notes](docs/security.md)
 - [OpenAPI stewardship](docs/openapi.yaml)
 - [UI style audit](docs/ui-style-audit.md)
+- [Adaptive algorithm overview](docs/ALGORITHM_OVERVIEW.md)
+- [Settings guide](SETTINGS_GUIDE.md)
+- [UI guidelines](UI_GUIDELINES.md)
+- [Testing notes](TESTING_NOTES.md)
+- [Changelog](CHANGELOG.md)
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 - [Contributing guide](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
@@ -18,17 +23,26 @@ The Spaced Repetition App is a local-first study companion built with Next.js, T
 
 ## What changed recently
 
+- Launched adaptive review scheduling driven by the forgetting curve, including a configurable retention trigger and live preview in Settings.
 - Introduced a light/dark theme toggle with hard-coded palettes so every surface, icon, and label reads consistently without relying on CSS variables.
 - Flattened the UI aesthetic—cards, dialogs, and inputs now use crisp borders instead of shadows while charts retain their soft gradients.
-- Polished the timeline with per-topic labels at the Today line, review-to-review connector segments, and opacity-aware fade controls.
+- Polished the timeline with icon-based overlays, single-subject focus chips, and hoverable curves that isolate when clicked.
 - Hardened light mode contrast so nav links, review statuses, and exam countdowns stay readable on bright surfaces.
 - Added flat per-subject revision tables and hoverable review badges beneath the timeline for a spreadsheet-style snapshot of progress.
 - Simplified the dashboard to focus on today’s review plan, filters, and streak metrics while keeping the full analytics experience on the Timeline page.
 
+### UI Enhancements
+
+- Exam date badges now adapt dynamically to theme mode and maintain color accessibility standards across pages.
+- The dashboard opens with the "Due today" status chip selected, scrollable primary filters, and a hover-aware review load chart that previews upcoming topics at a glance.
+- The “Progress today” module now sits above the filters with matching dividers, so you can check completion status before browsing topics.
+- The Reviews page now uses a GitHub-inspired table with responsive columns, expandable details, and skip actions limited to due-today topics.
+- Dark mode text contrast has been brightened so secondary labels, notes, and placeholders stay legible on deep slate backgrounds.
+
 ## Key concepts
 
 - **Subject** – The canonical home for icon, colour, and optional exam date. Editing a subject updates every topic, calendar dot, and timeline marker instantly.
-- **Topic** – A single study card with notes, reminder preferences, and spaced intervals. Topics inherit identity from their subject and can be reviewed once per local day.
+- **Topic** – A single study card with notes, reminder preferences, and an adaptive review cadence. Topics inherit identity from their subject, can be reviewed once per local day, and automatically reschedule when predicted retention falls past your chosen trigger.
 - **Review** – A logged study event that advances the interval schedule. Early reviews honour the learner’s auto-adjust preference.
 - **Calendar dots** – One dot per subject per day in the calendar view, tinted by subject colour with overflow summarised as `+N`.
 - **Timeline markers** – Dotted vertical exam indicators in the subject’s colour, visible in exports and toggleable from the toolbar.
@@ -58,7 +72,7 @@ The Spaced Repetition App is a local-first study companion built with Next.js, T
 
 ## Themes
 
-- Toggle between the light and dark palettes from the header controls or the timeline toolbar—both modes use fixed colour values so surfaces stay visually consistent offline.
+- Toggle between the light and dark palettes from the header controls; both modes use fixed colour values so surfaces stay visually consistent offline.
 - Theme selection persists via local storage, so the app restores your preference on reload and across navigation.
 - The flat design keeps focus outlines and chart gradients readable in both modes without relying on box shadows.
 

@@ -16,7 +16,6 @@ import { buildCurveSegments, sampleSegment } from "@/selectors/curves";
 import { useTopicStore } from "@/stores/topics";
 import { useProfileStore } from "@/stores/profile";
 import { useTimelinePreferencesStore } from "@/stores/timeline-preferences";
-import { useThemeStore } from "@/stores/theme";
 import { useThemePalette } from "@/hooks/use-theme-palette";
 import { Subject, Topic } from "@/types/topic";
 import { SubjectFilterValue, NO_SUBJECT_KEY } from "@/components/dashboard/topic-list";
@@ -25,9 +24,6 @@ import {
   Check,
   Droplet,
   Dot,
-  EllipsisVertical,
-  Eye,
-  EyeOff,
   Filter,
   Info,
   Milestone,
@@ -42,9 +38,8 @@ import {
   SquareDashedMousePointer,
   Maximize2,
   Minimize2,
-  Type,
-  Moon,
-  Sun
+  Tag,
+  GraduationCap
 } from "lucide-react";
 import {
   daysBetween,
@@ -79,6 +74,13 @@ type SubjectSeriesGroup = {
   label: string;
   color: string;
   series: TimelineSeries[];
+};
+
+type SubjectOption = {
+  id: string;
+  label: string;
+  color: string;
+  topicCount: number;
 };
 
 type FullscreenTarget =
@@ -470,6 +472,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   );
 
   const [visibility, setVisibility] = React.useState<TopicVisibility>({});
+  const [activeSubjectId, setActiveSubjectId] = React.useState<string | null>(null);
   const [viewMode, setViewMode] = React.useState<TimelineViewMode>("combined");
   const [categoryFilter, setCategoryFilter] = React.useState<Set<string>>(new Set());
   const [search, setSearch] = React.useState("");
@@ -497,6 +500,12 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   const setShowEventDots = useTimelinePreferencesStore((state) => state.setShowEventDots);
   const showTopicLabels = useTimelinePreferencesStore((state) => state.showTopicLabels);
   const setShowTopicLabels = useTimelinePreferencesStore((state) => state.setShowTopicLabels);
+  const showMilestones = showCheckpoints || showReviewMarkers;
+  const handleToggleMilestones = (pressed: boolean) => {
+    const next = Boolean(pressed);
+    setShowCheckpoints(next);
+    setShowReviewMarkers(next);
+  };
   const svgRef = React.useRef<SVGSVGElement | null>(null);
   const perSubjectSvgRefs = React.useRef(new Map<string, SVGSVGElement | null>());
   const perSubjectContainerRef = React.useRef<HTMLDivElement | null>(null);
@@ -512,11 +521,66 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
       map.delete(subjectId);
     }
   }, []);
-  const { theme: activeTheme, setTheme } = useThemeStore((state) => ({
-    theme: state.theme,
-    setTheme: state.setTheme
-  }));
   const palette = useThemePalette();
+
+  const subjectOptions = React.useMemo<SubjectOption[]>(() => {
+    const map = new Map<string, SubjectOption>();
+    const ensure = (id: string, label: string, color: string) => {
+      const existing = map.get(id);
+      if (existing) {
+        return existing;
+      }
+      const created: SubjectOption = { id, label, color, topicCount: 0 };
+      map.set(id, created);
+      return created;
+    };
+
+    subjects.forEach((subject) => {
+      const color = resolveSubjectColor(subject.id);
+      ensure(subject.id, subject.name, color);
+    });
+
+    for (const topic of topics) {
+      const key = topic.subjectId ?? DEFAULT_SUBJECT_ID;
+      const label = key === DEFAULT_SUBJECT_ID ? "No subject" : subjectLookup.get(key)?.name ?? "No subject";
+      const color = resolveSubjectColor(topic.subjectId ?? null);
+      const entry = ensure(key, label, color);
+      entry.topicCount += 1;
+    }
+
+    if (!map.has(DEFAULT_SUBJECT_ID)) {
+      const generalCount = topics.filter((topic) => !topic.subjectId).length;
+      if (generalCount > 0) {
+        map.set(DEFAULT_SUBJECT_ID, {
+          id: DEFAULT_SUBJECT_ID,
+          label: "No subject",
+          color: FALLBACK_SUBJECT_COLOR,
+          topicCount: generalCount
+        });
+      }
+    }
+
+    const result = Array.from(map.values()).filter((option) => option.topicCount > 0);
+    result.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
+    return result;
+  }, [subjects, topics, subjectLookup, resolveSubjectColor]);
+
+  React.useEffect(() => {
+    if (subjectOptions.length === 0) {
+      if (activeSubjectId !== null) {
+        setActiveSubjectId(null);
+      }
+      return;
+    }
+    if (!activeSubjectId || !subjectOptions.some((option) => option.id === activeSubjectId)) {
+      setActiveSubjectId(subjectOptions[0].id);
+    }
+  }, [subjectOptions, activeSubjectId]);
+
+  const activeSubjectOption = React.useMemo(
+    () => subjectOptions.find((option) => option.id === activeSubjectId) ?? null,
+    [subjectOptions, activeSubjectId]
+  );
 
   const domainMeta = React.useMemo(
     () => computeTimelineDomain(topics, subjects, resolvedTimezone),
@@ -526,6 +590,22 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   React.useEffect(() => {
     setVisibility((prev) => ensureVisibilityState(topics, prev));
   }, [topics]);
+
+  React.useEffect(() => {
+    if (!activeSubjectId) return;
+    setVisibility((prev) => {
+      const next: TopicVisibility = { ...prev };
+      let changed = false;
+      for (const topic of topics) {
+        const key = topic.subjectId ?? DEFAULT_SUBJECT_ID;
+        if (key === activeSubjectId && next[topic.id] === false) {
+          next[topic.id] = true;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [activeSubjectId, topics]);
 
   React.useEffect(() => {
     setHasStudyActivity(domainMeta.hasActivity);
@@ -842,8 +922,12 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
       sorted.sort((a, b) => new Date(a.nextReviewDate).getTime() - new Date(b.nextReviewDate).getTime());
     }
 
-    return sorted;
-  }, [topics, categoryFilter, search, sortView]);
+    const bySubject = activeSubjectId
+      ? sorted.filter((topic) => (topic.subjectId ?? DEFAULT_SUBJECT_ID) === activeSubjectId)
+      : sorted;
+
+    return bySubject;
+  }, [topics, categoryFilter, search, sortView, activeSubjectId]);
 
   const singleSubjectColorOverrides = React.useMemo(() => {
     if (filteredTopics.length === 0) return null;
@@ -1339,39 +1423,24 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     downloadSvg(svgRef.current, "review-timeline.svg");
   };
 
-  const exportPng = () => {
+  const exportPng = async () => {
+    const notifyFailure = () =>
+      toast.error("Export failed: please reset filters before saving chart.");
+
     if (viewMode === "per-subject") {
       const combined = buildPerSubjectExportSvg();
       if (!combined) return;
-      downloadSvgAsPng(combined, "review-timeline.png");
+      const success = await downloadSvgAsPng(combined, "review-timeline.png");
+      if (!success) {
+        notifyFailure();
+      }
       return;
     }
     if (!svgRef.current) return;
-    downloadSvgAsPng(svgRef.current, "review-timeline.png");
-  };
-
-  const showAllTopics = () => {
-    const next: TopicVisibility = {};
-    for (const topic of filteredTopics) {
-      next[topic.id] = true;
+    const success = await downloadSvgAsPng(svgRef.current, "review-timeline.png");
+    if (!success) {
+      notifyFailure();
     }
-    setVisibility(next);
-  };
-
-  const hideAllTopics = () => {
-    const next: TopicVisibility = {};
-    for (const topic of filteredTopics) {
-      next[topic.id] = false;
-    }
-    setVisibility(next);
-  };
-
-  const showDueTopics = () => {
-    const next: TopicVisibility = {};
-    for (const topic of filteredTopics) {
-      next[topic.id] = isDueToday(topic.nextReviewDate);
-    }
-    setVisibility(next);
   };
 
   const handleToggleCategory = (id: string) => {
@@ -1545,7 +1614,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
               <Button size="sm" variant="outline" onClick={exportSvg}>
                 Export SVG
               </Button>
-              <Button size="sm" variant="outline" onClick={exportPng}>
+              <Button size="sm" variant="outline" onClick={() => void exportPng()}>
                 Export PNG
               </Button>
             </>
@@ -1584,7 +1653,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
       ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 rounded-2xl border border-inverse/10 bg-card/60 px-3 py-2 text-xs text-muted-foreground">
+        <div className="flex items-center gap-2 rounded-2xl border border-inverse/10 bg-muted/30 px-3 py-2 text-xs text-muted-foreground shadow-sm">
           <CalendarClock className="h-3.5 w-3.5" />
           <span>Window (days)</span>
           <Input
@@ -1608,7 +1677,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
             disabled={!domain}
           />
         </div>
-        <div className="flex items-center gap-2 rounded-2xl border border-inverse/10 bg-card/60 px-3 py-2">
+        <div className="flex items-center gap-2 rounded-2xl border border-inverse/10 bg-muted/30 px-3 py-2 shadow-sm">
           <Search className="h-3.5 w-3.5 text-muted-foreground/80" />
           <Input
             value={search}
@@ -1618,7 +1687,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
           />
         </div>
         <Select value={sortView} onValueChange={(value: SortView) => setSortView(value)}>
-          <SelectTrigger className="h-9 rounded-2xl border-inverse/10 bg-card/60 text-xs text-fg">
+          <SelectTrigger className="h-9 rounded-2xl border-inverse/10 bg-muted/30 text-xs text-fg shadow-sm">
             <SelectValue placeholder="Sort" />
           </SelectTrigger>
           <SelectContent className="rounded-2xl backdrop-blur">
@@ -1626,8 +1695,11 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
             <SelectItem value="title">Topic name</SelectItem>
           </SelectContent>
         </Select>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div
-          className="flex flex-wrap items-center gap-1 rounded-2xl border border-inverse/10 bg-card/60 p-1"
+          className="flex items-center gap-1 overflow-x-auto whitespace-nowrap rounded-2xl border border-inverse/10 bg-card/60 p-1 shadow-sm scrollbar-none"
           role="group"
           aria-label="Timeline overlays"
         >
@@ -1636,80 +1708,69 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
             pressed={showExamMarkers}
             onPressedChange={(pressed) => setShowExamMarkers(Boolean(pressed))}
             aria-label="Toggle exam markers"
-            title="Toggle exam markers"
+            title="Exam markers"
+            className="h-9 w-9 gap-0 justify-center rounded-lg border border-inverse/15 bg-card/70 px-0 py-0 text-muted-foreground transition data-[state=on]:border-primary data-[state=on]:bg-primary/20 data-[state=on]:text-primary hover:bg-accent/30 hover:text-foreground"
           >
-            <CalendarClock className="h-3.5 w-3.5" />
-            <span>Exam Markers</span>
+            <GraduationCap className="h-4 w-4" />
+            <span className="sr-only">Exam markers</span>
           </Toggle>
           <Toggle
             type="button"
-            pressed={showCheckpoints}
-            onPressedChange={(pressed) => setShowCheckpoints(Boolean(pressed))}
-            aria-label="Toggle checkpoints"
-            title="Toggle checkpoints"
+            pressed={showMilestones}
+            onPressedChange={handleToggleMilestones}
+            aria-label="Toggle milestones"
+            title="Milestones"
+            className="h-9 w-9 gap-0 justify-center rounded-lg border border-inverse/15 bg-card/70 px-0 py-0 text-muted-foreground transition data-[state=on]:border-primary data-[state=on]:bg-primary/20 data-[state=on]:text-primary hover:bg-accent/30 hover:text-foreground"
           >
-            <Milestone className="h-3.5 w-3.5" />
-            <span>Checkpoints</span>
-          </Toggle>
-          <Toggle
-            type="button"
-            pressed={showReviewMarkers}
-            onPressedChange={(pressed) => setShowReviewMarkers(Boolean(pressed))}
-            aria-label="Toggle review markers"
-            title="Toggle review markers"
-          >
-            <EllipsisVertical className="h-3.5 w-3.5" />
-            <span>Review Markers</span>
+            <Milestone className="h-4 w-4" />
+            <span className="sr-only">Milestones</span>
           </Toggle>
           <Toggle
             type="button"
             pressed={showEventDots}
             onPressedChange={(pressed) => setShowEventDots(Boolean(pressed))}
-            aria-label="Toggle event start dots"
-            title="Toggle event start dots"
+            aria-label="Toggle event dots"
+            title="Event dots"
+            className="h-9 w-9 gap-0 justify-center rounded-lg border border-inverse/15 bg-card/70 px-0 py-0 text-muted-foreground transition data-[state=on]:border-primary data-[state=on]:bg-primary/20 data-[state=on]:text-primary hover:bg-accent/30 hover:text-foreground"
           >
-            <Dot className="h-3.5 w-3.5" />
-            <span>Event Dots</span>
+            <Dot className="h-4 w-4" />
+            <span className="sr-only">Event dots</span>
           </Toggle>
           <Toggle
             type="button"
             pressed={showOpacityGradient}
             onPressedChange={(pressed) => setShowOpacityGradient(Boolean(pressed))}
-            aria-label="Toggle opacity gradient"
-            title="Toggle opacity gradient"
+            aria-label="Toggle opacity fade"
+            title="Opacity fade"
+            className="h-9 w-9 gap-0 justify-center rounded-lg border border-inverse/15 bg-card/70 px-0 py-0 text-muted-foreground transition data-[state=on]:border-primary data-[state=on]:bg-primary/20 data-[state=on]:text-primary hover:bg-accent/30 hover:text-foreground"
           >
-            <Droplet className="h-3.5 w-3.5" />
-            <span>Opacity Gradient</span>
+            <Droplet className="h-4 w-4" />
+            <span className="sr-only">Opacity fade</span>
           </Toggle>
           <Toggle
             type="button"
             pressed={showTopicLabels}
             onPressedChange={(pressed) => setShowTopicLabels(Boolean(pressed))}
             aria-label="Toggle topic labels"
-            title="Toggle topic labels"
+            title="Topic labels"
+            className="h-9 w-9 gap-0 justify-center rounded-lg border border-inverse/15 bg-card/70 px-0 py-0 text-muted-foreground transition data-[state=on]:border-primary data-[state=on]:bg-primary/20 data-[state=on]:text-primary hover:bg-accent/30 hover:text-foreground"
           >
-            <Type className="h-3.5 w-3.5" />
-            <span>Topic Labels</span>
-          </Toggle>
-          <Toggle
-            type="button"
-            pressed={activeTheme === "dark"}
-            onPressedChange={(pressed) => setTheme(pressed ? "dark" : "light")}
-            aria-label="Toggle theme"
-            title={activeTheme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-          >
-            {activeTheme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
-            <span>Theme</span>
+            <Tag className="h-4 w-4" />
+            <span className="sr-only">Topic labels</span>
           </Toggle>
         </div>
         {categoryFilter.size > 0 ? (
-          <Button size="sm" variant="ghost" onClick={() => setCategoryFilter(new Set())}>
-            Clear categories
-          </Button>
+          <button
+            type="button"
+            onClick={() => setCategoryFilter(new Set())}
+            className="text-xs font-medium text-muted-foreground hover:text-foreground hover:underline"
+          >
+            Clear filters
+          </button>
         ) : null}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-none">
         {categories.map((category) => {
           const active = categoryFilter.has(category.id);
           return (
@@ -1750,30 +1811,50 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
         ? hasStudyActivity && domain && yDomain
           ? (
               <div className="space-y-3">
-                <TimelineChart
-                  ref={svgRef}
-                  series={series}
-                  xDomain={domain}
-                  yDomain={yDomain}
-                  onViewportChange={(next, options) => handleViewportChange(next, { push: options?.push })}
-                  height={variant === "compact" ? 320 : 460}
-                  showGrid
-                  fullDomain={fullDomain ?? undefined}
-                  fullYDomain={fullYDomain ?? undefined}
-                  examMarkers={showExamMarkers ? examMarkers : []}
-                  timeZone={resolvedTimezone}
-                  onResetDomain={handleResetDomain}
-                  ariaDescribedBy={`timeline-zoom-shortcuts ${pointerInstructionId}`}
-                  interactionMode={interactionMode}
-                  temporaryPan={spacePanning}
-                  onRequestStepBack={handleStepBack}
-                  onTooSmallSelection={handleTooSmallSelection}
-                  keyboardSelection={keyboardSelection}
-                  showOpacityGradient={showOpacityGradient}
-                  showReviewMarkers={showReviewMarkers}
-                  showEventDots={showEventDots}
-                  showTopicLabels={showTopicLabels}
-                />
+                {activeSubjectOption ? (
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-2 rounded-full border border-inverse/10 bg-inverse/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      <span
+                        className="inline-flex h-2 w-2 rounded-full"
+                        style={{ backgroundColor: activeSubjectOption.color }}
+                        aria-hidden="true"
+                      />
+                      Subject selected
+                      <span className="text-fg">{activeSubjectOption.label}</span>
+                    </span>
+                    {series.length > 0 ? (
+                      <span className="text-[10px] text-muted-foreground/70">
+                        {series.length} topic{series.length === 1 ? "" : "s"}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
+                <div className="group rounded-3xl border border-inverse/10 bg-muted/30 p-3 shadow-sm transition-colors hover:bg-muted/40">
+                  <TimelineChart
+                    ref={svgRef}
+                    series={series}
+                    xDomain={domain}
+                    yDomain={yDomain}
+                    onViewportChange={(next, options) => handleViewportChange(next, { push: options?.push })}
+                    height={variant === "compact" ? 320 : 460}
+                    showGrid
+                    fullDomain={fullDomain ?? undefined}
+                    fullYDomain={fullYDomain ?? undefined}
+                    examMarkers={showExamMarkers ? examMarkers : []}
+                    timeZone={resolvedTimezone}
+                    onResetDomain={handleResetDomain}
+                    ariaDescribedBy={`timeline-zoom-shortcuts ${pointerInstructionId}`}
+                    interactionMode={interactionMode}
+                    temporaryPan={spacePanning}
+                    onRequestStepBack={handleStepBack}
+                    onTooSmallSelection={handleTooSmallSelection}
+                    keyboardSelection={keyboardSelection}
+                    showOpacityGradient={showOpacityGradient}
+                    showReviewMarkers={showReviewMarkers}
+                    showEventDots={showEventDots}
+                    showTopicLabels={showTopicLabels}
+                  />
+                </div>
                 {singleSubjectLegend ? (
                   <div
                     className="flex flex-wrap items-center gap-2 rounded-2xl border border-inverse/10 bg-card/60 px-3 py-2 text-xs text-muted-foreground"
@@ -1900,48 +1981,57 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
             )}
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <Filter className="h-3.5 w-3.5" /> Visibility
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <Filter className="h-3.5 w-3.5" /> Subject focus
+            </div>
+            {activeSubjectOption ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-inverse/10 bg-inverse/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <span
+                  className="inline-flex h-2 w-2 rounded-full"
+                  style={{ backgroundColor: activeSubjectOption.color }}
+                  aria-hidden="true"
+                />
+                {activeSubjectOption.label}
+              </span>
+            ) : null}
           </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <Button size="sm" variant="ghost" onClick={showAllTopics}>
-              Show all
-            </Button>
-            <Button size="sm" variant="ghost" onClick={hideAllTopics}>
-              Hide all
-            </Button>
-            <Button size="sm" variant="ghost" onClick={showDueTopics}>
-              Only due
-            </Button>
-          </div>
-          <div className="grid gap-2 md:grid-cols-2">
-            {filteredTopics.map((topic) => {
-              const isVisible = visibility[topic.id] ?? true;
-              return (
-                <button
-                  key={topic.id}
-                  type="button"
-                  onClick={() =>
-                    setVisibility((prev) => ({
-                      ...prev,
-                      [topic.id]: !(prev[topic.id] ?? true)
-                    }))
-                  }
-                  className={`flex items-center gap-2 rounded-2xl border px-3 py-2 text-left text-xs transition ${
-                    isVisible ? "border-accent/40 bg-accent/10 text-fg" : "border-inverse/10 bg-transparent text-muted-foreground hover:text-fg"
-                  }`}
-                >
-                  <span className="inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: resolveTopicColor(topic) }} />
-                  <span className="flex-1 truncate">{topic.title}</span>
-                  <span className="text-[10px] text-muted-foreground">
-                    {formatDateWithWeekday(topic.nextReviewDate)}
-                  </span>
-                  {isVisible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                </button>
-              );
-            })}
-          </div>
+          <p className="text-xs text-muted-foreground">
+            Choose a subject to isolate its retention curve. Other subjects stay hidden until you reselect them.
+          </p>
+          {subjectOptions.length > 0 ? (
+            <div className="flex flex-wrap gap-2 overflow-x-auto whitespace-nowrap scrollbar-none">
+              {subjectOptions.map((option) => {
+                const isActive = option.id === activeSubjectId;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => setActiveSubjectId(option.id)}
+                    aria-pressed={isActive}
+                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs transition ${
+                      isActive
+                        ? "border-primary/50 bg-primary/15 text-primary shadow-sm"
+                        : "border-inverse/10 bg-card/40 text-muted-foreground hover:text-fg"
+                    }`}
+                  >
+                    <span
+                      className="inline-flex h-2 w-2 rounded-full"
+                      style={{ backgroundColor: option.color }}
+                      aria-hidden="true"
+                    />
+                    <span className="max-w-[9rem] truncate">{option.label}</span>
+                    <span className="text-[10px] text-muted-foreground/80">{option.topicCount}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="rounded-2xl border border-dashed border-inverse/10 bg-card/50 px-3 py-3 text-xs text-muted-foreground">
+              Add topics to start focusing the timeline by subject.
+            </p>
+          )}
         </div>
 
         <div className="space-y-3 rounded-2xl border border-inverse/5 bg-inverse/5 p-4">

@@ -16,6 +16,15 @@ body.dark * {
   border-color: #262a30;
 }
 
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 body.light .icon {
   color: #9aa0a6;
 }
@@ -44,6 +53,18 @@ body.light :where(p, span, label) {
 
 body.light :where(small, .muted) {
     color: #555555;
+  }
+
+body.dark :where(h1, h2, h3, h4) {
+    color: #f4f4f5;
+  }
+
+body.dark :where(p, span, label) {
+    color: #d4d4d8;
+  }
+
+body.dark :where(small, .muted) {
+    color: #a1a1aa;
   }
 
 /* background surfaces */
@@ -117,6 +138,13 @@ body.light .bg-accent\/25 { background-color: rgba(33, 206, 153, 0.25); }
 body.dark .bg-accent\/25 { background-color: rgba(61, 234, 149, 0.25); }
 body.light .bg-accent\/90 { background-color: rgba(33, 206, 153, 0.9); }
 body.dark .bg-accent\/90 { background-color: rgba(61, 234, 149, 0.9); }
+
+body.light .bg-primary\/10 { background-color: rgba(33, 206, 153, 0.1); }
+body.dark .bg-primary\/10 { background-color: rgba(61, 234, 149, 0.1); }
+body.light .bg-primary\/15 { background-color: rgba(33, 206, 153, 0.15); }
+body.dark .bg-primary\/15 { background-color: rgba(61, 234, 149, 0.15); }
+body.light .hover\:bg-primary\/15:hover { background-color: rgba(33, 206, 153, 0.15); }
+body.dark .hover\:bg-primary\/15:hover { background-color: rgba(61, 234, 149, 0.15); }
 
 /* subject revision tables */
 .subject-table-card {
@@ -361,6 +389,8 @@ body.light .bg-success\/20 { background-color: rgba(33, 206, 153, 0.2); }
 body.dark .bg-success\/20 { background-color: rgba(61, 234, 149, 0.2); }
 body.light .bg-success\/80 { background-color: rgba(33, 206, 153, 0.8); }
 body.dark .bg-success\/80 { background-color: rgba(61, 234, 149, 0.8); }
+body.light .text-success { color: #21ce99; }
+body.dark .text-success { color: #3dea95; }
 
 body.light .bg-warn { background-color: #f5a623; }
 body.dark .bg-warn { background-color: #f5a623; }
@@ -372,26 +402,32 @@ body.light .bg-warn\/20 { background-color: rgba(245, 166, 35, 0.2); }
 body.dark .bg-warn\/20 { background-color: rgba(245, 166, 35, 0.2); }
 body.light .bg-warn\/80 { background-color: rgba(245, 166, 35, 0.8); }
 body.dark .bg-warn\/80 { background-color: rgba(245, 166, 35, 0.8); }
+body.light .text-warn { color: #f5a623; }
+body.dark .text-warn { color: #f5a623; }
 
 body.light .bg-error { background-color: #e5484d; }
 body.dark .bg-error { background-color: #f87171; }
 body.light .bg-error\/20 { background-color: rgba(229, 72, 77, 0.2); }
 body.dark .bg-error\/20 { background-color: rgba(248, 113, 113, 0.2); }
+body.light .text-error { color: #e5484d; }
+body.dark .text-error { color: #f87171; }
 
 /* text colors */
 body.light .text-fg { color: #1a1a1a; }
-body.dark .text-fg { color: #ffffff; }
+body.dark .text-fg { color: #eaeaea; }
 body.light .text-fg\/70 { color: rgba(26, 26, 26, 0.7); }
-body.dark .text-fg\/70 { color: rgba(255, 255, 255, 0.7); }
+body.dark .text-fg\/70 { color: rgba(234, 234, 234, 0.7); }
 body.light .text-fg\/80 { color: rgba(26, 26, 26, 0.8); }
-body.dark .text-fg\/80 { color: rgba(255, 255, 255, 0.8); }
+body.dark .text-fg\/80 { color: rgba(234, 234, 234, 0.8); }
 body.light .text-fg\/90 { color: rgba(26, 26, 26, 0.9); }
-body.dark .text-fg\/90 { color: rgba(255, 255, 255, 0.9); }
+body.dark .text-fg\/90 { color: rgba(234, 234, 234, 0.9); }
 
 body.light .text-muted-foreground { color: #999999; }
-body.dark .text-muted-foreground { color: #808080; }
+body.dark .text-muted-foreground { color: #d4d4d8; }
 body.light .text-muted-foreground\/80 { color: rgba(153, 153, 153, 0.8); }
-body.dark .text-muted-foreground\/80 { color: rgba(128, 128, 128, 0.8); }
+body.dark .text-muted-foreground\/80 { color: rgba(212, 212, 216, 0.8); }
+body.light .text-muted-foreground\/70 { color: rgba(153, 153, 153, 0.7); }
+body.dark .text-muted-foreground\/70 { color: rgba(212, 212, 216, 0.7); }
 
 body.light .text-accent { color: #21ce99; }
 body.dark .text-accent { color: #3dea95; }
@@ -402,10 +438,23 @@ body.dark .text-accent\/30 { color: rgba(61, 234, 149, 0.3); }
 body.light .text-accent\/80 { color: rgba(33, 206, 153, 0.8); }
 body.dark .text-accent\/80 { color: rgba(61, 234, 149, 0.8); }
 
+body.light ::placeholder {
+  color: #6b7280;
+  opacity: 1;
+}
+
+body.dark ::placeholder {
+  color: #9ca3af;
+  opacity: 1;
+}
+
 body.light .text-accent-foreground { color: #ffffff; }
 body.dark .text-accent-foreground { color: #0f1115; }
 body.light .text-accent-foreground\/80 { color: rgba(255, 255, 255, 0.8); }
 body.dark .text-accent-foreground\/80 { color: rgba(15, 17, 21, 0.8); }
+
+body.light .text-primary { color: #0f766e; }
+body.dark .text-primary { color: #5eead4; }
 
 body.light .text-success\/20 { color: rgba(33, 206, 153, 0.2); }
 body.dark .text-success\/20 { color: rgba(61, 234, 149, 0.2); }
@@ -453,6 +502,9 @@ body.dark .border-accent\/30 { border-color: rgba(61, 234, 149, 0.3); }
 body.light .border-accent\/40 { border-color: rgba(33, 206, 153, 0.4); }
 body.dark .border-accent\/40 { border-color: rgba(61, 234, 149, 0.4); }
 
+body.light .border-primary { border-color: rgba(15, 118, 110, 0.6); }
+body.dark .border-primary { border-color: rgba(94, 234, 212, 0.6); }
+
 body.light .border-success\/20 { border-color: rgba(33, 206, 153, 0.2); }
 body.dark .border-success\/20 { border-color: rgba(61, 234, 149, 0.2); }
 body.light .border-success\/40 { border-color: rgba(33, 206, 153, 0.4); }
@@ -484,6 +536,11 @@ body.light .ring-accent\/60 { --tw-ring-color: rgba(33, 206, 153, 0.6); }
 body.dark .ring-accent\/60 { --tw-ring-color: rgba(61, 234, 149, 0.6); }
 body.light .ring-accent\/80 { --tw-ring-color: rgba(33, 206, 153, 0.8); }
 body.dark .ring-accent\/80 { --tw-ring-color: rgba(61, 234, 149, 0.8); }
+
+body.light .ring-primary\/50 { --tw-ring-color: rgba(15, 118, 110, 0.5); }
+body.dark .ring-primary\/50 { --tw-ring-color: rgba(94, 234, 212, 0.5); }
+body.light .focus-visible\:ring-primary\/50:focus-visible { --tw-ring-color: rgba(15, 118, 110, 0.5); }
+body.dark .focus-visible\:ring-primary\/50:focus-visible { --tw-ring-color: rgba(94, 234, 212, 0.5); }
 
 body.light .ring-success\/40 { --tw-ring-color: rgba(33, 206, 153, 0.4); }
 body.dark .ring-success\/40 { --tw-ring-color: rgba(61, 234, 149, 0.4); }
@@ -694,12 +751,10 @@ body.dark .checkpoint-status--scheduled {
   }
 
 body.light .subject-exam-info {
-    color: #333333;
     font-weight: 500;
   }
 
 body.dark .subject-exam-info {
-    color: #d1d5db;
     font-weight: 500;
   }
 
@@ -714,13 +769,11 @@ body.dark .subject-exam-soon {
   }
 
 body.light .subject-exam-far {
-    color: #2563eb;
-    font-weight: 600;
+    font-weight: 500;
   }
 
 body.dark .subject-exam-far {
-    color: #8ab4ff;
-    font-weight: 600;
+    font-weight: 500;
   }
 
 /* reviews page */
@@ -785,12 +838,3 @@ body.dark .review-motivation {
     font-weight: 500;
   }
 
-body.light .exam-date {
-    color: #2563eb;
-    font-weight: 600;
-  }
-
-body.dark .exam-date {
-    color: #8ab4ff;
-    font-weight: 600;
-  }
