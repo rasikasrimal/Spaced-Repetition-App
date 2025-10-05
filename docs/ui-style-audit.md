@@ -6,13 +6,12 @@
 graph TD
   A[Top navigation shell<br/>max width 90rem] --> B[Responsive main container<br/>px-4 → px-10]
   B --> C[Personalized review plan header]
-  B --> D[Topics toolbar • single row ≥1200px]
-  D --> E[Topics list/table\ncolumns: Topic • Subject • Next review • Status • Actions]
+  B --> D[Topics toolbar • Add topic • filters • search]
+  D --> E[Topics table\nTopic • Subject • Next review • Status • Actions]
   B --> F[Progress today band • full width]
-  B --> G[Retention & timeline modules]
 ```
 
-Breakpoints keep the toolbar on a single line at ≥1280px, allow one wrap on tablets, and collapse to stacked filters on mobile while search remains first and full-width.
+Breakpoints keep the toolbar on a single line at ≥1280px, allow one wrap on tablets, and collapse to stacked filters on mobile while search and the Add Topic button remain visible.
 
 ### Dashboard toolbar interactions
 
@@ -57,6 +56,14 @@ flowchart LR
 ```
 
 Zoom controls, drag panning, and shift-scroll translate into domain updates that feed the SVG timeline. Reset returns to the full domain, while exports clone the currently rendered SVG so the downloaded chart matches the on-screen viewport.
+
+## Subject revision tables
+- Render directly beneath the timeline panel within each subject accordion.
+- Table headers use `#1b1e24` (dark) / `#f2f3f5` (light) with 1px borders in `#262a30` / `#dcdcdc`.
+- Rows alternate `#16181d`/`#14161a` in dark mode and `#fafafa`/`#f5f5f5` in light mode.
+- Hover states apply a flat tint (`#1f232a` dark / `#e6f7f0` light) without shadows.
+- Retention percentages colour by threshold: `<40%` `#d62828`, `41–70%` `#f59e0b`, `>70%` `#21ce99`.
+- Revision badges are 22px circles using surface backgrounds with 1px borders; hover swaps the border to the accent colour and the fill to the light-mode highlight `#e6f7f0` / dark `#1f3a2b`.
 
 ## Typography
 - Primary page title (`Stay ahead of your reviews`): `text-3xl font-semibold` with `color: #ffffff` in dark mode / `#1a1a1a` in light mode.

@@ -14,6 +14,7 @@ The Spaced Repetition App is a local-first study companion built with Next.js, T
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 - [Contributing guide](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
+- [Future roadmap](future-plan.md)
 
 ## What changed recently
 
@@ -21,6 +22,8 @@ The Spaced Repetition App is a local-first study companion built with Next.js, T
 - Flattened the UI aesthetic—cards, dialogs, and inputs now use crisp borders instead of shadows while charts retain their soft gradients.
 - Polished the timeline with per-topic labels at the Today line, review-to-review connector segments, and opacity-aware fade controls.
 - Hardened light mode contrast so nav links, review statuses, and exam countdowns stay readable on bright surfaces.
+- Added flat per-subject revision tables and hoverable review badges beneath the timeline for a spreadsheet-style snapshot of progress.
+- Simplified the dashboard to focus on today’s review plan, filters, and streak metrics while keeping the full analytics experience on the Timeline page.
 
 ## Key concepts
 
@@ -42,6 +45,8 @@ The Spaced Repetition App is a local-first study companion built with Next.js, T
 - Use the **View: Combined • Per subject** switch on the Timeline to render small multiples grouped by subject.
 - Zoom, pan, and reset controls remain synchronised across every mini-chart, and exports capture the exact grid layout.
 - Exam markers and the Today line respect per-subject filtering so the view matches the combined summary.
+- Toggle fullscreen from any view mode (Combined or Per subject) to study the chart in an expanded canvas without losing zoom or filter state.
+- Review progress under each subject using the flat revision table—hover the numbered badges to see exact review dates.
 
 ## How to zoom
 
