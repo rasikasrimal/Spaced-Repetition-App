@@ -326,7 +326,7 @@ const DailySummarySection = ({
       ? "You\u2019re all caught up. Check back tomorrow or add a topic."
       : `You have ${dueCount} topic${dueCount === 1 ? "" : "s"} ready for review. Finish them to extend your streak.`;
   const nextLine = nextTopic
-    ? `Next up: ${nextTopic.title} • ${nextRelative} (${nextDateLabel})`
+    ? `Next up: ${nextTopic.title} â€¢ ${nextRelative} (${nextDateLabel})`
     : "Next up: Add a topic to plan your next review.";
 
   return (
