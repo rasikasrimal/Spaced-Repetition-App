@@ -123,6 +123,9 @@ export default function ReviewsPage() {
         <p className="text-xs text-muted-foreground">
           {actionableCount} topic{actionableCount === 1 ? "" : "s"} currently need attention.
         </p>
+        <p className="text-xs text-muted-foreground">
+          Upcoming cards surface automatically once retention is projected to slip below {triggerPercent}%.
+        </p>
       </header>
 
       <TopicList
