@@ -57,12 +57,6 @@ export type TimelineExamMarker = {
 
 type MarkerItem = TimelineExamMarker & { x: number };
 type MarkerCluster = { items: MarkerItem[]; x: number };
-type MarkerTooltip = {
-  x: number;
-  y: number;
-  title?: string;
-  items: { subjectName: string; dateISO: string; daysRemaining: number | null; color: string }[];
-};
 
 type TimelineViewport = {
   x: [number, number];
@@ -629,79 +623,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       return results;
     }, [xDomain, plotWidth, timeZone, axisDayFormatter, axisMonthFormatter]);
 
-    const [tooltip, setTooltip] = React.useState<
-      | null
-      | {
-          x: number;
-          y: number;
-          topic: string;
-          time: number;
-          retention?: number;
-          type?: "started" | "reviewed" | "skipped" | "checkpoint";
-          intervalDays?: number;
-          notes?: string;
-        }
-    >(null);
-    const [markerTooltip, setMarkerTooltip] = React.useState<MarkerTooltip | null>(null);
-
-    const tooltipsSuspendedRef = React.useRef(false);
-
-    const hideTooltip = React.useCallback(() => setTooltip(null), []);
-    const hideMarkerTooltip = React.useCallback(() => setMarkerTooltip(null), []);
-
-    const handlePointerMove: React.PointerEventHandler<SVGRectElement> = (event) => {
-      if (tooltipsSuspendedRef.current) {
-        hideTooltip();
-        hideMarkerTooltip();
-        return;
-      }
-      const { offsetX } = event.nativeEvent;
-      if (offsetX < PADDING_X || offsetX > width - PADDING_X) {
-        hideTooltip();
-        hideMarkerTooltip();
-        return;
-      }
-      const ratio = clampValue((offsetX - PADDING_X) / plotWidth, 0, 1);
-      const time = xDomain[0] + ratio * domainSpan;
-      let best:
-        | null
-        | {
-            series: TimelineSeries;
-            point: { t: number; r: number };
-            distance: number;
-          } = null;
-
-      for (const line of series) {
-        if (line.points.length === 0) continue;
-        let left = 0;
-        let right = line.points.length - 1;
-        while (right - left > 1) {
-          const mid = (left + right) >> 1;
-          if (line.points[mid].t < time) left = mid;
-          else right = mid;
-        }
-        const candidates = [line.points[left], line.points[Math.min(right, line.points.length - 1)]];
-        for (const candidate of candidates) {
-          const x = scaleX(candidate.t);
-          const distance = Math.abs(x - offsetX);
-          if (!best || distance < best.distance) {
-            best = { series: line, point: candidate, distance };
-          }
-        }
-      }
-
-      if (best) {
-        setTooltip({
-          x: scaleX(best.point.t),
-          y: scaleY(best.point.r),
-          topic: best.series.topicTitle,
-          time: best.point.t,
-          retention: best.point.r
-        });
-      } else {
-        hideTooltip();
-      }
-    };
+    const handlePointerMove: React.PointerEventHandler<SVGRectElement> = () => {};
 
     const selectionRef = React.useRef<SelectionState | null>(null);
     const [selectionRect, setSelectionRect] = React.useState<SelectionState | null>(null);
@@ -735,7 +657,6 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       selectionRef.current = null;
       setSelectionRect(null);
       setSelectionLabel(null);
-      tooltipsSuspendedRef.current = false;
     }, []);
 
     const updateSelectionVisual = React.useCallback(
@@ -834,12 +755,9 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
           originClientX: event.clientX,
           startDomain: xDomain
         };
-        tooltipsSuspendedRef.current = true;
         setIsPanning(true);
-        hideTooltip();
-        hideMarkerTooltip();
       },
-      [hideMarkerTooltip, hideTooltip, xDomain]
+      [xDomain]
     );
 
     const updatePan = React.useCallback(
@@ -858,14 +776,10 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       [commitViewportChange, domainSpan, fullDomain, onViewportChange, plotWidth, yDomain]
     );
 
-    const endPan = React.useCallback(
-      () => {
-        panStateRef.current = null;
-        setIsPanning(false);
-        tooltipsSuspendedRef.current = false;
-      },
-      []
-    );
+    const endPan = React.useCallback(() => {
+      panStateRef.current = null;
+      setIsPanning(false);
+    }, []);
 
     const shouldPan = React.useCallback(
       (event: React.PointerEvent<SVGRectElement>) => {
@@ -886,10 +800,6 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       }
 
       (event.target as Element).setPointerCapture(event.pointerId);
-
-      tooltipsSuspendedRef.current = true;
-      hideTooltip();
-      hideMarkerTooltip();
 
       if (event.pointerType === "touch") {
         activeTouchesRef.current.set(event.pointerId, {
@@ -936,9 +846,6 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
               initialSpan: domainSpan,
               pushed: false
             };
-            tooltipsSuspendedRef.current = true;
-            hideTooltip();
-            hideMarkerTooltip();
           } else {
             const session = pinchStateRef.current;
             const ratio = clampValue(distance / session.initialDistance, 0.25, 4);
@@ -985,7 +892,6 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
         activeTouchesRef.current.delete(event.pointerId);
         if (activeTouchesRef.current.size < 2) {
           pinchStateRef.current = null;
-          tooltipsSuspendedRef.current = false;
         }
       }
 
@@ -1001,8 +907,6 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
 
     const handlePointerLeave: React.PointerEventHandler<SVGRectElement> = () => {
       cancelSelection();
-      hideTooltip();
-      hideMarkerTooltip();
       endPan();
       pinchStateRef.current = null;
       activeTouchesRef.current.clear();
@@ -1014,8 +918,6 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       endPan();
       pinchStateRef.current = null;
       activeTouchesRef.current.clear();
-      tooltipsSuspendedRef.current = false;
-      setHoveredTopicId(null);
     };
 
     const handleWheel: React.WheelEventHandler<SVGSVGElement> = (event) => {
@@ -1057,24 +959,12 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
 
     React.useEffect(() => () => clearWheelSession(), [clearWheelSession]);
 
-    React.useEffect(() => {
-      setMarkerTooltip(null);
-    }, [examMarkers, xDomain]);
-
     const paths = series.map((line) => {
       const color = resolveDisplayColor(line);
       const areaGradientId = makeAreaGradientId(line.topicId);
-      const isHovered = hoveredTopicId === line.topicId;
-      const groupOpacity = hoveredTopicId ? (isHovered ? 1 : 0.58) : 0.88;
       return (
         <g key={line.topicId}>
-          <g
-            onPointerEnter={() => setHoveredTopicId(line.topicId)}
-            onPointerLeave={() =>
-              setHoveredTopicId((current) => (current === line.topicId ? null : current))
-            }
-            style={{ opacity: groupOpacity, transition: "opacity 180ms ease" }}
-          >
+          <g>
             {line.segments.map((segment) => {
               if (segment.points.length === 0) return null;
               const gradientId = makeGradientId(line.topicId, segment.id);
@@ -1154,16 +1044,6 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
               }
             }
             const y = scaleY(Math.max(yDomain[0], Math.min(yDomain[1], yValue)));
-            const handleFocus = () =>
-              setTooltip({
-                x,
-                y: scaleY(Math.min(0.9, yDomain[1])),
-                topic: line.topicTitle,
-                time: event.t,
-                type: event.type,
-                intervalDays: event.intervalDays,
-                notes: event.notes
-              });
             const transform = `translate(${x}, ${y})`;
 
             if (event.type === "started") {
@@ -1179,10 +1059,6 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                   tabIndex={0}
                   transform={transform}
                   aria-label={`${line.topicTitle} started ${tooltipDateFormatter.format(new Date(event.t))}`}
-                  onFocus={handleFocus}
-                  onBlur={hideTooltip}
-                  onMouseEnter={handleFocus}
-                  onMouseLeave={hideTooltip}
                 />
               );
             }
@@ -1200,10 +1076,6 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                   tabIndex={0}
                   transform={transform}
                   aria-label={`${line.topicTitle} skipped ${tooltipDateFormatter.format(new Date(event.t))}`}
-                  onFocus={handleFocus}
-                  onBlur={hideTooltip}
-                  onMouseEnter={handleFocus}
-                  onMouseLeave={hideTooltip}
                 />
               );
             }
@@ -1219,10 +1091,6 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                   tabIndex={0}
                   transform={transform}
                   aria-label={`${line.topicTitle} checkpoint ${tooltipDateFormatter.format(new Date(event.t))}`}
-                  onFocus={handleFocus}
-                  onBlur={hideTooltip}
-                  onMouseEnter={handleFocus}
-                  onMouseLeave={hideTooltip}
                 />
               );
             }
@@ -1235,10 +1103,6 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                 tabIndex={0}
                 transform={transform}
                 aria-label={`${line.topicTitle} reviewed ${tooltipDateFormatter.format(new Date(event.t))}`}
-                onFocus={handleFocus}
-                onBlur={hideTooltip}
-                onMouseEnter={handleFocus}
-                onMouseLeave={hideTooltip}
               />
             );
           })}
@@ -1248,17 +1112,6 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                 if (!point) return null;
                 const x = scaleX(point.t);
                 const y = scaleY(point.r);
-                const handleFocus = () => {
-                  if (!line.nowPoint) return;
-                  setTooltip({
-                    x,
-                    y,
-                    topic: line.topicTitle,
-                    time: line.nowPoint!.t,
-                    retention: line.nowPoint!.r,
-                    notes: line.nowPoint!.notes
-                  });
-                };
                 return (
                   <g key={`${line.topicId}-now`} transform={`translate(${x}, ${y})`}>
                     <circle
@@ -1268,10 +1121,6 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                       strokeWidth={1.5}
                       tabIndex={0}
                       aria-label={`${line.topicTitle} retention now ${Math.round(line.nowPoint!.r * 100)}%`}
-                      onFocus={handleFocus}
-                      onBlur={hideTooltip}
-                      onMouseEnter={handleFocus}
-                      onMouseLeave={hideTooltip}
                     />
                   </g>
                 );
@@ -1281,70 +1130,6 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       );
     });
 
-
-    const topicLabels = React.useMemo(
-      () => {
-        if (!showTopicLabels) return [] as { topicId: string; text: string; x: number; y: number }[];
-        const visibleSeries = series.filter(
-          (line) => line.nowPoint && line.nowPoint.t >= xDomain[0] && line.nowPoint.t <= xDomain[1]
-        );
-        if (visibleSeries.length === 0) return [];
-
-        const entries = visibleSeries.map((line) => {
-          const nowPoint = line.nowPoint!;
-          const x = scaleX(nowPoint.t);
-          const y = scaleY(nowPoint.r);
-          const retentionPercent = clampValue(Math.round(nowPoint.r * 100), 0, 100);
-          return {
-            topicId: line.topicId,
-            text: `${line.topicTitle} — ${retentionPercent}%`,
-            x,
-            y
-          };
-        });
-
-        const minY = PADDING_Y;
-        const maxY = height - PADDING_Y;
-        const minGap = 18;
-        const sorted = entries
-          .map((entry) => ({ ...entry }))
-          .sort((a, b) => a.y - b.y);
-
-        for (let index = 0; index < sorted.length; index += 1) {
-          const previous = index > 0 ? sorted[index - 1] : null;
-          const desired = clampValue(sorted[index].y, minY, maxY);
-          const adjusted = previous ? Math.max(desired, previous.y + minGap) : Math.max(minY, desired);
-          sorted[index].y = Math.min(adjusted, maxY);
-        }
-
-        for (let index = sorted.length - 2; index >= 0; index -= 1) {
-          const next = sorted[index + 1];
-          if (next.y - sorted[index].y < minGap) {
-            sorted[index].y = Math.max(minY, next.y - minGap);
-          }
-        }
-
-        const labelXBase = todayPosition ?? sorted[0]?.x ?? PADDING_X;
-        const xPosition = clampValue(labelXBase + 8, PADDING_X + 4, width - PADDING_X + 40);
-
-        return sorted.map((entry) => ({
-          topicId: entry.topicId,
-          text: entry.text,
-          x: xPosition,
-          y: clampValue(entry.y, minY, maxY)
-        }));
-      },
-      [
-        showTopicLabels,
-        series,
-        xDomain,
-        scaleX,
-        scaleY,
-        todayPosition,
-        height,
-        width
-      ]
-    );
 
     const topicLabels = React.useMemo(
       () => {
@@ -1448,7 +1233,6 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
           const horizontalOffset = (index - (cluster.items.length - 1) / 2) * 6;
           const x = clampX(marker.x + horizontalOffset);
           const labelY = Math.max(12, PADDING_Y - 18 - index * 16);
-          const tooltipY = Math.max(8, labelY - 24);
           markerGraphics.push(
             <line
               key={`${marker.id}-line`}
@@ -1462,31 +1246,13 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
               opacity={0.85}
             />
           );
-          const tooltipItems = [
-            {
-              subjectName: marker.subjectName,
-              dateISO: marker.dateISO,
-              daysRemaining: marker.daysRemaining,
-              color: marker.color
-            }
-          ];
-          const handleFocus = () =>
-            setMarkerTooltip({
-              x,
-              y: tooltipY,
-              items: tooltipItems
-            });
           markerGraphics.push(
             <g
               key={`${marker.id}-label`}
               transform={`translate(${x}, ${labelY})`}
               tabIndex={0}
-              role="button"
+              role="img"
               aria-label={`Exam date for ${marker.subjectName}, ${examDateFormatter.format(new Date(marker.dateISO))}`}
-              onFocus={handleFocus}
-              onBlur={hideMarkerTooltip}
-              onMouseEnter={handleFocus}
-              onMouseLeave={hideMarkerTooltip}
             >
               <foreignObject x={-80} y={-18} width={160} height={26}>
                 <div className="pointer-events-none flex items-center gap-1 rounded-full bg-slate-900/90 px-3 py-1 text-[10px] font-medium text-white shadow-lg">
@@ -1522,32 +1288,13 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       const clusterX = clampX(cluster.x);
       const labelY = Math.max(12, PADDING_Y - 22);
       const label = `${cluster.items.length} exams`;
-      const tooltipY = Math.max(8, labelY - 24);
-      const tooltipItems = cluster.items.map((item) => ({
-        subjectName: item.subjectName,
-        dateISO: item.dateISO,
-        daysRemaining: item.daysRemaining,
-        color: item.color
-      }));
-      const handleClusterFocus = () =>
-        setMarkerTooltip({
-          x: clusterX,
-          y: tooltipY,
-          title: "Upcoming exams",
-          items: tooltipItems
-        });
-
       markerGraphics.push(
         <g
           key={`cluster-${clusterIndex}`}
           transform={`translate(${clusterX}, ${labelY})`}
           tabIndex={0}
-          role="button"
+          role="img"
           aria-label={`Upcoming exams: ${cluster.items.map((item) => item.subjectName).join(", ")}`}
-          onFocus={handleClusterFocus}
-          onBlur={hideMarkerTooltip}
-          onMouseEnter={handleClusterFocus}
-          onMouseLeave={hideMarkerTooltip}
         >
           <foreignObject x={-70} y={-18} width={140} height={26}>
             <div className="pointer-events-none flex items-center justify-center rounded-full bg-slate-900/90 px-3 py-1 text-[10px] font-semibold text-white shadow-lg">
@@ -1747,66 +1494,6 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
               ) : null}
             </g>
           ) : null}
-          {tooltip && (
-            <g transform={`translate(${tooltip.x}, ${tooltip.y})`} className="pointer-events-none">
-              <circle r={4} fill="#fff" />
-              <foreignObject x={8} y={-4} width={220} height={96}>
-                <div className="rounded-lg border border-white/10 bg-slate-950/60 p-3 text-xs text-slate-100 shadow-lg backdrop-blur">
-                  <div className="font-semibold" style={{ color: tooltip.type ? undefined : "inherit" }}>
-                    {tooltip.topic}
-                  </div>
-                  <div>{tooltipDateFormatter.format(new Date(tooltip.time))}</div>
-                  {typeof tooltip.retention !== "undefined" && (
-                    <div>Retention: {Math.round(tooltip.retention * 100)}%</div>
-                  )}
-                  {tooltip.type && (
-                    <div>
-                      Event: {tooltip.type === "started"
-                        ? "Started"
-                        : tooltip.type === "skipped"
-                        ? "Skipped"
-                        : tooltip.type === "checkpoint"
-                        ? "Checkpoint"
-                        : "Reviewed"}
-                    </div>
-                  )}
-                  {typeof tooltip.intervalDays !== "undefined" && (
-                    <div>Interval: {tooltip.intervalDays} day{tooltip.intervalDays === 1 ? "" : "s"}</div>
-                  )}
-                  {tooltip.notes && <div className="text-[11px] text-zinc-300">Notes: {tooltip.notes}</div>}
-                </div>
-              </foreignObject>
-            </g>
-          )}
-          {markerTooltip && (
-            <g transform={`translate(${markerTooltip.x}, ${markerTooltip.y})`} className="pointer-events-none">
-              <foreignObject x={8} y={-4} width={240} height={Math.max(80, markerTooltip.items.length * 36 + 20)}>
-                <div className="rounded-lg border border-white/10 bg-slate-950/70 p-3 text-xs text-slate-100 shadow-lg backdrop-blur">
-                  {markerTooltip.title ? (
-                    <div className="pb-1 text-[11px] font-semibold text-white/80">{markerTooltip.title}</div>
-                  ) : null}
-                  <div className="space-y-2">
-                    {markerTooltip.items.map((item) => {
-                      const days = item.daysRemaining ?? 0;
-                      const dayLabel = days === 0 ? "Exam today" : `${days} day${days === 1 ? "" : "s"} left`;
-                      return (
-                        <div key={`${item.subjectName}-${item.dateISO}`} className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2">
-                            <span className="inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                            <span className="font-semibold">{item.subjectName}</span>
-                          </div>
-                          <div className="text-[11px] text-zinc-300">
-                            {examDateFormatter.format(new Date(item.dateISO))}
-                          </div>
-                          <div className="text-[11px] text-zinc-400">{dayLabel}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </foreignObject>
-            </g>
-          )}
         </svg>
       </div>
     );
