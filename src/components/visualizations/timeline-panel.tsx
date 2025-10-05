@@ -15,6 +15,7 @@ import { downloadSvg, downloadSvgAsPng } from "@/lib/export-svg";
 import { buildCurveSegments, sampleSegment } from "@/selectors/curves";
 import { useTopicStore } from "@/stores/topics";
 import { useProfileStore } from "@/stores/profile";
+import { useTimelinePreferencesStore } from "@/stores/timeline-preferences";
 import { Subject, Topic } from "@/types/topic";
 import { SubjectFilterValue, NO_SUBJECT_KEY } from "@/components/dashboard/topic-list";
 import {
@@ -440,8 +441,10 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   const [hasStudyActivity, setHasStudyActivity] = React.useState(true);
   const [showExamMarkers, setShowExamMarkers] = React.useState(true);
   const [showCheckpoints, setShowCheckpoints] = React.useState(false);
-  const [showOpacityFade, setShowOpacityFade] = React.useState(true);
-  const [showReviewMarkers, setShowReviewMarkers] = React.useState(false);
+  const showOpacityFade = useTimelinePreferencesStore((state) => state.showOpacityFade);
+  const setShowOpacityFade = useTimelinePreferencesStore((state) => state.setShowOpacityFade);
+  const showReviewMarkers = useTimelinePreferencesStore((state) => state.showReviewMarkers);
+  const setShowReviewMarkers = useTimelinePreferencesStore((state) => state.setShowReviewMarkers);
   const svgRef = React.useRef<SVGSVGElement | null>(null);
   const perSubjectSvgRefs = React.useRef(new Map<string, SVGSVGElement | null>());
   const perSubjectContainerRef = React.useRef<HTMLDivElement | null>(null);
@@ -974,7 +977,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
             onTooSmallSelection={handleTooSmallSelection}
             keyboardSelection={keyboardSelection}
             showOpacityFade={showOpacityFade}
-            showReviewLines={showReviewMarkers}
+            showReviewMarkers={showReviewMarkers}
           />
         )
       } as const;
@@ -1008,7 +1011,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
           onTooSmallSelection={handleTooSmallSelection}
           keyboardSelection={keyboardSelection}
           showOpacityFade={showOpacityFade}
-          showReviewLines={showReviewMarkers}
+          showReviewMarkers={showReviewMarkers}
         />
       )
     } as const;
@@ -1257,7 +1260,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
               title="Toggle opacity fade"
             >
               <Droplet className="h-3.5 w-3.5" />
-              <span>Opacity fade</span>
+              <span>Opacity Fade</span>
             </Toggle>
             <Toggle
               type="button"
@@ -1267,7 +1270,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
               title="Toggle review markers"
             >
               <EllipsisVertical className="h-3.5 w-3.5" />
-              <span>Review markers</span>
+              <span>Review Markers</span>
             </Toggle>
           </div>
           <Button
@@ -1470,7 +1473,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                 onTooSmallSelection={handleTooSmallSelection}
                 keyboardSelection={keyboardSelection}
                 showOpacityFade={showOpacityFade}
-                showReviewLines={showReviewMarkers}
+                showReviewMarkers={showReviewMarkers}
               />
             )
           : (
@@ -1545,7 +1548,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                         onTooSmallSelection={handleTooSmallSelection}
                         keyboardSelection={keyboardSelection}
                         showOpacityFade={showOpacityFade}
-                        showReviewLines={showReviewMarkers}
+                        showReviewMarkers={showReviewMarkers}
                       />
                     </div>
                   );

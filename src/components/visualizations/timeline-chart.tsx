@@ -125,7 +125,7 @@ interface TimelineChartProps {
   onTooSmallSelection?: () => void;
   keyboardSelection?: KeyboardBand | null;
   showOpacityFade?: boolean;
-  showReviewLines?: boolean;
+  showReviewMarkers?: boolean;
 }
 
 const PADDING_X = 48;
@@ -189,7 +189,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       onTooSmallSelection,
       keyboardSelection,
       showOpacityFade = true,
-      showReviewLines = false
+      showReviewMarkers = false
     },
     ref
   ) => {
@@ -897,7 +897,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
             />
           );
         })}
-        {showReviewLines
+        {showReviewMarkers
           ? line.stitches.map((stitch) => {
             const x = scaleX(stitch.t);
             const yTop = scaleY(Math.min(1, Math.max(yDomain[0], stitch.to)));
@@ -919,6 +919,9 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
           })
           : null}
         {line.events.map((event) => {
+          if (!showReviewMarkers && event.type === "reviewed") {
+            return null;
+          }
           const x = scaleX(event.t);
           let yValue = 1;
           if (event.type === "checkpoint") {
