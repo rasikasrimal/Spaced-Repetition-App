@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useTopicStore } from "@/stores/topics";
 import { useProfileStore } from "@/stores/profile";
+import { useReviewPreferencesStore } from "@/stores/review-preferences";
 import { TopicCard } from "@/components/dashboard/topic-card";
 import { Button } from "@/components/ui/button";
 import { Clock } from "lucide-react";
@@ -13,6 +14,8 @@ export default function ReviewsPage() {
   const router = useRouter();
   const topics = useTopicStore((state) => state.topics);
   const timezone = useProfileStore((state) => state.profile.timezone) || "Asia/Colombo";
+  const reviewTrigger = useReviewPreferencesStore((state) => state.reviewTrigger);
+  const triggerPercent = Math.round(reviewTrigger * 100);
   const [now, setNow] = React.useState(() => nowInTimeZone(timezone));
 
   React.useEffect(() => {
@@ -35,6 +38,9 @@ export default function ReviewsPage() {
         <h1 className="reviews-header text-3xl font-semibold">Today’s Reviews</h1>
         <p className="reviews-subtext text-sm">
           Focus on the topics that are due right now. Knock them out to keep your streak alive.
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Upcoming cards surface automatically once retention is projected to slip below {triggerPercent}%.
         </p>
       </header>
 
