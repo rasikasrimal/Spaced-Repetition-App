@@ -14,6 +14,7 @@ This runbook helps troubleshoot common production issues. Because the app is loc
 - Check that the "Review Today" count updates when marking a topic as reviewed.
 - Run the modal overlay checklist: open Quick Revision, confirmation dialogs, and dropdowns to ensure no clipping or scroll lock regressions.
 - Toggle the Subjects dropdown on Dashboard, Calendar, and Timeline to confirm the shared filter stays in sync.
+- Flip the theme toggle between light and dark to ensure surfaces update instantly and the choice persists on reload.
 
 ## Common incidents
 

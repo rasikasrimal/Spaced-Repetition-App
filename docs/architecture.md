@@ -48,6 +48,7 @@ Subjects define identity (icon/colour) and optional exam dates. Topics reference
 - **UI components (`src/components`)** – Presentational and form components that render topic cards, subject summaries, day sheets, and settings controls.
 - **State management (`src/stores/topics.ts`)** – A persisted Zustand store that encapsulates subjects, topics, and review metrics. It owns all mutations and enforces constraints (e.g., unique subject names, interval recalculation, exam date clamping, revise daily lockout).
 - **Profile store (`src/stores/profile.ts`)** – Holds learner preferences (name, avatar colour, timezone). The timezone governs local-midnight logic throughout the UI.
+- **Theme store (`src/stores/theme.ts`)** – Persists the light/dark choice in `localStorage` and applies the matching hard-coded palette class to the document body.
 - **Lib utilities (`src/lib`)** – Date helpers, feature flags, and formatting utilities used across views.
 
 ## Scheduling & cutoff flow
