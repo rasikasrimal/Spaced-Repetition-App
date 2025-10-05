@@ -366,23 +366,23 @@ export function CalendarView() {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-slate-900/60 p-5 text-white shadow-lg backdrop-blur">
+      <header className="flex flex-col gap-4 rounded-3xl border border-inverse/10 bg-card/60 p-5 text-fg backdrop-blur">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="inline-flex items-center gap-3">
             <CalendarIcon className="h-5 w-5 text-accent" aria-hidden="true" />
             <h1 className="text-lg font-semibold">Calendar</h1>
           </div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 p-1 text-xs">
+          <div className="inline-flex items-center gap-2 rounded-full border border-inverse/10 bg-inverse/5 p-1 text-xs">
             <button
               type="button"
-              className="rounded-full px-3 py-1 text-white"
+              className="rounded-full px-3 py-1 text-fg"
               aria-pressed="true"
             >
               Month
             </button>
             <button
               type="button"
-              className="rounded-full px-3 py-1 text-zinc-500"
+              className="rounded-full px-3 py-1 text-muted-foreground/80"
               aria-pressed="false"
               title="Week view coming soon"
               disabled
@@ -391,7 +391,7 @@ export function CalendarView() {
             </button>
             <button
               type="button"
-              className="rounded-full px-3 py-1 text-zinc-500"
+              className="rounded-full px-3 py-1 text-muted-foreground/80"
               aria-pressed="false"
               title="Agenda view coming soon"
               disabled
@@ -400,13 +400,13 @@ export function CalendarView() {
             </button>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-300">
+        <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
           <div className="inline-flex items-center gap-2">
             <Button
               type="button"
               size="icon"
               variant="ghost"
-              className="rounded-full border border-white/10"
+              className="rounded-full border border-inverse/10"
               onClick={() => handleMonthChange(-1)}
               aria-label="Previous month"
             >
@@ -416,14 +416,14 @@ export function CalendarView() {
               type="button"
               size="icon"
               variant="ghost"
-              className="rounded-full border border-white/10"
+              className="rounded-full border border-inverse/10"
               onClick={() => handleMonthChange(1)}
               aria-label="Next month"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          <div className="flex items-center gap-3 text-base font-semibold text-white">
+          <div className="flex items-center gap-3 text-base font-semibold text-fg">
             {monthLabel}
           </div>
           <Button
@@ -431,7 +431,7 @@ export function CalendarView() {
             variant="outline"
             size="sm"
             onClick={handleJumpToToday}
-            className="rounded-full border-white/20"
+            className="rounded-full border-inverse/20"
           >
             Jump to today
           </Button>
@@ -441,14 +441,14 @@ export function CalendarView() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="inline-flex items-center gap-2 rounded-full border border-white/10"
+                className="inline-flex items-center gap-2 rounded-full border border-inverse/10"
               >
                 <Filter className="h-4 w-4" />
                 {subjectFilterLabel}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-64 rounded-2xl border border-white/10 bg-slate-900/95 p-3 text-sm text-white">
-              <div className="mb-3 flex items-center justify-between text-xs text-zinc-300">
+            <PopoverContent className="w-64 rounded-2xl border border-inverse/10 bg-card/95 p-3 text-sm text-fg">
+              <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
                 <button
                   type="button"
                   className="font-semibold text-accent"
@@ -466,7 +466,7 @@ export function CalendarView() {
                   return (
                     <label
                       key={subject.id}
-                      className="flex items-center gap-3 rounded-2xl border border-white/5 bg-white/5 px-3 py-2 text-xs hover:border-white/20"
+                      className="flex items-center gap-3 rounded-2xl border border-inverse/5 bg-inverse/5 px-3 py-2 text-xs hover:border-inverse/20"
                     >
                       <input
                         type="checkbox"
@@ -475,8 +475,8 @@ export function CalendarView() {
                         onChange={() => toggleSubject(subject.id)}
                       />
                       <span className="inline-flex h-3 w-3 rounded-full" style={{ backgroundColor: subject.color }} />
-                      <span className="flex-1 text-white">{subject.name}</span>
-                      <span className="text-[11px] text-zinc-400">{subject.count}</span>
+                      <span className="flex-1 text-fg">{subject.name}</span>
+                      <span className="text-[11px] text-muted-foreground">{subject.count}</span>
                     </label>
                   );
                 })}
@@ -487,22 +487,22 @@ export function CalendarView() {
       </header>
 
       {hasSubjects ? (
-        <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-4 text-white shadow-sm">
-          <div className="flex flex-wrap items-center gap-3 border-b border-white/5 pb-3 text-xs uppercase tracking-wide text-zinc-400">
+        <div className="rounded-3xl border border-inverse/10 bg-bg/70 p-4 text-fg">
+          <div className="flex flex-wrap items-center gap-3 border-b border-inverse/5 pb-3 text-xs uppercase tracking-wide text-muted-foreground">
             <span>Subjects</span>
             {subjectOptions.map((subject) => (
               <span
                 key={subject.id}
-                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1"
+                className="inline-flex items-center gap-2 rounded-full border border-inverse/10 bg-inverse/5 px-3 py-1"
                 title={formatSubjectTooltip(subject)}
               >
                 <span className="inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: subject.color }} />
-                <span className="text-[11px] text-zinc-200">{subject.name}</span>
+                <span className="text-[11px] text-fg/80">{subject.name}</span>
               </span>
             ))}
           </div>
           <div className="mt-4">
-            <div className="grid grid-cols-7 gap-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+            <div className="grid grid-cols-7 gap-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">
               {WEEKDAY_LABELS.map((label) => (
                 <div key={label} className="px-2 py-2 text-center">
                   {label}
@@ -557,8 +557,8 @@ export function CalendarView() {
                         onFocus={() => setFocusedDayKey(day.dayKey)}
                         onKeyDown={(event) => handleDayKeyDown(event, day)}
                         onClick={() => handleDaySelect(day)}
-                        className={`flex h-28 flex-col justify-between rounded-2xl border border-white/5 bg-slate-900/70 p-3 text-left transition hover:border-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
-                          day.isCurrentMonth ? "text-white" : "text-zinc-500"
+                        className={`flex h-28 flex-col justify-between rounded-2xl border border-inverse/5 bg-card/70 p-3 text-left transition hover:border-inverse/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                          day.isCurrentMonth ? "text-fg" : "text-muted-foreground/80"
                         } ${day.isToday ? "ring-2 ring-accent/80" : ""}`}
                       >
                         <div className="flex items-center justify-between">
@@ -566,7 +566,7 @@ export function CalendarView() {
                             {day.dayNumberLabel}
                           </span>
                           {day.hasOverdueBacklog ? (
-                            <span className="inline-flex h-2.5 w-2.5 items-center justify-center rounded-full bg-rose-500" aria-hidden="true" />
+                            <span className="inline-flex h-2.5 w-2.5 items-center justify-center rounded-full bg-error" aria-hidden="true" />
                           ) : null}
                         </div>
                         <div className="flex flex-col gap-2">
@@ -574,7 +574,7 @@ export function CalendarView() {
                             {day.subjects.slice(0, MAX_VISIBLE_DOTS).map((entry) => (
                               <span
                                 key={entry.subject.id}
-                                className="inline-flex h-2.5 w-2.5 items-center justify-center rounded-full border border-white/20"
+                                className="inline-flex h-2.5 w-2.5 items-center justify-center rounded-full border border-inverse/20"
                                 style={{ backgroundColor: entry.subject.color }}
                                 title={formatSubjectTooltip({
                                   name: entry.subject.name,
@@ -586,7 +586,7 @@ export function CalendarView() {
                             ))}
                             {overflowCount > 0 ? (
                               <span
-                                className="inline-flex items-center rounded-full bg-white/10 px-1.5 py-0.5 text-[11px] text-white"
+                                className="inline-flex items-center rounded-full bg-inverse/10 px-1.5 py-0.5 text-[11px] text-fg"
                                 title={overflowTooltip(overflowSubjects)}
                                 role="img"
                                 aria-label={`+${overflowCount} more subjects with reviews on ${fullDate}: ${overflowTooltip(
@@ -599,7 +599,7 @@ export function CalendarView() {
                           </div>
                           {day.hasExam ? (
                             <span
-                              className="w-fit rounded-full border border-dashed border-white/20 px-2 py-0.5 text-[10px] uppercase tracking-wide text-white"
+                              className="w-fit rounded-full border border-dashed border-inverse/20 px-2 py-0.5 text-[10px] uppercase tracking-wide text-fg"
                               title={day.examSubjects
                                 .map((entry) => formatExamTooltip(entry.name, examDateLabel))
                                 .join("\n")}
@@ -621,7 +621,7 @@ export function CalendarView() {
           </div>
         </div>
       ) : (
-        <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-8 text-center text-sm text-zinc-300">
+        <div className="rounded-3xl border border-inverse/10 bg-bg/70 p-8 text-center text-sm text-muted-foreground">
           No scheduled reviews this month. Try another month or add topics.
         </div>
       )}

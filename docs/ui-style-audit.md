@@ -59,17 +59,17 @@ flowchart LR
 Zoom controls, drag panning, and shift-scroll translate into domain updates that feed the SVG timeline. Reset returns to the full domain, while exports clone the currently rendered SVG so the downloaded chart matches the on-screen viewport.
 
 ## Typography
-- Primary page title (`Stay ahead of your reviews`): `text-3xl font-semibold text-white`
-- Section titles (e.g. `Scheduled Reviews`, empty state heading): `text-2xl`/`text-xl` with `font-semibold text-white`
-- Body copy: `text-sm` with `text-zinc-300` or `text-zinc-400`, often `leading-relaxed`
-- Meta/badge text: `text-xs text-zinc-400`, uppercase for chips when needed
+- Primary page title (`Stay ahead of your reviews`): `text-3xl font-semibold` with `color: #ffffff` in dark mode / `#1a1a1a` in light mode.
+- Section titles (e.g. `Scheduled Reviews`, empty state heading): `text-2xl`/`text-xl` with `font-semibold` and the same theme-specific colour pairing.
+- Body copy: `text-sm leading-relaxed` with `color: #a0a0a0` (dark) or `#666666` (light).
+- Meta/badge text: `text-xs uppercase` with `color: #808080` (dark) or `#999999` (light).
 
 ## Colors & Surfaces
-- Accent brand: `bg-accent` (`#38bdf8`) with `text-accent-foreground`
-- Panels: gradient surface `bg-gradient-to-br from-white/10 via-white/5 to-white/0`
-- Secondary surfaces: `bg-white/5`, chips `bg-white/10`, muted backgrounds `bg-muted`
-- Borders: `border border-white/5` on primary cards, `border-white/10` for subtle dividers or pills
-- Text contrast: titles `text-white`, supporting copy `text-zinc-300`, meta text `text-zinc-400`
+- **Dark theme palette**: background `#0f1115`, primary surface `#181b20`, muted surface `#1b1e24`, border `#262a30`, accent `#3dea95`.
+- **Light theme palette**: background `#ffffff`, primary surface `#f8f9fa`, muted surface `#f2f3f5`, border `#dcdcdc`, accent `#21ce99`.
+- Surfaces are flat (no shadows); elevation is communicated solely through border contrast and spacing.
+- Charts keep soft area gradients (`rgba(61, 234, 149, 0.25 → 0)` dark / `rgba(33, 206, 153, 0.2 → 0)` light) while UI panels remain solid fills.
+- Text always pairs `textPrimary` against the background, while muted copy uses `#a0a0a0` (dark) or `#666666` (light).
 
 ## Spacing & Layout
 - Page container: `max-w-[90rem]` with `px-4 md:px-6 lg:px-8 xl:px-10`, vertical rhythm via `gap-8`
@@ -77,16 +77,16 @@ Zoom controls, drag panning, and shift-scroll translate into domain updates that
 - Grid rhythm: `gap-6` as the baseline, responsive columns like `lg:grid-cols-[minmax(0,360px)_1fr]`, `md:grid-cols-2`, `xl:grid-cols-3`
 
 ## Buttons & Controls
-- Primary CTA: `Button` default variant (accent fill) with rounded-lg corners
-- Secondary actions: `variant="outline"` (`border-border bg-surface hover:bg-muted`)
-- Ghost/icon actions: `variant="ghost"` with subtle hover fill; icon buttons on the dashboard use `h-11 w-11` to keep touch targets ≥44px.
-- Form controls: `rounded-lg border border-border bg-card/60 px-3 py-2 text-sm` and accent focus ring; the dashboard search input is elevated with `border-white/10 bg-slate-950/85` and includes quick-key hints.
+- Primary CTA: accent border `#3dea95` (dark) or `#21ce99` (light) with matching text on the neutral surface—hover fills swap to the muted accent `#2d9467` / `#16a879`.
+- Secondary actions: outline variant using the base border colour (`#262a30` dark / `#dcdcdc` light) with flat fills; hover states only adjust background tint.
+- Ghost/icon actions: transparent background with icon colouring (`#666c72` dark / `#9aa0a6` light`) flipping to the accent on hover.
+- Form controls: `rounded-lg border` with theme border colour on top of the surface fill; focus ring draws a 1px accent outline with no drop shadow.
 
 ## Card & Panel Treatments
-- Containers use `rounded-3xl`, translucent surfaces (`bg-white/5`), soft borders (`border-white/5`), `shadow-lg`–`shadow-2xl`, and `backdrop-blur`
-- Empty states: dashed borders `border-dashed border-white/10`, icon tiles `rounded-2xl bg-accent/20`
+- Containers use `rounded-3xl`, solid surfaces (`#181b20` dark / `#f8f9fa` light), and 1px borders (`#262a30` dark / `#dcdcdc` light).
+- Empty states: dashed borders reuse the border colour, while icon tiles place the accent colour on a muted surface without gradients.
 
 ## Iconography
-- Header icons: `rounded-2xl bg-accent/20 p-3 text-accent` with `h-6 w-6`
-- Subject badges: inline pill uses subject colour tint (`${color}1f`) plus an `IconPreview` rendered at `h-3.5 w-3.5` on a `bg-white/15` disc for contrast.
-- Action icons: `h-4 w-4` within ghost buttons, consistent spacing via `gap-2`
+- Header icons: rely on accent text colour (`#3dea95` dark / `#21ce99` light) on top of flat surfaces—no background tint.
+- Subject badges: subject accent fills the chip with a 12% opacity overlay in light mode and 18% in dark mode for contrast without shadows.
+- Action icons: `h-4 w-4` within ghost buttons, shifting from `#666c72` or `#9aa0a6` to the accent colour on hover.

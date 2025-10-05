@@ -5,14 +5,14 @@ Welcome to the Spaced-Repetition-App knowledge base. This guide introduces the a
 ## Overview
 - **Purpose:** Help learners retain information using spaced-repetition techniques grounded in cognitive science.
 - **Audience:** Self-learners, educators, and teams who want a simple workflow for scheduling reviews.
-- **Core Concept:** Every flashcard is scheduled based on recall difficulty. Cards you remember well appear less often; the ones you struggle with resurface sooner.
+- **Core Concept:** Every topic is grouped under a subject and scheduled based on recall difficulty. Topics you remember well appear less often; the ones you struggle with resurface sooner.
 
 ## Key Features
-1. **Adaptive Scheduling:** Automatically calculates the next review date based on user feedback after each prompt.
-2. **Deck Management:** Organize material into decks and tags, import/export using JSON or CSV, and keep track of mastery per topic.
-3. **Session Insights:** Visual dashboards display streaks, upcoming workload, and retention trends.
-4. **Offline-Ready Web App:** Built with Next.js and a modern UI so you can review from any device.
-5. **Integrations:** REST API and webhooks to sync with note-taking tools or LMS platforms.
+1. **Adaptive Scheduling:** Automatically calculates the next review date based on the quality recorded after each review.
+2. **Subject & Topic Management:** Organise material into subjects, keep topics in sync with subject identity (colour, icon, exam date), and backfill history when migrating.
+3. **Timeline Analytics:** Explore combined or per-subject forgetting curves with opacity fades, review markers, and labels that surface current retention at the Today line.
+4. **Dual Themes:** Toggle between crisp light and deep dark palettes; both are hard-coded for predictable contrast without shadows.
+5. **Offline-Ready Web App:** Built with Next.js and Zustand so you can review from any device without a backend.
 
 ## Getting Started
 1. **Install & Run Locally**
@@ -21,25 +21,26 @@ Welcome to the Spaced-Repetition-App knowledge base. This guide introduces the a
    npm run dev
    ```
    Visit `http://localhost:3000` to start reviewing.
-2. **Create a Deck:** Use the “New Deck” button, give it a title, and add cards with fronts/backs or cloze deletions.
-3. **Start a Session:** Click “Study” to enter review mode. Rate each card (e.g., *Again*, *Hard*, *Good*, *Easy*) to train the scheduler.
-4. **Review Analytics:** Head to the Insights page after a few sessions to monitor retention and workload forecasts.
+2. **Add a Subject:** Open **Subjects**, create a subject with an icon, colour, and optional exam date.
+3. **Capture Topics:** From the dashboard or subject view, add topics with notes and spaced-review intervals; backfill past study via the history editor if needed.
+4. **Start Reviewing:** Use the **Reviews** page to clear “Due Today.” Mark each topic as *Again*, *Hard*, *Good*, or *Easy* to train the scheduler.
+5. **Inspect Analytics:** Visit **Timeline** to analyse retention, toggle markers/labels, and export snapshots once the dataset grows.
 
 ## Study Workflow Tips
 - **Daily Reviews:** Aim to clear the “Due Today” list. Consistency beats marathon sessions.
-- **Tag Challenges:** Use tags to isolate tricky topics for focused drills.
-- **Leverage Hints:** Add mnemonic notes or media attachments to reinforce memory.
-- **Feedback Loop:** Adjust card fields and hints when you consistently mark a card as *Hard* or *Again*.
+- **Subject Filters:** Use the shared subjects dropdown across Dashboard, Calendar, and Timeline to focus on specific courses.
+- **Today Labels:** Enable topic labels in the timeline toolbar to see retention percentages at a glance.
+- **Theme Preference:** Switch to light or dark from the header toggle—the choice persists across sessions.
 
 ## Advanced Usage
-- **Bulk Imports:** Prepare CSV files with headers `deck,front,back,hint` and import via the Decks page.
-- **API Access:** Authenticate with an API token (see the [security guidelines](https://github.com/rasikasrimal/Spaced-Repetition-App/blob/main/docs/security.md)) and use the `/reviews` endpoints to automate scheduling.
-- **Custom Schedulers:** Tweak review behavior by editing [`use-reminder-scheduler.ts`](https://github.com/rasikasrimal/Spaced-Repetition-App/blob/main/src/hooks/use-reminder-scheduler.ts) and documenting changes alongside the [forgetting curve notes](https://github.com/rasikasrimal/Spaced-Repetition-App/blob/main/docs/forgetting-curve.md).
+- **History Backfill:** Use the per-topic history editor to log prior study sessions in chronological order and recalculate intervals.
+- **Custom Schedulers:** Tweak review behaviour by editing [`src/lib/memory.ts`](https://github.com/rasikasrimal/Spaced-Repetition-App/blob/main/src/lib/memory.ts) and documenting changes alongside the [forgetting curve notes](https://github.com/rasikasrimal/Spaced-Repetition-App/blob/main/docs/forgetting-curve.md).
+- **Theme Extensions:** Extend [`src/lib/theme-palettes.ts`](https://github.com/rasikasrimal/Spaced-Repetition-App/blob/main/src/lib/theme-palettes.ts) if you need additional palettes; remember the UI expects flat colours and no shadows.
 
 ## Troubleshooting & Support
 - **Common Issues:**
-  - *Reviews not updating?* Ensure your network connection is stable and check the browser console for API errors.
-  - *Imports failing?* Validate CSV encoding (UTF-8) and confirm required headers.
+  - *Reviews not updating?* Confirm the topic is due today and that the timezone in Settings matches your locale.
+  - *Timeline missing markers?* Toggle the “Review Markers” and “Event Dots” controls in the toolbar.
 - **Diagnostics:** Run `npm run lint` to catch TypeScript or accessibility issues before opening a bug report.
 - **Need Help?** Open an issue on GitHub with reproduction steps, screenshots, and browser/OS details.
 

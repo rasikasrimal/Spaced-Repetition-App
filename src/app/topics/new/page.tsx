@@ -22,13 +22,13 @@ export default function NewTopicPage() {
               <Sparkles className="h-4 w-4" /> New learning track
             </div>
             <div className="space-y-2">
-              <h1 className="text-3xl font-semibold text-white md:text-4xl">Create a new topic</h1>
-              <p className="max-w-2xl text-sm text-zinc-300">
+              <h1 className="text-3xl font-semibold text-fg md:text-4xl">Create a new topic</h1>
+              <p className="max-w-2xl text-sm text-muted-foreground">
                 Follow the guided steps to set up reminders, review intervals, and notes so your future self always knows what to study next.
               </p>
             </div>
           </div>
-          <Button variant="ghost" className="rounded-2xl text-zinc-300 hover:text-white" onClick={() => router.push("/")}>
+          <Button variant="ghost" className="rounded-2xl text-muted-foreground hover:text-fg" onClick={() => router.push("/")}>
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to dashboard
           </Button>
         </div>
