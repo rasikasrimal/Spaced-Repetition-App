@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useTopicStore } from "@/stores/topics";
 import { useReviewPreferencesStore } from "@/stores/review-preferences";
-import { FALLBACK_SUBJECT_COLOR, getAccessibleTextColor, getTintedSurfaceColor } from "@/lib/colors";
+import { FALLBACK_SUBJECT_COLOR } from "@/lib/colors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -84,48 +84,102 @@ type SubjectPreviewProps = {
   examDate?: string;
 };
 
+const FALLBACK_SUBJECT_HSL = "221 83% 53%";
+
+const extractHslComponents = (value: string | null | undefined): string | null => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const bareMatch = trimmed.match(/^(\d+(?:\.\d+)?)(?:deg)?\s+(\d+(?:\.\d+)?%)\s+(\d+(?:\.\d+)?%)$/i);
+  if (bareMatch) {
+    return `${bareMatch[1]} ${bareMatch[2]} ${bareMatch[3]}`;
+  }
+
+  const functionMatch = trimmed.match(/^hsla?\(([^)]+)\)$/i);
+  if (!functionMatch) return null;
+
+  const contents = functionMatch[1]
+    .replace(/\s*,\s*/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const [hue, saturation, lightness] = contents.split(" ");
+  if (!hue || !saturation || !lightness) return null;
+
+  const normalizedHue = hue.replace(/deg$/i, "");
+  return `${normalizedHue} ${saturation.replace(/,/g, "")} ${lightness.replace(/,/g, "")}`;
+};
+
+const buildSubjectColorVariables = (color: string): React.CSSProperties => {
+  const parsed = extractHslComponents(color) ?? extractHslComponents(FALLBACK_SUBJECT_COLOR) ?? FALLBACK_SUBJECT_HSL;
+  return {
+    "--subject-color": parsed,
+    "--subject-bg": `hsl(${parsed} / 0.18)`,
+    "--subject-bg-hover": `hsl(${parsed} / 0.25)`,
+    "--subject-border": `hsl(${parsed} / 0.35)`,
+    "--subject-glow": `hsl(${parsed} / 0.6)`,
+    "--subject-accent": `hsl(${parsed})`
+  } as React.CSSProperties;
+};
+
 const SubjectIdentityPreview: React.FC<SubjectPreviewProps> = ({ name, color, icon, examDate }) => {
   const displayName = name.trim() ? name.trim() : "Untitled subject";
-  const examLabel = examDate ? `Exam: ${formatFullDate(examDate)}` : "Exam: Not set";
-  const surfaceColor = React.useMemo(() => getTintedSurfaceColor(color), [color]);
-  const surfaceText = React.useMemo(() => getAccessibleTextColor(surfaceColor), [surfaceColor]);
-  const accentText = React.useMemo(() => getAccessibleTextColor(color), [color]);
+  const examLabel = examDate ? `Exam on ${formatFullDate(examDate)}` : "Exam not scheduled";
+  const colorVariables = React.useMemo(() => buildSubjectColorVariables(color), [color]);
   const iconMeta = React.useMemo(() => ICON_LIBRARY.find((candidate) => candidate.name === icon), [icon]);
+  const accentColor = (colorVariables["--subject-accent"] as string) ?? `hsl(${FALLBACK_SUBJECT_HSL})`;
 
   return (
     <div className="rounded-2xl border border-inverse/10 bg-bg/80 p-4">
       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Live preview</p>
       <div
-        className="mt-3 space-y-4 rounded-2xl border border-white/10 p-4 shadow-sm transition-colors"
-        style={{ backgroundColor: surfaceColor, color: surfaceText }}
+        className={cn(
+          "subject-preview-card relative mt-3 flex flex-col gap-5 overflow-hidden rounded-3xl border bg-card/70 p-6 text-left backdrop-blur-sm",
+          "ring-1 ring-inset"
+        )}
+        style={colorVariables}
       >
-        <div className="flex items-center gap-3">
-          <span
+        <span aria-hidden="true" className="subject-preview-card__shimmer z-0" />
+        <div className="relative z-[1] flex items-center gap-4">
+          <div
             aria-hidden="true"
-            className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/20"
-            style={{ backgroundColor: color, color: accentText }}
+            className="subject-preview-icon-container flex h-14 w-14 items-center justify-center rounded-2xl border"
+            style={{ borderColor: "var(--subject-border)", backgroundColor: "var(--subject-bg)", color: "var(--subject-accent)" }}
           >
-            <IconPreview name={icon} className="h-6 w-6" />
-          </span>
-          <div className="space-y-1 text-sm">
-            <p className="text-base font-semibold leading-tight">{displayName}</p>
-            <p className="text-sm opacity-85">{examLabel}</p>
+            <IconPreview key={icon} name={icon} className="subject-preview-icon h-7 w-7" />
+          </div>
+          <div className="min-w-0 space-y-1">
+            <h3 key={displayName} className="animate-in fade-in-50 text-xl font-semibold text-fg">
+              {displayName}
+            </h3>
+            <p key={examLabel} className="animate-in fade-in-50 text-sm text-muted-foreground">
+              {examLabel}
+            </p>
           </div>
         </div>
-        <div className="space-y-2 text-sm">
-          <div className="flex items-center gap-2">
-            <span aria-hidden="true" className="text-lg">
-              🎨
-            </span>
-            <span>Color: {color}</span>
+        <div className="relative z-[1] mt-1 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="rounded-2xl border border-inverse/10 bg-bg/80 p-4 transition-colors duration-200">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Accent tone</p>
+            <div className="mt-1 flex items-center gap-2 text-xl font-semibold text-fg">
+              <span
+                aria-hidden="true"
+                className="h-5 w-5 rounded-full"
+                style={{ background: accentColor, boxShadow: "0 0 0 1px var(--subject-border)" }}
+              />
+              <span className="truncate text-base font-medium text-muted-foreground">{color}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span aria-hidden="true" className="text-lg">
-              ✨
-            </span>
-            <span className="inline-flex items-center gap-2">
-              Icon: <IconPreview name={icon} className="h-4 w-4" /> {iconMeta?.label ?? icon}
-            </span>
+          <div className="rounded-2xl border border-inverse/10 bg-bg/80 p-4 transition-colors duration-200">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Icon</p>
+            <div className="mt-1 flex items-center gap-2 text-xl font-semibold text-fg">
+              <IconPreview key={`${icon}-label`} name={icon} className="h-5 w-5 text-muted-foreground" />
+              <span className="truncate text-base font-medium text-muted-foreground">{iconMeta?.label ?? icon}</span>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-inverse/10 bg-bg/80 p-4 transition-colors duration-200">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Next milestone</p>
+            <p className="mt-1 text-base font-medium text-muted-foreground">{examLabel}</p>
           </div>
         </div>
       </div>
