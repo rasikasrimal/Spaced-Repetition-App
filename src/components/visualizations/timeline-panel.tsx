@@ -10,41 +10,31 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Toggle } from "@/components/ui/toggle";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { downloadSvg, downloadSvgAsPng } from "@/lib/export-svg";
 import { buildCurveSegments, sampleSegment } from "@/selectors/curves";
 import { useTopicStore } from "@/stores/topics";
 import { useProfileStore } from "@/stores/profile";
 import { useTimelinePreferencesStore } from "@/stores/timeline-preferences";
-import { useThemeStore } from "@/stores/theme";
 import { useThemePalette } from "@/hooks/use-theme-palette";
 import { Subject, Topic } from "@/types/topic";
 import { SubjectFilterValue, NO_SUBJECT_KEY } from "@/components/dashboard/topic-list";
 import {
-  CalendarClock,
+  AlertTriangle,
   Check,
-  Droplet,
   Dot,
-  EllipsisVertical,
-  Eye,
-  EyeOff,
+  Droplet,
+  Eraser,
   Filter,
+  GraduationCap,
+  ImageDown,
   Info,
+  Maximize2,
   Milestone,
+  Minimize2,
   Search,
   Sparkles,
-  AlertTriangle,
-  ZoomIn,
-  ZoomOut,
-  RotateCcw,
-  Undo2,
-  Hand,
-  SquareDashedMousePointer,
-  Maximize2,
-  Minimize2,
-  Type,
-  Moon,
-  Sun
+  Tag,
+  FileDown
 } from "lucide-react";
 import {
   daysBetween,
@@ -64,13 +54,11 @@ import {
   SubjectRevisionTable
 } from "@/components/visualizations/subject-revision-table";
 
-const DEFAULT_WINDOW_DAYS = 30;
 const MIN_ZOOM_SPAN = DAY_MS;
 const MIN_Y_SPAN = 0.05;
 const KEYBOARD_STEP_MS = DAY_MS;
 const DEFAULT_SUBJECT_ID = "subject-general";
 type TopicVisibility = Record<string, boolean>;
-type SortView = "next" | "title";
 type TimelineViewMode = "combined" | "per-subject";
 type ViewportEntry = { x: [number, number]; y: [number, number] };
 type SubjectSeriesGroup = {
@@ -79,6 +67,13 @@ type SubjectSeriesGroup = {
   label: string;
   color: string;
   series: TimelineSeries[];
+};
+
+type SubjectOption = {
+  id: string;
+  label: string;
+  color: string;
+  topicCount: number;
 };
 
 type FullscreenTarget =
@@ -434,9 +429,8 @@ interface TimelinePanelProps {
 }
 
 export function TimelinePanel({ variant = "default", subjectFilter = null }: TimelinePanelProps): JSX.Element {
-  const { topics: storeTopics, categories, subjects: storeSubjects } = useTopicStore((state) => ({
+  const { topics: storeTopics, subjects: storeSubjects } = useTopicStore((state) => ({
     topics: state.topics,
-    categories: state.categories,
     subjects: state.subjects
   }));
   const timezone = useProfileStore((state) => state.profile.timezone);
@@ -470,10 +464,10 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   );
 
   const [visibility, setVisibility] = React.useState<TopicVisibility>({});
+  const [activeSubjectId, setActiveSubjectId] = React.useState<string | null>(null);
+  const [activeTopicId, setActiveTopicId] = React.useState<string | null>(null);
   const [viewMode, setViewMode] = React.useState<TimelineViewMode>("combined");
-  const [categoryFilter, setCategoryFilter] = React.useState<Set<string>>(new Set());
   const [search, setSearch] = React.useState("");
-  const [sortView, setSortView] = React.useState<SortView>("next");
   const [domain, setDomain] = React.useState<[number, number] | null>(null);
   const [fullDomain, setFullDomain] = React.useState<[number, number] | null>(null);
   const [defaultDomain, setDefaultDomain] = React.useState<[number, number] | null>(null);
@@ -497,6 +491,12 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   const setShowEventDots = useTimelinePreferencesStore((state) => state.setShowEventDots);
   const showTopicLabels = useTimelinePreferencesStore((state) => state.showTopicLabels);
   const setShowTopicLabels = useTimelinePreferencesStore((state) => state.setShowTopicLabels);
+  const showMilestones = showCheckpoints || showReviewMarkers;
+  const handleToggleMilestones = (pressed: boolean) => {
+    const next = Boolean(pressed);
+    setShowCheckpoints(next);
+    setShowReviewMarkers(next);
+  };
   const svgRef = React.useRef<SVGSVGElement | null>(null);
   const perSubjectSvgRefs = React.useRef(new Map<string, SVGSVGElement | null>());
   const perSubjectContainerRef = React.useRef<HTMLDivElement | null>(null);
@@ -512,11 +512,109 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
       map.delete(subjectId);
     }
   }, []);
-  const { theme: activeTheme, setTheme } = useThemeStore((state) => ({
-    theme: state.theme,
-    setTheme: state.setTheme
-  }));
   const palette = useThemePalette();
+
+  const handleSelectSubject = React.useCallback((subjectId: string) => {
+    setActiveSubjectId(subjectId);
+    setActiveTopicId(null);
+  }, []);
+
+  const handleSelectTopic = React.useCallback((topicId: string) => {
+    setActiveTopicId((prev) => (prev === topicId ? null : topicId));
+    setVisibility((prev) => {
+      if (prev[topicId]) {
+        return prev;
+      }
+      return { ...prev, [topicId]: true };
+    });
+  }, []);
+
+  const handleToggleTopicVisibility = React.useCallback((topicId: string) => {
+    setVisibility((prev) => {
+      const current = prev[topicId];
+      const nextValue = !(typeof current === "undefined" ? true : current);
+      return { ...prev, [topicId]: nextValue };
+    });
+    setActiveTopicId((prev) => (prev === topicId ? null : prev));
+  }, []);
+
+  const subjectOptions = React.useMemo<SubjectOption[]>(() => {
+    const map = new Map<string, SubjectOption>();
+    const ensure = (id: string, label: string, color: string) => {
+      const existing = map.get(id);
+      if (existing) {
+        return existing;
+      }
+      const created: SubjectOption = { id, label, color, topicCount: 0 };
+      map.set(id, created);
+      return created;
+    };
+
+    subjects.forEach((subject) => {
+      const color = resolveSubjectColor(subject.id);
+      ensure(subject.id, subject.name, color);
+    });
+
+    for (const topic of topics) {
+      const key = topic.subjectId ?? DEFAULT_SUBJECT_ID;
+      const label = key === DEFAULT_SUBJECT_ID ? "No subject" : subjectLookup.get(key)?.name ?? "No subject";
+      const color = resolveSubjectColor(topic.subjectId ?? null);
+      const entry = ensure(key, label, color);
+      entry.topicCount += 1;
+    }
+
+    if (!map.has(DEFAULT_SUBJECT_ID)) {
+      const generalCount = topics.filter((topic) => !topic.subjectId).length;
+      if (generalCount > 0) {
+        map.set(DEFAULT_SUBJECT_ID, {
+          id: DEFAULT_SUBJECT_ID,
+          label: "No subject",
+          color: FALLBACK_SUBJECT_COLOR,
+          topicCount: generalCount
+        });
+      }
+    }
+
+    const result = Array.from(map.values()).filter((option) => option.topicCount > 0);
+    result.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
+    return result;
+  }, [subjects, topics, subjectLookup, resolveSubjectColor]);
+
+  React.useEffect(() => {
+    if (subjectOptions.length === 0) {
+      if (activeSubjectId !== null) {
+        setActiveSubjectId(null);
+      }
+      return;
+    }
+    if (!activeSubjectId) {
+      setActiveSubjectId(subjectOptions[0].id);
+      return;
+    }
+    if (!subjectOptions.some((option) => option.id === activeSubjectId)) {
+      setActiveSubjectId(subjectOptions[0].id);
+    }
+  }, [subjectOptions, activeSubjectId]);
+
+  const activeSubjectOption = React.useMemo(
+    () => subjectOptions.find((option) => option.id === activeSubjectId) ?? null,
+    [subjectOptions, activeSubjectId]
+  );
+
+  React.useEffect(() => {
+    setActiveTopicId(null);
+  }, [activeSubjectId]);
+
+  React.useEffect(() => {
+    if (!subjectFilter || subjectFilter.size !== 1) {
+      return;
+    }
+    const [single] = Array.from(subjectFilter);
+    const resolvedId = single === NO_SUBJECT_KEY ? DEFAULT_SUBJECT_ID : single;
+    if (!activeSubjectId && subjectOptions.some((option) => option.id === resolvedId)) {
+      setActiveSubjectId(resolvedId);
+    }
+  }, [subjectFilter, subjectOptions, activeSubjectId]);
 
   const domainMeta = React.useMemo(
     () => computeTimelineDomain(topics, subjects, resolvedTimezone),
@@ -526,6 +624,22 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   React.useEffect(() => {
     setVisibility((prev) => ensureVisibilityState(topics, prev));
   }, [topics]);
+
+  React.useEffect(() => {
+    if (!activeSubjectId) return;
+    setVisibility((prev) => {
+      const next: TopicVisibility = { ...prev };
+      let changed = false;
+      for (const topic of topics) {
+        const key = topic.subjectId ?? DEFAULT_SUBJECT_ID;
+        if (key === activeSubjectId && typeof next[topic.id] === "undefined") {
+          next[topic.id] = true;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [activeSubjectId, topics]);
 
   React.useEffect(() => {
     setHasStudyActivity(domainMeta.hasActivity);
@@ -640,22 +754,8 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     return xChanged || yChanged;
   }, [domain, defaultDomain, yDomain, defaultYDomain]);
 
-  const canZoomIn = React.useMemo(() => {
-    if (!domain) return false;
-    return domain[1] - domain[0] > MIN_ZOOM_SPAN + 60 * 1000;
-  }, [domain]);
 
-  const canZoomOut = React.useMemo(() => {
-    if (!domain || !fullDomain) return false;
-    if (!yDomain || !fullYDomain) {
-      return domain[0] > fullDomain[0] || domain[1] < fullDomain[1];
-    }
-    const xDiff = domain[0] > fullDomain[0] || domain[1] < fullDomain[1];
-    const yDiff = yDomain[0] > fullYDomain[0] || yDomain[1] < fullYDomain[1];
-    return xDiff || yDiff;
-  }, [domain, fullDomain, yDomain, fullYDomain]);
 
-  const isUndoAvailable = zoomStack.length > 0;
 
   const createDefaultKeyboardSelection = React.useCallback(() => {
     if (!domain) return null;
@@ -820,48 +920,75 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
 
   const filteredTopics = React.useMemo(() => {
     const lower = search.trim().toLowerCase();
-    const byCategory = categoryFilter.size > 0
-      ? topics.filter((topic) => {
-          const categoryId = topic.categoryId ?? "__uncategorised";
-          return categoryFilter.has(categoryId);
-        })
-      : topics;
-
     const bySearch = lower.length > 0
-      ? byCategory.filter((topic) =>
+      ? topics.filter((topic) =>
           topic.title.toLowerCase().includes(lower) ||
           topic.notes.toLowerCase().includes(lower) ||
           (topic.categoryLabel ?? "").toLowerCase().includes(lower)
         )
-      : byCategory;
+      : topics;
 
     const sorted = [...bySearch];
-    if (sortView === "title") {
-      sorted.sort((a, b) => a.title.localeCompare(b.title));
-    } else {
-      sorted.sort((a, b) => new Date(a.nextReviewDate).getTime() - new Date(b.nextReviewDate).getTime());
-    }
-
+    sorted.sort((a, b) => {
+      const dateDelta = new Date(a.nextReviewDate).getTime() - new Date(b.nextReviewDate).getTime();
+      if (dateDelta !== 0) {
+        return dateDelta;
+      }
+      return a.title.localeCompare(b.title);
+    });
     return sorted;
-  }, [topics, categoryFilter, search, sortView]);
+  }, [topics, search]);
+
+  const activeSubjectTopics = React.useMemo(() => {
+    if (!activeSubjectId) return [];
+    return filteredTopics.filter((topic) => (topic.subjectId ?? DEFAULT_SUBJECT_ID) === activeSubjectId);
+  }, [filteredTopics, activeSubjectId]);
+
+  const activeSubjectVisibleTopics = React.useMemo(
+    () => activeSubjectTopics.filter((topic) => visibility[topic.id] ?? true),
+    [activeSubjectTopics, visibility]
+  );
+
+  const activeTopic = React.useMemo(() => {
+    if (!activeTopicId) return null;
+    return activeSubjectTopics.find((topic) => topic.id === activeTopicId) ?? null;
+  }, [activeTopicId, activeSubjectTopics]);
+
+  const topicsForChart = React.useMemo(() => {
+    if (activeTopic) {
+      return [activeTopic];
+    }
+    return activeSubjectVisibleTopics;
+  }, [activeTopic, activeSubjectVisibleTopics]);
+
+  const subjectTopicCount = activeSubjectTopics.length;
+  const visibleTopicCount = activeSubjectVisibleTopics.length;
+
+  React.useEffect(() => {
+    if (!activeTopicId) return;
+    if (activeSubjectTopics.some((topic) => topic.id === activeTopicId)) {
+      return;
+    }
+    setActiveTopicId(null);
+  }, [activeTopicId, activeSubjectTopics]);
 
   const singleSubjectColorOverrides = React.useMemo(() => {
-    if (filteredTopics.length === 0) return null;
+    if (activeSubjectTopics.length === 0) return null;
     const uniqueSubjectKeys = new Set(
-      filteredTopics.map((topic) => topic.subjectId ?? DEFAULT_SUBJECT_ID)
+      activeSubjectTopics.map((topic) => topic.subjectId ?? DEFAULT_SUBJECT_ID)
     );
     if (uniqueSubjectKeys.size !== 1) return null;
     const [singleKey] = Array.from(uniqueSubjectKeys);
     const subjectId = singleKey === DEFAULT_SUBJECT_ID ? null : singleKey;
     const baseColor = resolveSubjectColor(subjectId);
-    return generateTopicColorMap(baseColor, filteredTopics);
-  }, [filteredTopics, resolveSubjectColor]);
+    return generateTopicColorMap(baseColor, activeSubjectTopics);
+  }, [activeSubjectTopics, resolveSubjectColor]);
 
   const singleSubjectLegend = React.useMemo(() => {
     if (!singleSubjectColorOverrides || singleSubjectColorOverrides.size <= 1) {
       return null;
     }
-    const sorted = filteredTopics
+    const sorted = activeSubjectTopics
       .filter((topic) => singleSubjectColorOverrides.has(topic.id))
       .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
     if (sorted.length <= 1) return null;
@@ -869,7 +996,17 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     const visible = sorted.slice(0, limit);
     const remaining = sorted.length - visible.length;
     return { visible, remaining };
-  }, [filteredTopics, singleSubjectColorOverrides]);
+  }, [activeSubjectTopics, singleSubjectColorOverrides]);
+
+  const legendItems = React.useMemo(() => {
+    if (activeSubjectTopics.length === 0) return [];
+    if (singleSubjectLegend) {
+      return singleSubjectLegend.visible;
+    }
+    return activeSubjectTopics;
+  }, [activeSubjectTopics, singleSubjectLegend]);
+
+  const legendRemaining = singleSubjectLegend?.remaining ?? 0;
 
   const resolveTopicColor = React.useCallback(
     (topic: Topic) =>
@@ -885,8 +1022,8 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   }, []);
 
   const series = React.useMemo(
-    () => deriveSeries(filteredTopics, visibility, resolveTopicColor, nowMs, showCheckpoints),
-    [filteredTopics, visibility, resolveTopicColor, nowMs, showCheckpoints]
+    () => deriveSeries(topicsForChart, visibility, resolveTopicColor, nowMs, showCheckpoints),
+    [topicsForChart, visibility, resolveTopicColor, nowMs, showCheckpoints]
   );
 
   const perSubjectSeries = React.useMemo<SubjectSeriesGroup[]>(() => {
@@ -1114,11 +1251,12 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   }, [examMarkers]);
 
   const upcomingSchedule = React.useMemo(() => {
-    return filteredTopics
+    if (!activeSubjectId) return [];
+    return activeSubjectTopics
       .slice()
       .sort((a, b) => new Date(a.nextReviewDate).getTime() - new Date(b.nextReviewDate).getTime())
       .slice(0, variant === "compact" ? 5 : 8);
-  }, [filteredTopics, variant]);
+  }, [activeSubjectId, activeSubjectTopics, variant]);
 
   const fullscreenConfig = React.useMemo(() => {
     if (!fullscreenTarget) return null;
@@ -1339,222 +1477,192 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     downloadSvg(svgRef.current, "review-timeline.svg");
   };
 
-  const exportPng = () => {
+  const exportPng = async () => {
+    const notifyFailure = () =>
+      toast.error("Export failed: please reset filters before saving chart.");
+
     if (viewMode === "per-subject") {
       const combined = buildPerSubjectExportSvg();
       if (!combined) return;
-      downloadSvgAsPng(combined, "review-timeline.png");
+      const success = await downloadSvgAsPng(combined, "review-timeline.png");
+      if (!success) {
+        notifyFailure();
+      }
       return;
     }
     if (!svgRef.current) return;
-    downloadSvgAsPng(svgRef.current, "review-timeline.png");
-  };
-
-  const showAllTopics = () => {
-    const next: TopicVisibility = {};
-    for (const topic of filteredTopics) {
-      next[topic.id] = true;
+    const success = await downloadSvgAsPng(svgRef.current, "review-timeline.png");
+    if (!success) {
+      notifyFailure();
     }
-    setVisibility(next);
-  };
-
-  const hideAllTopics = () => {
-    const next: TopicVisibility = {};
-    for (const topic of filteredTopics) {
-      next[topic.id] = false;
-    }
-    setVisibility(next);
-  };
-
-  const showDueTopics = () => {
-    const next: TopicVisibility = {};
-    for (const topic of filteredTopics) {
-      next[topic.id] = isDueToday(topic.nextReviewDate);
-    }
-    setVisibility(next);
-  };
-
-  const handleToggleCategory = (id: string) => {
-    setCategoryFilter((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
   };
 
   const cardClasses = variant === "compact"
     ? "rounded-3xl border border-inverse/5 bg-card/50 p-5"
     : "rounded-3xl border border-inverse/5 bg-card/40 p-6 md:p-8";
 
+  const handleClearFilters = React.useCallback(() => {
+    setSearch("");
+    setShowExamMarkers(true);
+    setShowCheckpoints(false);
+    setShowReviewMarkers(false);
+    setShowEventDots(true);
+    setShowOpacityGradient(true);
+    setShowTopicLabels(true);
+  }, [
+    setSearch,
+    setShowExamMarkers,
+    setShowCheckpoints,
+    setShowReviewMarkers,
+    setShowEventDots,
+    setShowOpacityGradient,
+    setShowTopicLabels
+  ]);
+
+  const hasCustomFilters =
+    search.trim().length > 0 ||
+    !showExamMarkers ||
+    showMilestones ||
+    !showEventDots ||
+    !showOpacityGradient ||
+    !showTopicLabels;
+
+  const overlayControls = (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div
+        className="flex items-center gap-1 overflow-x-auto whitespace-nowrap rounded-2xl border border-inverse/15 bg-card/70 p-1 shadow-sm scrollbar-none"
+        role="group"
+        aria-label="Timeline overlays"
+      >
+        <Toggle
+          type="button"
+          pressed={showExamMarkers}
+          onPressedChange={(pressed) => setShowExamMarkers(Boolean(pressed))}
+          aria-label="Toggle exam markers"
+          title="Exam markers"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border bg-transparent text-muted-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[state=off]:border-transparent data-[state=off]:bg-transparent data-[state=off]:opacity-75 data-[state=off]:hover:border-inverse/20 data-[state=off]:hover:bg-card/60 data-[state=off]:hover:text-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/20 data-[state=on]:text-primary data-[state=on]:shadow-sm"
+        >
+          <GraduationCap className="h-4 w-4" />
+          <span className="sr-only">Exam markers</span>
+        </Toggle>
+        <Toggle
+          type="button"
+          pressed={showMilestones}
+          onPressedChange={handleToggleMilestones}
+          aria-label="Toggle milestones"
+          title="Milestones"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border bg-transparent text-muted-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[state=off]:border-transparent data-[state=off]:bg-transparent data-[state=off]:opacity-75 data-[state=off]:hover:border-inverse/20 data-[state=off]:hover:bg-card/60 data-[state=off]:hover:text-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/20 data-[state=on]:text-primary data-[state=on]:shadow-sm"
+        >
+          <Milestone className="h-4 w-4" />
+          <span className="sr-only">Milestones</span>
+        </Toggle>
+        <Toggle
+          type="button"
+          pressed={showEventDots}
+          onPressedChange={(pressed) => setShowEventDots(Boolean(pressed))}
+          aria-label="Toggle event dots"
+          title="Event dots"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border bg-transparent text-muted-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[state=off]:border-transparent data-[state=off]:bg-transparent data-[state=off]:opacity-75 data-[state=off]:hover:border-inverse/20 data-[state=off]:hover:bg-card/60 data-[state=off]:hover:text-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/20 data-[state=on]:text-primary data-[state=on]:shadow-sm"
+        >
+          <Dot className="h-4 w-4" />
+          <span className="sr-only">Event dots</span>
+        </Toggle>
+        <Toggle
+          type="button"
+          pressed={showOpacityGradient}
+          onPressedChange={(pressed) => setShowOpacityGradient(Boolean(pressed))}
+          aria-label="Toggle opacity fade"
+          title="Opacity fade"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border bg-transparent text-muted-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[state=off]:border-transparent data-[state=off]:bg-transparent data-[state=off]:opacity-75 data-[state=off]:hover:border-inverse/20 data-[state=off]:hover:bg-card/60 data-[state=off]:hover:text-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/20 data-[state=on]:text-primary data-[state=on]:shadow-sm"
+        >
+          <Droplet className="h-4 w-4" />
+          <span className="sr-only">Opacity fade</span>
+        </Toggle>
+        <Toggle
+          type="button"
+          pressed={showTopicLabels}
+          onPressedChange={(pressed) => setShowTopicLabels(Boolean(pressed))}
+          aria-label="Toggle topic labels"
+          title="Topic labels"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border bg-transparent text-muted-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[state=off]:border-transparent data-[state=off]:bg-transparent data-[state=off]:opacity-75 data-[state=off]:hover:border-inverse/20 data-[state=off]:hover:bg-card/60 data-[state=off]:hover:text-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/20 data-[state=on]:text-primary data-[state=on]:shadow-sm"
+        >
+          <Tag className="h-4 w-4" />
+          <span className="sr-only">Topic labels</span>
+        </Toggle>
+      </div>
+      {hasCustomFilters ? (
+        <button
+          type="button"
+          onClick={handleClearFilters}
+          className="inline-flex items-center gap-2 rounded-full border border-transparent bg-transparent px-3 py-1 text-xs font-medium text-muted-foreground transition hover:text-foreground"
+        >
+          <Eraser className="h-3.5 w-3.5" />
+          Clear filters
+        </button>
+      ) : null}
+    </div>
+  );
+
   return (
     <>
-      <section className={`${cardClasses} space-y-5`}
+      <section className={`${cardClasses} space-y-6`}
         aria-label="Review timeline">
-      <header className="flex flex-wrap items-center gap-3">
-        <div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-accent/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-accent">
+        <header className="space-y-3">
+          <span className="inline-flex items-center gap-2 rounded-full bg-accent/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-accent">
             <Sparkles className="h-3 w-3" /> Retention & schedule
+          </span>
+          <div>
+            <h2 className="text-xl font-semibold text-fg">Review timeline</h2>
+            <p className="text-sm text-muted-foreground">
+              Track when each topic is due and how its memory curve evolves.
+            </p>
           </div>
-          <h2 className="mt-2 text-xl font-semibold text-fg">Review timeline</h2>
-          <p className="text-sm text-muted-foreground">
-            Track when each topic is due and how its memory curve evolves.
-          </p>
-        </div>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
+        </header>
+
+        <div className="flex w-full flex-wrap items-center gap-3 md:justify-between">
           <div
             className="flex items-center gap-1 rounded-2xl border border-inverse/10 bg-card/60 p-1"
             role="group"
             aria-label="Timeline view mode"
           >
-            <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              View:
-            </span>
-            <Button
-              type="button"
-              size="sm"
-              variant={viewMode === "combined" ? "default" : "ghost"}
-              className={`rounded-xl px-3 ${viewMode === "combined" ? "bg-accent/20 text-fg" : "text-muted-foreground"}`}
-              onClick={() => setViewMode("combined")}
-              aria-pressed={viewMode === "combined"}
-            >
-              Combined
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={viewMode === "per-subject" ? "default" : "ghost"}
-              className={`rounded-xl px-3 ${viewMode === "per-subject" ? "bg-accent/20 text-fg" : "text-muted-foreground"}`}
-              onClick={() => setViewMode("per-subject")}
-              aria-pressed={viewMode === "per-subject"}
-            >
-              Per subject
-            </Button>
-          </div>
-          <div
-            className="flex items-center gap-1 rounded-2xl border border-inverse/10 bg-card/60 p-1"
-            role="group"
-            aria-label="Timeline zoom controls"
-            aria-describedby="timeline-zoom-shortcuts"
-          >
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              onClick={handleStepBack}
-              disabled={!isUndoAvailable}
-              aria-label="Step back"
-              title="Step back (right click)"
-            >
-              <Undo2 className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              onClick={zoomOut}
-              disabled={!canZoomOut}
-              aria-label="Zoom out (-)"
-              title="Zoom out (-)"
-            >
-              <ZoomOut className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              onClick={zoomIn}
-              disabled={!canZoomIn}
-              aria-label="Zoom in (+)"
-              title="Zoom in (+)"
-            >
-              <ZoomIn className="h-4 w-4" />
-            </Button>
-          </div>
-          <div
-            className="flex items-center gap-1 rounded-2xl border border-inverse/10 bg-card/60 p-1"
-            role="group"
-            aria-label="Interaction mode"
-          >
-            <Button
-              type="button"
-              size="sm"
-              variant={interactionMode === "zoom" ? "default" : "ghost"}
-              className={`inline-flex items-center gap-1 rounded-xl px-3 ${interactionMode === "zoom" ? "bg-accent/20 text-fg" : "text-muted-foreground"}`}
-              onClick={() => setInteractionMode("zoom")}
-              aria-pressed={interactionMode === "zoom"}
-              title="Zoom select (Z)"
-            >
-              <SquareDashedMousePointer className="h-4 w-4" />
-              Zoom (Z)
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={interactionMode === "pan" ? "default" : "ghost"}
-              className={`inline-flex items-center gap-1 rounded-xl px-3 ${interactionMode === "pan" ? "bg-accent/20 text-fg" : "text-muted-foreground"}`}
-              onClick={() => {
-                setInteractionMode("pan");
-                setKeyboardSelection(null);
-              }}
-              aria-pressed={interactionMode === "pan"}
-              title="Pan (Space)"
-            >
-              <Hand className="h-4 w-4" />
-              Pan (Space)
-            </Button>
-          </div>
+          <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">View</span>
           <Button
+            type="button"
             size="sm"
-            variant="outline"
-            onClick={handleResetDomain}
-            disabled={!defaultDomain || !defaultYDomain || !isZoomed}
-            className="inline-flex items-center gap-2"
+            variant={viewMode === "combined" ? "default" : "ghost"}
+            className={`rounded-xl px-3 ${viewMode === "combined" ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}
+            onClick={() => setViewMode("combined")}
+            aria-pressed={viewMode === "combined"}
           >
-            <RotateCcw className="h-4 w-4" />
-            <span>Reset</span>
+            Combined
           </Button>
           <Button
+            type="button"
             size="sm"
-            variant="outline"
-            onClick={(event) => {
-              const hasSeries = viewMode === "combined" ? series.length > 0 : perSubjectSeries.length > 0;
-              if (!hasSeries) {
-                return;
-              }
-              fullscreenReturnFocusRef.current = event.currentTarget;
-              if (viewMode === "combined") {
-                setFullscreenTarget({ type: "combined" });
-              } else {
-                setFullscreenTarget({ type: "per-subject-grid" });
-              }
-            }}
-            disabled={viewMode === "combined" ? series.length === 0 : perSubjectSeries.length === 0}
-            className="inline-flex items-center gap-2"
-            aria-label="Expand timeline to fullscreen"
-            title="Expand timeline"
+            variant={viewMode === "per-subject" ? "default" : "ghost"}
+            className={`rounded-xl px-3 ${viewMode === "per-subject" ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}
+            onClick={() => setViewMode("per-subject")}
+            aria-pressed={viewMode === "per-subject"}
           >
-            <Maximize2 className="h-4 w-4" />
-            <span>Fullscreen</span>
+            Per subject
           </Button>
-          {variant === "default" ? (
-            <>
-              <Button size="sm" variant="outline" onClick={exportSvg}>
-                Export SVG
-              </Button>
-              <Button size="sm" variant="outline" onClick={exportPng}>
-                Export PNG
-              </Button>
-            </>
-          ) : null}
         </div>
-      </header>
+
+        <div className="flex items-center gap-2 rounded-2xl border border-inverse/10 bg-muted/30 px-3 py-2 shadow-sm">
+          <Search className="h-3.5 w-3.5 text-muted-foreground/80" />
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search topics"
+            className="h-8 w-52 border-none bg-transparent text-xs text-fg placeholder:text-muted-foreground/80 focus-visible:ring-0"
+          />
+        </div>
+      </div>
 
       <p className="sr-only" aria-live="polite">
-        {isZoomed ? "Timeline zoomed. Activate reset to return to the full schedule." : "Timeline showing the full scheduled range."}
+        {isZoomed
+          ? "Timeline zoomed. Right-click the chart or double-click to return to the full schedule."
+          : "Timeline showing the full scheduled range."}
       </p>
 
       <p className="sr-only" id="timeline-zoom-shortcuts">
@@ -1566,172 +1674,6 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
         Drag to draw a selection and release to zoom that range. Hold Shift while dragging to include retention. Hold Space to pan, right-click to step back,
         and double-click the chart to restore the default window.
       </p>
-
-      {isZoomed ? (
-        <div className="flex flex-wrap items-center gap-2 text-xs text-warn/20" aria-live="polite">
-          <span className="inline-flex items-center gap-2 rounded-full bg-warn/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide">
-            Zoomed
-          </span>
-          <span>Use Back to step out or reset to return to the full schedule.</span>
-          <button
-            type="button"
-            onClick={handleResetDomain}
-            className="font-semibold text-warn/30 underline-offset-2 hover:underline"
-          >
-            Reset view
-          </button>
-        </div>
-      ) : null}
-
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 rounded-2xl border border-inverse/10 bg-card/60 px-3 py-2 text-xs text-muted-foreground">
-          <CalendarClock className="h-3.5 w-3.5" />
-          <span>Window (days)</span>
-          <Input
-            type="number"
-            min={7}
-            max={365}
-            className="h-8 w-20 border-none bg-transparent text-xs text-fg focus-visible:ring-0"
-            value={domain ? Math.max(7, Math.round((domain[1] - domain[0]) / DAY_MS)) : ""}
-            onChange={(event) => {
-              if (!domain) return;
-              const days = Math.max(7, Number(event.target.value) || DEFAULT_WINDOW_DAYS);
-              const end = domain[1];
-              const candidate: [number, number] = [end - days * DAY_MS, end];
-            const xRange = fullDomain ? clampInterval(candidate, fullDomain, MIN_ZOOM_SPAN) : candidate;
-            const targetY = yDomain ?? defaultYDomain;
-            if (!targetY) {
-              return;
-            }
-            applyViewport({ x: xRange, y: [targetY[0], targetY[1]] }, { push: true });
-            }}
-            disabled={!domain}
-          />
-        </div>
-        <div className="flex items-center gap-2 rounded-2xl border border-inverse/10 bg-card/60 px-3 py-2">
-          <Search className="h-3.5 w-3.5 text-muted-foreground/80" />
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search topics"
-            className="h-8 w-52 border-none bg-transparent text-xs text-fg placeholder:text-muted-foreground/80 focus-visible:ring-0"
-          />
-        </div>
-        <Select value={sortView} onValueChange={(value: SortView) => setSortView(value)}>
-          <SelectTrigger className="h-9 rounded-2xl border-inverse/10 bg-card/60 text-xs text-fg">
-            <SelectValue placeholder="Sort" />
-          </SelectTrigger>
-          <SelectContent className="rounded-2xl backdrop-blur">
-            <SelectItem value="next">Next review</SelectItem>
-            <SelectItem value="title">Topic name</SelectItem>
-          </SelectContent>
-        </Select>
-        <div
-          className="flex flex-wrap items-center gap-1 rounded-2xl border border-inverse/10 bg-card/60 p-1"
-          role="group"
-          aria-label="Timeline overlays"
-        >
-          <Toggle
-            type="button"
-            pressed={showExamMarkers}
-            onPressedChange={(pressed) => setShowExamMarkers(Boolean(pressed))}
-            aria-label="Toggle exam markers"
-            title="Toggle exam markers"
-          >
-            <CalendarClock className="h-3.5 w-3.5" />
-            <span>Exam Markers</span>
-          </Toggle>
-          <Toggle
-            type="button"
-            pressed={showCheckpoints}
-            onPressedChange={(pressed) => setShowCheckpoints(Boolean(pressed))}
-            aria-label="Toggle checkpoints"
-            title="Toggle checkpoints"
-          >
-            <Milestone className="h-3.5 w-3.5" />
-            <span>Checkpoints</span>
-          </Toggle>
-          <Toggle
-            type="button"
-            pressed={showReviewMarkers}
-            onPressedChange={(pressed) => setShowReviewMarkers(Boolean(pressed))}
-            aria-label="Toggle review markers"
-            title="Toggle review markers"
-          >
-            <EllipsisVertical className="h-3.5 w-3.5" />
-            <span>Review Markers</span>
-          </Toggle>
-          <Toggle
-            type="button"
-            pressed={showEventDots}
-            onPressedChange={(pressed) => setShowEventDots(Boolean(pressed))}
-            aria-label="Toggle event start dots"
-            title="Toggle event start dots"
-          >
-            <Dot className="h-3.5 w-3.5" />
-            <span>Event Dots</span>
-          </Toggle>
-          <Toggle
-            type="button"
-            pressed={showOpacityGradient}
-            onPressedChange={(pressed) => setShowOpacityGradient(Boolean(pressed))}
-            aria-label="Toggle opacity gradient"
-            title="Toggle opacity gradient"
-          >
-            <Droplet className="h-3.5 w-3.5" />
-            <span>Opacity Gradient</span>
-          </Toggle>
-          <Toggle
-            type="button"
-            pressed={showTopicLabels}
-            onPressedChange={(pressed) => setShowTopicLabels(Boolean(pressed))}
-            aria-label="Toggle topic labels"
-            title="Toggle topic labels"
-          >
-            <Type className="h-3.5 w-3.5" />
-            <span>Topic Labels</span>
-          </Toggle>
-          <Toggle
-            type="button"
-            pressed={activeTheme === "dark"}
-            onPressedChange={(pressed) => setTheme(pressed ? "dark" : "light")}
-            aria-label="Toggle theme"
-            title={activeTheme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-          >
-            {activeTheme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
-            <span>Theme</span>
-          </Toggle>
-        </div>
-        {categoryFilter.size > 0 ? (
-          <Button size="sm" variant="ghost" onClick={() => setCategoryFilter(new Set())}>
-            Clear categories
-          </Button>
-        ) : null}
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        {categories.map((category) => {
-          const active = categoryFilter.has(category.id);
-          return (
-            <button
-              key={category.id}
-              type="button"
-              onClick={() => handleToggleCategory(category.id)}
-              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs transition ${
-                active
-                  ? "border-inverse/40 bg-inverse/10 text-fg"
-                  : "border-inverse/10 bg-transparent text-muted-foreground hover:text-fg"
-              }`}
-            >
-              <span className="inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: category.color }} />
-              {category.label}
-            </button>
-          );
-        })}
-        {categories.length === 0 ? (
-          <p className="text-xs text-muted-foreground/80">Categories you create appear here for quick filtering.</p>
-        ) : null}
-      </div>
 
       {rangeWarning ? (
         <div className="flex items-center gap-2 rounded-2xl border border-warn/40 bg-warn/10 px-3 py-2 text-xs text-warn/20">
@@ -1746,135 +1688,162 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
         </div>
       ) : null}
 
-      {viewMode === "combined"
-        ? hasStudyActivity && domain && yDomain
-          ? (
-              <div className="space-y-3">
-                <TimelineChart
-                  ref={svgRef}
-                  series={series}
-                  xDomain={domain}
-                  yDomain={yDomain}
-                  onViewportChange={(next, options) => handleViewportChange(next, { push: options?.push })}
-                  height={variant === "compact" ? 320 : 460}
-                  showGrid
-                  fullDomain={fullDomain ?? undefined}
-                  fullYDomain={fullYDomain ?? undefined}
-                  examMarkers={showExamMarkers ? examMarkers : []}
-                  timeZone={resolvedTimezone}
-                  onResetDomain={handleResetDomain}
-                  ariaDescribedBy={`timeline-zoom-shortcuts ${pointerInstructionId}`}
-                  interactionMode={interactionMode}
-                  temporaryPan={spacePanning}
-                  onRequestStepBack={handleStepBack}
-                  onTooSmallSelection={handleTooSmallSelection}
-                  keyboardSelection={keyboardSelection}
-                  showOpacityGradient={showOpacityGradient}
-                  showReviewMarkers={showReviewMarkers}
-                  showEventDots={showEventDots}
-                  showTopicLabels={showTopicLabels}
-                />
-                {singleSubjectLegend ? (
-                  <div
-                    className="flex flex-wrap items-center gap-2 rounded-2xl border border-inverse/10 bg-card/60 px-3 py-2 text-xs text-muted-foreground"
-                    aria-label="Topic color legend"
-                  >
-                    <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Topic colors
-                    </span>
-                    {singleSubjectLegend.visible.map((topic) => {
-                      const color =
-                        singleSubjectColorOverrides?.get(topic.id) ?? resolveTopicColor(topic);
-                      return (
-                        <span
-                          key={topic.id}
-                          className="inline-flex items-center gap-2 rounded-full border border-inverse/10 bg-inverse/5 px-2 py-1"
-                        >
-                          <span
-                            className="inline-flex h-2 w-2 rounded-full"
-                            style={{ backgroundColor: color }}
-                          />
-                          <span className="max-w-[10rem] truncate text-[11px] text-fg/80">
-                            {topic.title}
-                          </span>
-                        </span>
-                      );
-                    })}
-                    {singleSubjectLegend.remaining > 0 ? (
-                      <span className="text-[11px] text-muted-foreground">
-                        +{singleSubjectLegend.remaining} more
-                      </span>
-                    ) : null}
-                  </div>
-                ) : null}
+      {viewMode === "combined" ? (
+        <div className="space-y-6">
+          <section aria-label="Subject selector" className="space-y-3">
+            <header className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <Filter className="h-3.5 w-3.5" /> Subjects
               </div>
-            )
-          : (
-              <div className="flex h-60 items-center justify-center rounded-3xl border border-dashed border-inverse/10 bg-card/40 text-sm text-muted-foreground">
-                No study activity yet. Add a topic to see your timeline.
-              </div>
-            )
-        : perSubjectSeries.length > 0 && domain && yDomain
-          ? (
-              <div
-                ref={perSubjectContainerRef}
-                className="grid gap-6 md:grid-cols-1 lg:grid-cols-2"
-              >
-                {perSubjectSeries.map((group) => {
-                  const markers = showExamMarkers
-                    ? examMarkersBySubject.get(group.subjectId) ?? []
-                    : [];
-                  const examLabel = group.subject?.examDate
-                    ? formatDateWithWeekday(group.subject.examDate)
-                    : null;
+              <span className="text-[10px] text-muted-foreground/70">
+                {subjectOptions.length} available
+              </span>
+            </header>
+            <p className="text-xs text-muted-foreground">
+              Choose one subject to explore its retention curve.
+            </p>
+            {subjectOptions.length > 0 ? (
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {subjectOptions.map((option) => {
+                  const isActive = option.id === activeSubjectId;
                   return (
-                    <div
-                      key={group.subjectId}
-                      className="space-y-2 rounded-3xl border border-inverse/10 bg-card/50 p-4"
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => handleSelectSubject(option.id)}
+                      aria-pressed={isActive}
+                      className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg ${
+                        isActive
+                          ? "border-accent/60 bg-accent/15 text-accent shadow-sm"
+                          : "border-inverse/10 bg-card/40 text-muted-foreground hover:text-foreground"
+                      }`}
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="inline-flex h-2 w-2 rounded-full"
-                            style={{ backgroundColor: group.color }}
-                            aria-hidden="true"
-                          />
-                          <h3 className="text-sm font-semibold text-fg">{group.label}</h3>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {examLabel ? (
-                            <span className="text-xs text-muted-foreground">Exam {examLabel}</span>
-                          ) : null}
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="ghost"
-                            onClick={(event) => {
-                              if (group.series.length === 0) {
-                                return;
-                              }
-                              fullscreenReturnFocusRef.current = event.currentTarget;
-                              setFullscreenTarget({ type: "subject", subjectId: group.subjectId });
-                            }}
-                            disabled={group.series.length === 0}
-                            aria-label={`Expand ${group.label} timeline`}
-                            title="Expand timeline"
-                          >
-                            <Maximize2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
+                      <span className="flex items-center gap-2 text-left">
+                        <span
+                          className="inline-flex h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: option.color }}
+                          aria-hidden="true"
+                        />
+                        <span className="max-w-[12rem] truncate text-xs font-medium uppercase tracking-wide">
+                          {option.label}
+                        </span>
+                      </span>
+                      <span className="text-[11px] text-muted-foreground/80">
+                        {option.topicCount} topic{option.topicCount === 1 ? "" : "s"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="rounded-2xl border border-dashed border-inverse/10 bg-card/50 px-3 py-3 text-xs text-muted-foreground">
+                Add topics to start focusing the timeline by subject.
+              </p>
+            )}
+          </section>
+
+          <div className="border-t border-inverse/10" />
+
+          <section aria-label="Topic visibility" className="space-y-3">
+            <header className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <Tag className="h-3.5 w-3.5" /> Topics
+              </div>
+              {activeSubjectOption ? (
+                <span className="text-[10px] text-muted-foreground/70">
+                  {visibleTopicCount} selected
+                </span>
+              ) : null}
+            </header>
+            {activeSubjectOption ? (
+              activeSubjectTopics.length > 0 ? (
+                <div className="flex flex-wrap gap-2 overflow-x-auto whitespace-nowrap scrollbar-none">
+                  {activeSubjectTopics.map((topic) => {
+                    const isVisible = visibility[topic.id] ?? true;
+                    const isFocused = activeTopic?.id === topic.id;
+                    const color = singleSubjectColorOverrides?.get(topic.id) ?? resolveTopicColor(topic);
+                    return (
+                      <button
+                        key={topic.id}
+                        type="button"
+                        onClick={() => handleToggleTopicVisibility(topic.id)}
+                        className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition ${
+                          isVisible
+                            ? "border-primary/50 bg-primary/15 text-primary shadow-sm"
+                            : "border-inverse/10 bg-card/40 text-muted-foreground hover:text-fg"
+                        } ${isFocused ? "ring-2 ring-primary/50" : ""}`}
+                        aria-pressed={isVisible}
+                        title={isVisible ? "Hide topic from chart" : "Show topic on chart"}
+                      >
+                        <span
+                          className="inline-flex h-2 w-2 rounded-full"
+                          style={{ backgroundColor: color }}
+                          aria-hidden="true"
+                        />
+                        <span className="max-w-[9rem] truncate text-left">{topic.title}</span>
+                        {isVisible ? <Check className="h-3 w-3" /> : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  No topics match the current filters for this subject.
+                </p>
+              )
+            ) : (
+              <p className="text-xs text-muted-foreground">Select a subject to manage its topics.</p>
+            )}
+            {activeSubjectOption && !activeTopic && visibleTopicCount === 0 ? (
+              <p className="rounded-2xl border border-dashed border-inverse/10 bg-card/50 px-3 py-3 text-xs text-muted-foreground">
+                Select at least one topic to display curves.
+              </p>
+            ) : null}
+          </section>
+
+          <div className="border-t border-inverse/10" />
+
+          <section aria-label="Subject selected" className="space-y-3">
+            <header className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <Sparkles className="h-3.5 w-3.5" /> Subject selected
+              </div>
+              {activeSubjectOption ? (
+                <span className="inline-flex items-center gap-2 rounded-full border border-inverse/10 bg-inverse/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <span
+                    className="inline-flex h-2 w-2 rounded-full"
+                    style={{ backgroundColor: activeSubjectOption.color }}
+                    aria-hidden="true"
+                  />
+                  {activeSubjectOption.label}
+                  <span className="font-normal text-muted-foreground/70">
+                    · {subjectTopicCount} topic{subjectTopicCount === 1 ? "" : "s"}
+                  </span>
+                </span>
+              ) : null}
+            </header>
+            {activeSubjectOption ? (
+              <>
+                {activeTopic ? (
+                  <p className="text-xs text-muted-foreground">
+                    Topic focus is active. Use Back to Subject View to restore all curves for {activeSubjectOption.label}.
+                  </p>
+                ) : null}
+                {!activeTopic ? overlayControls : null}
+                {!activeTopic ? (
+                  domain && yDomain && series.length > 0 ? (
+                    <div className="group relative rounded-3xl border border-inverse/10 bg-muted/30 p-3 shadow-sm transition-colors hover:bg-muted/40">
                       <TimelineChart
-                        ref={(element) => setSubjectChartRef(group.subjectId, element)}
-                        series={group.series}
+                        ref={svgRef}
+                        series={series}
                         xDomain={domain}
                         yDomain={yDomain}
                         onViewportChange={(next, options) => handleViewportChange(next, { push: options?.push })}
-                        height={variant === "compact" ? 300 : 360}
+                        height={variant === "compact" ? 320 : 460}
                         showGrid
                         fullDomain={fullDomain ?? undefined}
                         fullYDomain={fullYDomain ?? undefined}
-                        examMarkers={markers}
+                        examMarkers={showExamMarkers ? examMarkers : []}
                         timeZone={resolvedTimezone}
                         onResetDomain={handleResetDomain}
                         ariaDescribedBy={`timeline-zoom-shortcuts ${pointerInstructionId}`}
@@ -1888,124 +1857,342 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                         showEventDots={showEventDots}
                         showTopicLabels={showTopicLabels}
                       />
+                      <div className="pointer-events-none absolute right-3 top-3 flex items-center gap-1 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="pointer-events-auto rounded-full bg-card/70 text-muted-foreground shadow-sm hover:text-foreground"
+                          onClick={(event) => {
+                            if (series.length === 0) return;
+                            fullscreenReturnFocusRef.current = event.currentTarget;
+                            setFullscreenTarget({ type: "combined" });
+                          }}
+                          disabled={series.length === 0}
+                          aria-label="Expand timeline"
+                        >
+                          <Maximize2 className="h-4 w-4" />
+                        </Button>
+                        {variant === "default" ? (
+                          <>
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              className="pointer-events-auto rounded-full bg-card/70 text-muted-foreground shadow-sm hover:text-foreground"
+                              onClick={exportSvg}
+                              disabled={series.length === 0}
+                              aria-label="Download SVG"
+                            >
+                              <FileDown className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              className="pointer-events-auto rounded-full bg-card/70 text-muted-foreground shadow-sm hover:text-foreground"
+                              onClick={() => void exportPng()}
+                              disabled={series.length === 0}
+                              aria-label="Download PNG"
+                            >
+                              <ImageDown className="h-4 w-4" />
+                            </Button>
+                          </>
+                        ) : null}
+                      </div>
                     </div>
-                  );
-                })}
-              </div>
-            )
-          : (
-              <div className="flex h-60 items-center justify-center rounded-3xl border border-dashed border-inverse/10 bg-card/40 text-sm text-muted-foreground">
-                No study activity yet. Add a topic to see your timeline.
-              </div>
+                  ) : (
+                    <div className="flex h-60 items-center justify-center rounded-3xl border border-dashed border-inverse/10 bg-card/40 text-sm text-muted-foreground">
+                      {hasStudyActivity
+                        ? visibleTopicCount === 0
+                          ? "Select at least one topic to display curves."
+                          : "No retention data for this selection yet."
+                        : "No study activity yet. Add a topic to see your timeline."}
+                    </div>
+                  )
+                ) : null}
+                {subjectTopicCount > 0 ? (
+                  <div
+                    className="flex flex-wrap items-center gap-2 rounded-2xl border border-inverse/10 bg-card/60 px-3 py-2 text-xs text-muted-foreground"
+                    aria-label="Topic color legend"
+                  >
+                    <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Topic colors
+                    </span>
+                    {legendItems.map((topic) => {
+                      const color = singleSubjectColorOverrides?.get(topic.id) ?? resolveTopicColor(topic);
+                      const isFocused = activeTopic?.id === topic.id;
+                      return (
+                        <button
+                          key={topic.id}
+                          type="button"
+                          onClick={() => handleSelectTopic(topic.id)}
+                          className={`inline-flex items-center gap-2 rounded-full border px-2 py-1 text-[11px] transition ${
+                            isFocused
+                              ? "border-primary/60 bg-primary/20 text-primary"
+                              : "border-inverse/10 bg-inverse/5 text-muted-foreground hover:text-fg"
+                          }`}
+                          aria-pressed={isFocused}
+                        >
+                          <span
+                            className="inline-flex h-2 w-2 rounded-full"
+                            style={{ backgroundColor: color }}
+                          />
+                          <span className="max-w-[10rem] truncate text-left">{topic.title}</span>
+                        </button>
+                      );
+                    })}
+                    {legendRemaining > 0 ? (
+                      <span className="text-[11px] text-muted-foreground">+{legendRemaining} more</span>
+                    ) : null}
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <p className="rounded-2xl border border-dashed border-inverse/10 bg-card/50 px-3 py-3 text-xs text-muted-foreground">
+                Select a subject to view its retention curves.
+              </p>
             )}
+          </section>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <Filter className="h-3.5 w-3.5" /> Visibility
-          </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <Button size="sm" variant="ghost" onClick={showAllTopics}>
-              Show all
-            </Button>
-            <Button size="sm" variant="ghost" onClick={hideAllTopics}>
-              Hide all
-            </Button>
-            <Button size="sm" variant="ghost" onClick={showDueTopics}>
-              Only due
-            </Button>
-          </div>
-          <div className="grid gap-2 md:grid-cols-2">
-            {filteredTopics.map((topic) => {
-              const isVisible = visibility[topic.id] ?? true;
-              return (
-                <button
-                  key={topic.id}
-                  type="button"
-                  onClick={() =>
-                    setVisibility((prev) => ({
-                      ...prev,
-                      [topic.id]: !(prev[topic.id] ?? true)
-                    }))
-                  }
-                  className={`flex items-center gap-2 rounded-2xl border px-3 py-2 text-left text-xs transition ${
-                    isVisible ? "border-accent/40 bg-accent/10 text-fg" : "border-inverse/10 bg-transparent text-muted-foreground hover:text-fg"
-                  }`}
-                >
-                  <span className="inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: resolveTopicColor(topic) }} />
-                  <span className="flex-1 truncate">{topic.title}</span>
-                  <span className="text-[10px] text-muted-foreground">
-                    {formatDateWithWeekday(topic.nextReviewDate)}
-                  </span>
-                  {isVisible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                </button>
-              );
+          {activeTopic ? (
+            <>
+              <div className="border-t border-inverse/10" />
+
+              <section aria-label="Topic focus" className="space-y-3">
+                <header className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <Tag className="h-3.5 w-3.5" /> Topic focus
+                  </div>
+                  <Button type="button" size="sm" variant="outline" onClick={() => setActiveTopicId(null)}>
+                    Back to Subject View
+                  </Button>
+                </header>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-fg">{activeTopic.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Next review {formatDateWithWeekday(activeTopic.nextReviewDate)} · {formatRelativeToNow(activeTopic.nextReviewDate)}
+                  </p>
+                </div>
+                {overlayControls}
+                {domain && yDomain && series.length > 0 ? (
+                  <div className="group relative rounded-3xl border border-inverse/10 bg-muted/30 p-3 shadow-sm transition-colors hover:bg-muted/40">
+                    <TimelineChart
+                      ref={svgRef}
+                      series={series}
+                      xDomain={domain}
+                      yDomain={yDomain}
+                      onViewportChange={(next, options) => handleViewportChange(next, { push: options?.push })}
+                      height={variant === "compact" ? 320 : 460}
+                      showGrid
+                      fullDomain={fullDomain ?? undefined}
+                      fullYDomain={fullYDomain ?? undefined}
+                      examMarkers={showExamMarkers ? examMarkers : []}
+                      timeZone={resolvedTimezone}
+                      onResetDomain={handleResetDomain}
+                      ariaDescribedBy={`timeline-zoom-shortcuts ${pointerInstructionId}`}
+                      interactionMode={interactionMode}
+                      temporaryPan={spacePanning}
+                      onRequestStepBack={handleStepBack}
+                      onTooSmallSelection={handleTooSmallSelection}
+                      keyboardSelection={keyboardSelection}
+                      showOpacityGradient={showOpacityGradient}
+                      showReviewMarkers={showReviewMarkers}
+                      showEventDots={showEventDots}
+                      showTopicLabels={showTopicLabels}
+                    />
+                    <div className="pointer-events-none absolute right-3 top-3 flex items-center gap-1 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="pointer-events-auto rounded-full bg-card/70 text-muted-foreground shadow-sm hover:text-foreground"
+                        onClick={(event) => {
+                          if (series.length === 0) return;
+                          fullscreenReturnFocusRef.current = event.currentTarget;
+                          setFullscreenTarget({ type: "combined" });
+                        }}
+                        disabled={series.length === 0}
+                        aria-label="Expand timeline"
+                      >
+                        <Maximize2 className="h-4 w-4" />
+                      </Button>
+                      {variant === "default" ? (
+                        <>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="pointer-events-auto rounded-full bg-card/70 text-muted-foreground shadow-sm hover:text-foreground"
+                            onClick={exportSvg}
+                            disabled={series.length === 0}
+                            aria-label="Download SVG"
+                          >
+                            <FileDown className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="pointer-events-auto rounded-full bg-card/70 text-muted-foreground shadow-sm hover:text-foreground"
+                            onClick={() => void exportPng()}
+                            disabled={series.length === 0}
+                            aria-label="Download PNG"
+                          >
+                            <ImageDown className="h-4 w-4" />
+                          </Button>
+                        </>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
+              </section>
+            </>
+          ) : null}
+
+          <div className="border-t border-inverse/10" />
+
+          <section aria-label="Upcoming checkpoints" className="space-y-3 rounded-2xl border border-inverse/5 bg-inverse/5 p-4">
+            <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <span>Upcoming checkpoints</span>
+              <span>
+                {upcomingSchedule.length} topic{upcomingSchedule.length === 1 ? "" : "s"}
+              </span>
+            </div>
+            {activeSubjectId ? (
+              upcomingSchedule.length === 0 ? (
+                <p className="rounded-2xl border border-inverse/10 bg-card/50 px-3 py-3 text-xs text-muted-foreground">
+                  All caught up! Adjust your filters or add new reviews to see them here.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {upcomingSchedule.map((topic) => {
+                    const due = isDueToday(topic.nextReviewDate);
+                    const isFocused = activeTopic?.id === topic.id;
+                    return (
+                      <button
+                        key={topic.id}
+                        type="button"
+                        onClick={() => handleSelectTopic(topic.id)}
+                        className={`flex w-full items-start gap-3 rounded-2xl border px-3 py-2 text-left transition ${
+                          isFocused
+                            ? "border-primary/60 bg-primary/10"
+                            : "border-inverse/10 bg-card/60 hover:bg-card/70"
+                        }`}
+                        aria-pressed={isFocused}
+                      >
+                        <span
+                          className="mt-1 inline-flex h-2 w-2 rounded-full"
+                          style={{ backgroundColor: due ? palette.warn : resolveTopicColor(topic) }}
+                        />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-fg">{topic.title}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatDateWithWeekday(topic.nextReviewDate)} · {formatRelativeToNow(topic.nextReviewDate)}
+                          </p>
+                        </div>
+                        <span
+                          className={`checkpoint-status inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] uppercase tracking-wide ${
+                            due ? "checkpoint-status--due" : "checkpoint-status--scheduled"
+                          }`}
+                        >
+                          <Check className="h-3 w-3" /> {due ? "Due" : "Scheduled"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )
+            ) : (
+              <p className="rounded-2xl border border-dashed border-inverse/10 bg-card/50 px-3 py-3 text-xs text-muted-foreground">
+                Select a subject to preview its upcoming checkpoints.
+              </p>
+            )}
+          </section>
+        </div>
+      ) : perSubjectSeries.length > 0 && domain && yDomain ? (
+        <>
+          {overlayControls}
+          <div ref={perSubjectContainerRef} className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+            {perSubjectSeries.map((group) => {
+            const markers = showExamMarkers
+              ? examMarkersBySubject.get(group.subjectId) ?? []
+              : [];
+            const examLabel = group.subject?.examDate
+              ? formatDateWithWeekday(group.subject.examDate)
+              : null;
+            return (
+              <div
+                key={group.subjectId}
+                className="space-y-2 rounded-3xl border border-inverse/10 bg-card/50 p-4"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="inline-flex h-2 w-2 rounded-full"
+                      style={{ backgroundColor: group.color }}
+                      aria-hidden="true"
+                    />
+                    <h3 className="text-sm font-semibold text-fg">{group.label}</h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {examLabel ? (
+                      <span className="text-xs text-muted-foreground">Exam {examLabel}</span>
+                    ) : null}
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      onClick={(event) => {
+                        if (group.series.length === 0) {
+                          return;
+                        }
+                        fullscreenReturnFocusRef.current = event.currentTarget;
+                        setFullscreenTarget({ type: "subject", subjectId: group.subjectId });
+                      }}
+                      disabled={group.series.length === 0}
+                      aria-label={`Expand ${group.label} timeline`}
+                      title="Expand timeline"
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <TimelineChart
+                  ref={(element) => setSubjectChartRef(group.subjectId, element)}
+                  series={group.series}
+                  xDomain={domain}
+                  yDomain={yDomain}
+                  onViewportChange={(next, options) => handleViewportChange(next, { push: options?.push })}
+                  height={variant === "compact" ? 300 : 360}
+                  showGrid
+                  fullDomain={fullDomain ?? undefined}
+                  fullYDomain={fullYDomain ?? undefined}
+                  examMarkers={markers}
+                  timeZone={resolvedTimezone}
+                  onResetDomain={handleResetDomain}
+                  ariaDescribedBy={`timeline-zoom-shortcuts ${pointerInstructionId}`}
+                  interactionMode={interactionMode}
+                  temporaryPan={spacePanning}
+                  onRequestStepBack={handleStepBack}
+                  onTooSmallSelection={handleTooSmallSelection}
+                  keyboardSelection={keyboardSelection}
+                  showOpacityGradient={showOpacityGradient}
+                  showReviewMarkers={showReviewMarkers}
+                  showEventDots={showEventDots}
+                  showTopicLabels={showTopicLabels}
+                />
+              </div>
+            );
             })}
           </div>
-        </div>
-
-        <div className="space-y-3 rounded-2xl border border-inverse/5 bg-inverse/5 p-4">
-          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <span>Upcoming checkpoints</span>
-            <span>{upcomingSchedule.length} topics</span>
+        </>
+      ) : (
+          <div className="flex h-60 items-center justify-center rounded-3xl border border-dashed border-inverse/10 bg-card/40 text-sm text-muted-foreground">
+            No study activity yet. Add a topic to see your timeline.
           </div>
-          {upcomingSchedule.length === 0 ? (
-            <p className="rounded-2xl border border-inverse/10 bg-card/50 px-3 py-3 text-xs text-muted-foreground">
-              As you add topics their next review dates will show up here.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {upcomingSchedule.map((topic) => {
-                const due = isDueToday(topic.nextReviewDate);
-                return (
-                  <div key={topic.id} className="flex items-start gap-3 rounded-2xl border border-inverse/10 bg-card/60 px-3 py-2">
-                    <span
-                      className="mt-1 inline-flex h-2 w-2 rounded-full"
-                      style={{ backgroundColor: due ? palette.warn : resolveTopicColor(topic) }}
-                    />
-                    <div className="flex-1">
-                      <p className="checkpoint-title text-sm font-medium">{topic.title}</p>
-                      <p className="checkpoint-date text-xs">
-                        {formatDateWithWeekday(topic.nextReviewDate)}  {formatRelativeToNow(topic.nextReviewDate)}
-                      </p>
-                    </div>
-                    <span
-                      className={`checkpoint-status inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] uppercase tracking-wide ${
-                        due ? "checkpoint-status--due" : "checkpoint-status--scheduled"
-                      }`}
-                    >
-                      <Check className="h-3 w-3" /> {due ? "Due" : "Scheduled"}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
+        )}
       </section>
-
-      {subjectTableData.length > 0 ? (
-        <section className={`${cardClasses} space-y-4`} aria-label="Subject topic tables">
-          <header className="space-y-2">
-            <h3 className="text-lg font-semibold text-fg">Subject overview</h3>
-            <p className="text-sm text-muted-foreground">
-              Review current retention and revision history without leaving the timeline view.
-            </p>
-          </header>
-          <div className="space-y-3">
-            {subjectTableData.map((entry) => (
-              <SubjectRevisionTable
-                key={entry.subjectId}
-                subjectId={entry.subjectId}
-                subjectName={entry.subjectName}
-                subjectColor={entry.subjectColor}
-                rows={entry.rows}
-              />
-            ))}
-          </div>
-        </section>
-      ) : null}
 
       <TimelineFullscreenDialog
         open={isFullscreenOpen}

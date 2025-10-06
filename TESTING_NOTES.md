@@ -23,3 +23,18 @@
 - **Skip action guard** – Confirm the “Skip today” button renders only for rows whose status is `due-today`; upcoming topics should not expose the control.
 - **Expansion details** – Toggle a row open and verify that schedule metadata (intervals, last reviewed, exam countdown) and notes render within the detail panel.
 - **Responsive layout** – Resize the viewport to mobile widths to confirm the table scrolls horizontally, the condensed metadata appears under the topic title, and action buttons remain usable.
+
+## Dark mode contrast
+
+- **Global scan** – Enable dark mode and review dashboard summaries, subject cards, and reviews tables to ensure secondary copy (`text-muted-foreground`) stays legible.
+- **Placeholder sweep** – Focus each major search/input field to confirm placeholder text resolves to the brighter slate tone instead of fading out.
+- **Status chips** – Inspect overdue, upcoming, and exam badges on dark backgrounds for ≥4.5:1 contrast between text and pill fill.
+- **Assistive text** – Check captions, tooltips, and muted helper text for readable hierarchy without dipping below AA contrast ratios.
+
+## Timeline toolbar and chart
+
+- **Icon toggles** – Click each toolbar toggle (exam markers, milestones, event dots, opacity fade, topic labels) to confirm ON/OFF states persist and the icons remain on a single scrollable row.
+- **Milestones linkage** – Turning off the milestones control should hide both checkpoint dots and review stitches; turning it back on should restore both.
+- **Subject chips** – Select different subject chips and verify only one chart renders at a time, the selected chip highlights, and the badge above the chart updates to match the subject colour.
+- **Curve isolation** – Hover and click individual curves to ensure stroke widths grow, other series dim, and clicking empty space restores all curves.
+- **Export fallback** – With filters applied, run SVG/PNG exports to ensure the PNG helper either downloads successfully or surfaces the “Export failed…” toast instead of crashing.

@@ -327,6 +327,14 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
     const [width, setWidth] = React.useState(960);
     const [isPanning, setIsPanning] = React.useState(false);
     const [hoveredTopicId, setHoveredTopicId] = React.useState<string | null>(null);
+    const [focusedTopicId, setFocusedTopicId] = React.useState<string | null>(null);
+    const [isHoveringChart, setIsHoveringChart] = React.useState(false);
+
+    React.useEffect(() => {
+      if (focusedTopicId && !series.some((line) => line.topicId === focusedTopicId)) {
+        setFocusedTopicId(null);
+      }
+    }, [focusedTopicId, series]);
 
     const tooltipDateFormatter = React.useMemo(
       () =>
@@ -795,6 +803,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
     );
 
     const handlePointerDown: React.PointerEventHandler<SVGRectElement> = (event) => {
+      setFocusedTopicId(null);
       if (event.button === 2) {
         event.preventDefault();
         onRequestStepBack?.();
@@ -964,32 +973,91 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
     const paths = series.map((line) => {
       const color = resolveDisplayColor(line);
       const areaGradientId = makeAreaGradientId(line.topicId);
+      const isFocused = focusedTopicId === line.topicId;
+      const isHovered = hoveredTopicId === line.topicId;
+      const isDimmed = Boolean(focusedTopicId && !isFocused);
+      const lineOpacity = isDimmed ? 0.25 : isFocused ? 1 : isHovered ? 0.95 : isHoveringChart ? 0.85 : 0.72;
+      const activeAreaOpacity = isDimmed ? 0.12 : 0.65;
+      const historicalAreaOpacity = isDimmed ? 0.08 : 0.42;
+      const connectorOpacity = isDimmed ? 0.2 : isFocused ? 0.8 : 0.55;
+      const eventsOpacity = isDimmed ? 0.35 : 1;
+      const nowPointOpacity = isDimmed ? 0.5 : 1;
+      const highlightColor = isFocused ? palette.inverseForeground : color;
+
+      const setHoverState = (active: boolean) => {
+        setHoveredTopicId((prev) => {
+          if (active) {
+            return line.topicId;
+          }
+          return prev === line.topicId ? null : prev;
+        });
+      };
+
+      const toggleFocus = () => {
+        setFocusedTopicId((prev) => (prev === line.topicId ? null : line.topicId));
+      };
+
       return (
-        <g key={line.topicId}>
+        <g
+          key={line.topicId}
+          role="button"
+          tabIndex={0}
+          aria-label={`${isFocused ? "Unfocus" : "Highlight"} ${line.topicTitle} curve`}
+          aria-pressed={isFocused}
+          onPointerEnter={() => setHoverState(true)}
+          onPointerLeave={() => setHoverState(false)}
+          onFocus={() => setHoverState(true)}
+          onBlur={() => setHoverState(false)}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            toggleFocus();
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              toggleFocus();
+            }
+          }}
+          style={{ cursor: "pointer" }}
+        >
           <g>
             {line.segments.map((segment) => {
               if (segment.points.length === 0) return null;
               const gradientId = makeGradientId(line.topicId, segment.id);
-              const strokeColor = showOpacityGradient ? `url(#${gradientId})` : color;
+              const usesGradient = showOpacityGradient && !isFocused;
+              const strokeColor = usesGradient ? `url(#${gradientId})` : highlightColor;
               const smooth = createSmoothPaths(segment.points, scaleX, scaleY, baselineY);
               if (!smooth) return null;
+              const baseStroke = segment.isHistorical ? 1.6 : 2.4;
+              const strokeWidth = isFocused
+                ? baseStroke + 1
+                : isHovered
+                ? baseStroke + 0.6
+                : isHoveringChart
+                ? baseStroke + 0.2
+                : baseStroke;
+              const dropShadow = isFocused || isHovered ? "drop-shadow(0 0 6px rgba(15, 17, 21, 0.35))" : undefined;
               return (
                 <React.Fragment key={segment.id}>
                   {smooth.area ? (
                     <path
                       d={smooth.area}
                       fill={`url(#${areaGradientId})`}
-                      opacity={segment.isHistorical ? 0.45 : 0.7}
+                      opacity={segment.isHistorical ? historicalAreaOpacity : activeAreaOpacity}
                       pointerEvents="none"
+                      style={{ transition: "opacity 150ms ease" }}
                     />
                   ) : null}
                   <path
                     d={smooth.line}
                     fill="none"
                     stroke={strokeColor}
-                    strokeWidth={segment.isHistorical ? 1.4 : 2.4}
+                    strokeWidth={strokeWidth}
                     strokeLinecap="round"
                     strokeLinejoin="round"
+                    opacity={lineOpacity}
+                    style={{ transition: "all 150ms ease", filter: dropShadow }}
                   />
                 </React.Fragment>
               );
@@ -1000,7 +1068,7 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
               const toX = scaleX(connector.to.t);
               const toY = scaleY(connector.to.r);
               const gradientId = makeGradientId(line.topicId, `connector-${connector.id}`);
-              const strokeColor = showOpacityGradient ? `url(#${gradientId})` : color;
+              const strokeColor = showOpacityGradient && !isFocused ? `url(#${gradientId})` : highlightColor;
               return (
                 <line
                   key={connector.id}
@@ -1011,6 +1079,8 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                   stroke={strokeColor}
                   strokeWidth={2}
                   strokeLinecap="round"
+                  opacity={connectorOpacity}
+                  style={{ transition: "opacity 150ms ease" }}
                 />
               );
             })}
@@ -1027,11 +1097,12 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                     x2={x}
                     y1={yTop}
                     y2={yBottom}
-                    stroke={color}
+                    stroke={highlightColor}
                     strokeWidth={1.5}
                     strokeDasharray="2 2"
-                    opacity={0.7}
+                    opacity={connectorOpacity}
                     pointerEvents="none"
+                    style={{ transition: "opacity 150ms ease" }}
                   />
                 );
               })
@@ -1057,10 +1128,12 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                   y={-5}
                   width={10}
                   height={10}
-                  fill={color}
+                  fill={highlightColor}
+                  opacity={eventsOpacity}
                   tabIndex={0}
                   transform={transform}
                   aria-label={`${line.topicTitle} started ${tooltipDateFormatter.format(new Date(event.t))}`}
+                  style={{ transition: "opacity 150ms ease" }}
                 />
               );
             }
@@ -1074,10 +1147,12 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                 <polygon
                   key={event.id}
                   points="0,-6 6,0 0,6 -6,0"
-                  fill={color}
+                  fill={highlightColor}
+                  opacity={eventsOpacity}
                   tabIndex={0}
                   transform={transform}
                   aria-label={`${line.topicTitle} skipped ${tooltipDateFormatter.format(new Date(event.t))}`}
+                  style={{ transition: "opacity 150ms ease" }}
                 />
               );
             }
@@ -1088,11 +1163,13 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                   key={event.id}
                   r={6}
                   fill={palette.inverseBackground}
-                  stroke={color}
+                  stroke={highlightColor}
                   strokeWidth={2}
+                  opacity={eventsOpacity}
                   tabIndex={0}
                   transform={transform}
                   aria-label={`${line.topicTitle} checkpoint ${tooltipDateFormatter.format(new Date(event.t))}`}
+                  style={{ transition: "opacity 150ms ease" }}
                 />
               );
             }
@@ -1101,10 +1178,12 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
               <circle
                 key={event.id}
                 r={4}
-                fill={color}
+                fill={highlightColor}
+                opacity={eventsOpacity}
                 tabIndex={0}
                 transform={transform}
                 aria-label={`${line.topicTitle} reviewed ${tooltipDateFormatter.format(new Date(event.t))}`}
+                style={{ transition: "opacity 150ms ease" }}
               />
             );
           })}
@@ -1115,12 +1194,13 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                 const x = scaleX(point.t);
                 const y = scaleY(point.r);
                 return (
-                  <g key={`${line.topicId}-now`} transform={`translate(${x}, ${y})`}>
+                  <g key={`${line.topicId}-now`} transform={`translate(${x}, ${y})`} style={{ transition: "opacity 150ms ease" }}>
                     <circle
                       r={4}
-                      fill={color}
+                      fill={highlightColor}
                       stroke={palette.inverseBorder}
                       strokeWidth={1.5}
+                      opacity={nowPointOpacity}
                       tabIndex={0}
                       aria-label={`${line.topicTitle} retention now ${Math.round(line.nowPoint!.r * 100)}%`}
                     />
@@ -1323,13 +1403,14 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
       };
     }, [keyboardSelection, clampX, scaleX, scaleY, height]);
 
-    const cursor = selectionRect
+    const baseCursor = selectionRect
       ? "crosshair"
       : isPanning
       ? "grabbing"
       : interactionMode === "pan" || temporaryPan
       ? "grab"
-      : "default";
+      : "crosshair";
+    const cursor = hoveredTopicId || focusedTopicId ? "pointer" : baseCursor;
 
     return (
       <div ref={containerRef} className="relative">
@@ -1340,6 +1421,11 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
           height={height}
           aria-describedby={ariaDescribedBy}
           className="w-full select-none"
+          onPointerEnter={() => setIsHoveringChart(true)}
+          onPointerLeave={() => {
+            setIsHoveringChart(false);
+            setHoveredTopicId(null);
+          }}
           onWheel={handleWheel}
           onContextMenu={(event) => {
             event.preventDefault();
@@ -1375,7 +1461,8 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
                     x2={width - PADDING_X}
                     y2={tick.pixel}
                     stroke={palette.grid}
-                    strokeOpacity={0.35}
+                    strokeOpacity={isHoveringChart ? 0.6 : 0.35}
+                    style={{ transition: "stroke-opacity 150ms ease" }}
                   />
                   <text
                     x={12}
@@ -1396,13 +1483,20 @@ export const TimelineChart = React.forwardRef<SVGSVGElement, TimelineChartProps>
               x2={width - PADDING_X}
               y2={height - PADDING_Y}
               stroke={palette.grid}
-              strokeOpacity={0.35}
+              strokeOpacity={isHoveringChart ? 0.6 : 0.35}
+              style={{ transition: "stroke-opacity 150ms ease" }}
             />
             {ticks.map((tick) => {
               const x = scaleX(tick.time);
               return (
                 <g key={tick.time} transform={`translate(${x}, ${height - PADDING_Y})`}>
-                  <line y1={0} y2={6} stroke={palette.grid} strokeOpacity={0.45} />
+                  <line
+                    y1={0}
+                    y2={6}
+                    stroke={palette.grid}
+                    strokeOpacity={isHoveringChart ? 0.75 : 0.45}
+                    style={{ transition: "stroke-opacity 150ms ease" }}
+                  />
                   <text
                     y={18}
                     textAnchor="middle"

@@ -32,3 +32,27 @@
 - Limited the “Skip today” shortcut to topics due today while keeping other actions available.
 - Retired the review-load preview chart to focus on actionable rows.
 - Rebuilt the reviews table with a responsive, GitHub-inspired layout, hoverable rows, and inline expansion for schedule and notes.
+
+### Dark Mode Contrast Improvements
+- Brightened core dark-mode text tokens to keep secondary copy legible against slate backgrounds.
+- Raised muted and placeholder greys for improved hierarchy without sacrificing comfort.
+- Updated status hues so overdue, upcoming, and exam accents clear WCAG contrast targets.
+- Confirmed readability across dashboard summaries, tables, and subject cards in low-light themes.
+
+### Timeline Layout Update
+- Removed the redundant Next Review toggle along with explicit zoom/reset controls from the toolbar.
+- Relocated fullscreen and export actions into the chart overlay for a lighter control surface.
+- Added single-select subject chips and multi-select topic toggles so visibility is explicit.
+- Clarified toolbar states with icon-only toggles and inline clear filters.
+- Reorganised timeline sections to flow from subject selection into topic visibility, focused view, and upcoming checkpoints while dropping the redundant summary chips.
+
+### Timeline UI Refinement
+- Simplified the timeline toolbar into compact icon toggles, merging checkpoints and review markers into a shared milestones control and removing redundant theme/label switches.
+- Limited the view to a single active subject with focus chips, subject badges, and scrollable filters so other subjects stay hidden until reselected.
+- Added hover-aware chart styling with crosshair cursors, curve isolation on click, and lighter grid treatments for clearer comparisons.
+- Hardened SVG/PNG exports with sanitized clones, cross-origin safeguards, and user-facing fallbacks when filters taint the canvas.
+
+### Timeline Page Refactor
+- Synced the “Subject selected” summary with the active subject chips so the chart stays clear until a subject is chosen.
+- Rebranded the focus panel to “Topic focus,” added a back-to-subject control, and isolated topic curves immediately when a topic chip is pressed.
+- Reordered the combined view with dividers separating the selector, summary, topic focus, and upcoming checkpoints for a cleaner hierarchy.

@@ -26,7 +26,7 @@ The Spaced Repetition App is a local-first study companion built with Next.js, T
 - Launched adaptive review scheduling driven by the forgetting curve, including a configurable retention trigger and live preview in Settings.
 - Introduced a light/dark theme toggle with hard-coded palettes so every surface, icon, and label reads consistently without relying on CSS variables.
 - Flattened the UI aesthetic—cards, dialogs, and inputs now use crisp borders instead of shadows while charts retain their soft gradients.
-- Polished the timeline with per-topic labels at the Today line, review-to-review connector segments, and opacity-aware fade controls.
+- Polished the timeline with icon-based overlays, single-subject focus chips, and hoverable curves that isolate when clicked.
 - Hardened light mode contrast so nav links, review statuses, and exam countdowns stay readable on bright surfaces.
 - Added flat per-subject revision tables and hoverable review badges beneath the timeline for a spreadsheet-style snapshot of progress.
 - Simplified the dashboard to focus on today’s review plan, filters, and streak metrics while keeping the full analytics experience on the Timeline page.
@@ -37,6 +37,7 @@ The Spaced Repetition App is a local-first study companion built with Next.js, T
 - The dashboard opens with the "Due today" status chip selected, scrollable primary filters, and a hover-aware review load chart that previews upcoming topics at a glance.
 - The “Progress today” module now sits above the filters with matching dividers, so you can check completion status before browsing topics.
 - The Reviews page now uses a GitHub-inspired table with responsive columns, expandable details, and skip actions limited to due-today topics.
+- Dark mode text contrast has been brightened so secondary labels, notes, and placeholders stay legible on deep slate backgrounds.
 
 ## Key concepts
 
@@ -56,6 +57,7 @@ The Spaced Repetition App is a local-first study companion built with Next.js, T
 ## Per-subject timeline
 
 - Use the **View: Combined • Per subject** switch on the Timeline to render small multiples grouped by subject.
+- The combined view now shows a dedicated subject selector and topic focus rail—pick a subject to populate the chart, then tap any topic chip to isolate its forgetting curve with a Back to Subject control.
 - Zoom, pan, and reset controls remain synchronised across every mini-chart, and exports capture the exact grid layout.
 - Exam markers and the Today line respect per-subject filtering so the view matches the combined summary.
 - Toggle fullscreen from any view mode (Combined or Per subject) to study the chart in an expanded canvas without losing zoom or filter state.
@@ -71,7 +73,7 @@ The Spaced Repetition App is a local-first study companion built with Next.js, T
 
 ## Themes
 
-- Toggle between the light and dark palettes from the header controls or the timeline toolbar—both modes use fixed colour values so surfaces stay visually consistent offline.
+- Toggle between the light and dark palettes from the header controls; both modes use fixed colour values so surfaces stay visually consistent offline.
 - Theme selection persists via local storage, so the app restores your preference on reload and across navigation.
 - The flat design keeps focus outlines and chart gradients readable in both modes without relying on box shadows.
 
