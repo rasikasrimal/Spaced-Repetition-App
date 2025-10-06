@@ -16,76 +16,22 @@ export type IconOption = {
 };
 
 export const ICON_LIBRARY: IconOption[] = [
-  {
-    name: "Beaker",
-    label: "Chemistry",
-    keywords: ["chemistry", "science", "lab", "beaker", "experiment"]
-  },
-  {
-    name: "Atom",
-    label: "Physics",
-    keywords: ["physics", "science", "atom", "molecule", "energy"]
-  },
-  {
-    name: "FunctionSquare",
-    label: "Mathematics",
-    keywords: ["math", "algebra", "formula", "calculus", "function"]
-  },
-  {
-    name: "Dna",
-    label: "Biology",
-    keywords: ["biology", "science", "genetics", "cells", "dna"]
-  },
-  {
-    name: "Cpu",
-    label: "Computer Science",
-    keywords: ["computer", "technology", "coding", "programming", "hardware"]
-  },
-  {
-    name: "BookOpen",
-    label: "Literature",
-    keywords: ["literature", "reading", "books", "english", "stories"]
-  },
-  {
-    name: "Type",
-    label: "Language",
-    keywords: ["language", "letters", "linguistics", "typing", "writing"]
-  },
-  {
-    name: "Palette",
-    label: "Art",
-    keywords: ["art", "design", "painting", "creative", "color"]
-  },
-  {
-    name: "Music3",
-    label: "Music",
-    keywords: ["music", "sound", "rhythm", "melody", "notes"]
-  },
-  {
-    name: "Globe2",
-    label: "Geography",
-    keywords: ["geography", "earth", "maps", "world", "travel"]
-  },
-  {
-    name: "Landmark",
-    label: "History",
-    keywords: ["history", "culture", "monument", "civilization", "heritage"]
-  },
-  {
-    name: "PenTool",
-    label: "Writing",
-    keywords: ["writing", "design", "drafting", "illustration", "creative"]
-  },
-  {
-    name: "Microscope",
-    label: "Science",
-    keywords: ["science", "research", "biology", "analysis", "microscope"]
-  },
-  {
-    name: "Lightbulb",
-    label: "Ideas",
-    keywords: ["ideas", "creativity", "innovation", "inspiration", "light"]
-  }
+  { name: "Beaker", label: "Chemistry", keywords: ["chemistry", "science", "lab", "experiment"] },
+  { name: "Atom", label: "Physics", keywords: ["physics", "science", "atom", "molecule"] },
+  { name: "SquareFunction", label: "Mathematics", keywords: ["math", "function", "algebra", "formula"] },
+  { name: "Dna", label: "Biology", keywords: ["biology", "science", "genetics", "cells"] },
+  { name: "Cpu", label: "Computer Science", keywords: ["computer", "technology", "coding", "hardware"] },
+  { name: "BookOpen", label: "Literature", keywords: ["literature", "reading", "books", "stories"] },
+  { name: "Type", label: "Language", keywords: ["language", "linguistics", "typing", "letters"] },
+  { name: "Palette", label: "Art", keywords: ["art", "design", "painting", "creative"] },
+  { name: "Music3", label: "Music", keywords: ["music", "sound", "melody", "rhythm"] },
+  { name: "Globe2", label: "Geography", keywords: ["geography", "maps", "earth", "world"] },
+  { name: "Landmark", label: "History", keywords: ["history", "monument", "heritage", "culture"] },
+  { name: "PenTool", label: "Writing", keywords: ["writing", "creative", "pen", "drafting"] },
+  { name: "Microscope", label: "Science", keywords: ["science", "research", "analysis", "lab"] },
+  { name: "Lightbulb", label: "Ideas", keywords: ["ideas", "innovation", "insight", "brainstorm"] },
+  { name: "Sparkles", label: "General", keywords: ["general", "sparkles", "highlight", "default"] },
+  { name: "Star", label: "Favorites", keywords: ["favorite", "star", "important", "priority"] }
 ];
 
 export type ColorPreset = {
