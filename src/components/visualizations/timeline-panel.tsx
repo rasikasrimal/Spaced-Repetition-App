@@ -1522,6 +1522,26 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     ? "rounded-3xl border border-inverse/5 bg-card/50 p-5"
     : "rounded-3xl border border-inverse/5 bg-card/40 p-6 md:p-8";
 
+  const handleClearFilters = React.useCallback(() => {
+    setSearch("");
+    setCategoryFilter(new Set());
+    setShowExamMarkers(true);
+    setShowCheckpoints(false);
+    setShowReviewMarkers(false);
+    setShowEventDots(true);
+    setShowOpacityGradient(true);
+    setShowTopicLabels(true);
+  }, [
+    setSearch,
+    setCategoryFilter,
+    setShowExamMarkers,
+    setShowCheckpoints,
+    setShowReviewMarkers,
+    setShowEventDots,
+    setShowOpacityGradient,
+    setShowTopicLabels
+  ]);
+
   const hasCustomFilters =
     search.trim().length > 0 ||
     categoryFilter.size > 0 ||
@@ -1606,23 +1626,6 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
       ) : null}
     </div>
   );
-
-  const handleClearFilters = React.useCallback(() => {
-    setSearch("");
-    setCategoryFilter(new Set());
-    setShowExamMarkers(true);
-    setShowCheckpoints(false);
-    setShowReviewMarkers(false);
-    setShowEventDots(true);
-    setShowOpacityGradient(true);
-    setShowTopicLabels(true);
-  }, [
-    setShowExamMarkers,
-    setShowEventDots,
-    setShowOpacityGradient,
-    setShowTopicLabels,
-    setShowReviewMarkers
-  ]);
 
   return (
     <>
