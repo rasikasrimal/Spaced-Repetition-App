@@ -1,11 +1,33 @@
+:root {
+  --surface-overlay-alpha: 0.1;
+  --dropdown-bg: #ffffff;
+  --dropdown-border: #e4e4e7;
+  --dropdown-shadow: rgba(15, 17, 21, 0.1);
+  --dropdown-hover-bg: color-mix(in srgb, var(--dropdown-bg) 90%, #21ce99 10%);
+  --accent-color: #21ce99;
+  --accent-foreground: #0f1115;
+}
+
 body.light {
   background-color: #ffffff;
   color: #1a1a1a;
+  --dropdown-bg: #ffffff;
+  --dropdown-border: #e4e4e7;
+  --dropdown-shadow: rgba(15, 17, 21, 0.12);
+  --dropdown-hover-bg: color-mix(in srgb, #ffffff 90%, #21ce99 10%);
+  --accent-color: #21ce99;
+  --accent-foreground: #0f1115;
 }
 
 body.dark {
   background-color: #0f1115;
   color: #ffffff;
+  --dropdown-bg: #18181b;
+  --dropdown-border: #27272a;
+  --dropdown-shadow: rgba(0, 0, 0, 0.24);
+  --dropdown-hover-bg: color-mix(in srgb, #18181b 90%, #3dea95 10%);
+  --accent-color: #3dea95;
+  --accent-foreground: #0f1115;
 }
 
 body.light * {
@@ -14,6 +36,32 @@ body.light * {
 
 body.dark * {
   border-color: #262a30;
+}
+
+.dropdown-surface {
+  background-color: var(--dropdown-bg);
+  border: 1px solid var(--dropdown-border);
+  box-shadow: 0 8px 20px var(--dropdown-shadow);
+  transition: background-color 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.dropdown-item {
+  border-radius: 0.625rem;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.dropdown-item[data-highlighted],
+.dropdown-item:hover {
+  background-color: var(--dropdown-hover-bg);
+  color: var(--accent-color);
+}
+
+.dropdown-item[data-state="checked"] {
+  color: var(--accent-color);
+}
+
+[data-radix-popper-content-wrapper] > * {
+  border-radius: inherit;
 }
 
 .scrollbar-none {
@@ -91,20 +139,26 @@ body.dark .bg-bg\/95 { background-color: rgba(15, 17, 21, 0.95); }
 
 body.light .bg-card { background-color: #f8f9fa; }
 body.dark .bg-card { background-color: #181b20; }
-body.light .bg-card\/40 { background-color: rgba(248, 249, 250, 0.4); }
-body.dark .bg-card\/40 { background-color: rgba(24, 27, 32, 0.4); }
-body.light .bg-card\/50 { background-color: rgba(248, 249, 250, 0.5); }
-body.dark .bg-card\/50 { background-color: rgba(24, 27, 32, 0.5); }
-body.light .bg-card\/60 { background-color: rgba(248, 249, 250, 0.6); }
-body.dark .bg-card\/60 { background-color: rgba(24, 27, 32, 0.6); }
-body.light .bg-card\/70 { background-color: rgba(248, 249, 250, 0.7); }
-body.dark .bg-card\/70 { background-color: rgba(24, 27, 32, 0.7); }
-body.light .bg-card\/80 { background-color: rgba(248, 249, 250, 0.8); }
-body.dark .bg-card\/80 { background-color: rgba(24, 27, 32, 0.8); }
-body.light .bg-card\/90 { background-color: rgba(248, 249, 250, 0.9); }
-body.dark .bg-card\/90 { background-color: rgba(24, 27, 32, 0.9); }
-body.light .bg-card\/95 { background-color: rgba(248, 249, 250, 0.95); }
-body.dark .bg-card\/95 { background-color: rgba(24, 27, 32, 0.95); }
+body.light .bg-card\/10,
+body.light .bg-card\/40,
+body.light .bg-card\/50,
+body.light .bg-card\/60,
+body.light .bg-card\/70,
+body.light .bg-card\/80,
+body.light .bg-card\/90,
+body.light .bg-card\/95 {
+  background-color: rgb(248 249 250 / min(var(--surface-overlay-alpha), 1));
+}
+body.dark .bg-card\/10,
+body.dark .bg-card\/40,
+body.dark .bg-card\/50,
+body.dark .bg-card\/60,
+body.dark .bg-card\/70,
+body.dark .bg-card\/80,
+body.dark .bg-card\/90,
+body.dark .bg-card\/95 {
+  background-color: rgb(24 27 32 / min(var(--surface-overlay-alpha), 1));
+}
 
 body.light .bg-inverse { background-color: #e9ecf0; }
 body.dark .bg-inverse { background-color: #1f232a; }

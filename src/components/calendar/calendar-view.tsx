@@ -447,7 +447,7 @@ export function CalendarView() {
                 {subjectFilterLabel}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-64 rounded-2xl border border-inverse/10 bg-card/95 p-3 text-sm text-fg">
+            <PopoverContent className="w-64 rounded-2xl p-3 text-sm text-fg">
               <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
                 <button
                   type="button"

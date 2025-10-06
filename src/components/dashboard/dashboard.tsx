@@ -334,7 +334,7 @@ const DashboardSummaryCard = ({
   ];
 
   return (
-    <section className="dashboard-summary-card rounded-3xl border border-inverse/10 bg-card/70 bg-gradient-to-br from-bg/80 via-card/70 to-bg/80 p-6 shadow-sm transition-colors md:p-8">
+    <section className="dashboard-summary-card rounded-3xl border border-inverse/10 bg-card/10 bg-gradient-to-br from-bg/80 via-card/70 to-bg/80 p-6 shadow-sm transition-colors md:p-8">
       <div className="flex flex-col gap-8 lg:flex-row lg:justify-between">
         <div className="space-y-4 lg:max-w-xl">
           <div className="space-y-2">
