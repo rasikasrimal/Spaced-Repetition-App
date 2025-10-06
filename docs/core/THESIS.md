@@ -145,14 +145,21 @@ stateDiagram-v2
 The timeline chart overlays exam markers, projected retention curves, and active zoom selections. Figure 3.5 presents the conceptual illustration.
 
 ```mermaid
-%% Figure 3.5: Timeline chart illustration
-line
-  title Retention Projection with Exam Markers
-  xAxis Time (days)
-  yAxis Retention Probability
-  series RetentionCurve 0.95:0 0.85:7 0.72:14 0.61:21 0.52:28 0.44:35 0.38:42 0.33:49
-  series ZoomSelection 0.0:14 1.0:21 0.0:28
-  series ExamMarkers 0.0:21 0.0:42
+graph LR
+    title["Retention Projection with Exam Markers"]
+
+    A0["Day 0: Retention 0.95"]
+    A7["Day 7: Retention 0.85"]
+    A14["Day 14: Retention 0.72 (Exam)"]
+    A21["Day 21: Retention 0.61 (Zoom + Exam)"]
+    A28["Day 28: Retention 0.52 (Zoom)"]
+    A35["Day 35: Retention 0.44"]
+    A42["Day 42: Retention 0.38 (Exam)"]
+    A49["Day 49: Retention 0.33"]
+
+    A0 --> A7 --> A14 --> A21 --> A28 --> A35 --> A42 --> A49
+
+
 ```
 
 ## 4. Mathematical Foundations
