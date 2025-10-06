@@ -1,39 +1,91 @@
 export const DEFAULT_INTERVALS = [1, 4, 14, 30, 60];
 
 export type IconOption = {
+  /**
+   * Lucide icon component name.
+   */
   name: string;
+  /**
+   * Human readable subject that the icon represents.
+   */
   label: string;
-  category:
-    | "Science"
-    | "Math"
-    | "Language"
-    | "History"
-    | "Technology"
-    | "General";
+  /**
+   * Keywords that make the icon discoverable via search.
+   */
   keywords: string[];
 };
 
 export const ICON_LIBRARY: IconOption[] = [
-  { name: "FlaskConical", label: "Flask", category: "Science", keywords: ["science", "chemistry", "lab"] },
-  { name: "Beaker", label: "Beaker", category: "Science", keywords: ["science", "experiment", "liquid"] },
-  { name: "Atom", label: "Atom", category: "Science", keywords: ["science", "physics", "molecule"] },
-  { name: "Calculator", label: "Calculator", category: "Math", keywords: ["math", "arithmetic", "numbers"] },
-  { name: "Sigma", label: "Sigma", category: "Math", keywords: ["math", "summation", "algebra"] },
-  { name: "FunctionSquare", label: "Function", category: "Math", keywords: ["math", "function", "graph"] },
-  { name: "Ruler", label: "Ruler", category: "Math", keywords: ["math", "measure", "geometry"] },
-  { name: "BookOpen", label: "Book", category: "Language", keywords: ["language", "reading", "literature"] },
-  { name: "PenLine", label: "Pen", category: "Language", keywords: ["language", "writing", "pen"] },
-  { name: "Globe", label: "Globe", category: "Language", keywords: ["language", "world", "culture"] },
-  { name: "Landmark", label: "Landmark", category: "History", keywords: ["history", "monument", "heritage"] },
-  { name: "ScrollText", label: "Scroll", category: "History", keywords: ["history", "document", "chronicle"] },
-  { name: "Clock", label: "Clock", category: "History", keywords: ["history", "time", "timeline"] },
-  { name: "Cpu", label: "CPU", category: "Technology", keywords: ["technology", "hardware", "processor"] },
-  { name: "Monitor", label: "Monitor", category: "Technology", keywords: ["technology", "display", "screen"] },
-  { name: "Code", label: "Code", category: "Technology", keywords: ["technology", "software", "programming"] },
-  { name: "Lightbulb", label: "Lightbulb", category: "General", keywords: ["general", "idea", "insight"] },
-  { name: "Sparkles", label: "Sparkles", category: "General", keywords: ["general", "celebration", "highlight"] },
-  { name: "Star", label: "Star", category: "General", keywords: ["general", "favorite", "important"] },
-  { name: "Brain", label: "Brain", category: "General", keywords: ["general", "thinking", "study"] }
+  {
+    name: "Beaker",
+    label: "Chemistry",
+    keywords: ["chemistry", "science", "lab", "beaker", "experiment"]
+  },
+  {
+    name: "Atom",
+    label: "Physics",
+    keywords: ["physics", "science", "atom", "molecule", "energy"]
+  },
+  {
+    name: "FunctionSquare",
+    label: "Mathematics",
+    keywords: ["math", "algebra", "formula", "calculus", "function"]
+  },
+  {
+    name: "Dna",
+    label: "Biology",
+    keywords: ["biology", "science", "genetics", "cells", "dna"]
+  },
+  {
+    name: "Cpu",
+    label: "Computer Science",
+    keywords: ["computer", "technology", "coding", "programming", "hardware"]
+  },
+  {
+    name: "BookOpen",
+    label: "Literature",
+    keywords: ["literature", "reading", "books", "english", "stories"]
+  },
+  {
+    name: "Type",
+    label: "Language",
+    keywords: ["language", "letters", "linguistics", "typing", "writing"]
+  },
+  {
+    name: "Palette",
+    label: "Art",
+    keywords: ["art", "design", "painting", "creative", "color"]
+  },
+  {
+    name: "Music3",
+    label: "Music",
+    keywords: ["music", "sound", "rhythm", "melody", "notes"]
+  },
+  {
+    name: "Globe2",
+    label: "Geography",
+    keywords: ["geography", "earth", "maps", "world", "travel"]
+  },
+  {
+    name: "Landmark",
+    label: "History",
+    keywords: ["history", "culture", "monument", "civilization", "heritage"]
+  },
+  {
+    name: "PenTool",
+    label: "Writing",
+    keywords: ["writing", "design", "drafting", "illustration", "creative"]
+  },
+  {
+    name: "Microscope",
+    label: "Science",
+    keywords: ["science", "research", "biology", "analysis", "microscope"]
+  },
+  {
+    name: "Lightbulb",
+    label: "Ideas",
+    keywords: ["ideas", "creativity", "innovation", "inspiration", "light"]
+  }
 ];
 
 export type ColorPreset = {
