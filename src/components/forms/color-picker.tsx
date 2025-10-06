@@ -81,32 +81,25 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({ value, onChange }) => 
       <PopoverContent className="w-80 space-y-4 rounded-3xl p-4" sideOffset={12}>
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Standard palette</p>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-5 gap-3">
             {COLOR_PRESETS.map((preset) => {
               const isActive = preset.value === value;
-              const presetSurface = getTintedSurfaceColor(preset.value);
-              const presetText = getAccessibleTextColor(presetSurface);
               return (
                 <button
                   key={preset.value}
                   type="button"
                   onClick={() => handlePresetSelect(preset.value)}
                   title={`${preset.name} (${preset.value})`}
+                  aria-label={`${preset.name} (${preset.value})`}
+                  aria-pressed={isActive}
+                  data-selected={isActive}
                   className={cn(
-                    "group flex items-center gap-3 rounded-2xl border border-transparent bg-inverse/5 p-3 text-left transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
-                    isActive && "border-accent shadow-lg"
+                    "inline-flex h-8 w-8 items-center justify-center rounded-full border border-transparent transition-all duration-200 ease-in-out hover:scale-110 hover:border-accent/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
+                    isActive && "ring-2 ring-accent ring-offset-2 ring-offset-bg"
                   )}
-                  style={{ backgroundColor: presetSurface, color: presetText }}
+                  style={{ backgroundColor: preset.value }}
                 >
-                  <span
-                    aria-hidden="true"
-                    className="h-7 w-7 rounded-full border border-white/30 shadow-sm"
-                    style={{ backgroundColor: preset.value }}
-                  />
-                  <div className="flex flex-col text-left">
-                    <span className="text-sm font-semibold leading-snug">{preset.name}</span>
-                    <span className="text-[11px] font-medium opacity-80">{preset.value}</span>
-                  </div>
+                  <span className="sr-only">{preset.name} {preset.value}</span>
                 </button>
               );
             })}
