@@ -6,7 +6,7 @@ We intentionally avoid a cloud backend so the app works offline, ships without a
 
 ## Tab-first navigation
 
-Research sessions showed that learners memorise "Today → Dashboard → Timeline → Subjects → Settings" as a linear check-in. The header follows that order and keeps icons visible even on narrow devices. Planned features (AI Help, Templates, Notifications) will live behind secondary menus to avoid crowding the main tabs.
+Research sessions showed that learners memorise "Today → Dashboard → Timeline → Subjects" as a linear check-in, with the profile menu handling settings and account actions. The header follows that order and keeps icons visible even on narrow devices. Planned features (AI Help, Templates, Notifications) will live behind secondary menus to avoid crowding the main tabs.
 
 ## Flat visual language
 

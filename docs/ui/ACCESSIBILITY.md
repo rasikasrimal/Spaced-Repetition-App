@@ -10,6 +10,7 @@
 
 - Global skip link jumps to the main content at the top of each page.
 - Navigation bar links are reachable via Tab order and expose visible focus rings.
+- Active nav links set `aria-current="page"` and mirror the underline highlight for screen readers via the select label on mobile.
 - Today list supports `ArrowUp`/`ArrowDown`, `Enter` to open a topic, and `Shift+Enter` to mark complete when the row is focused.
 - Timeline zoom stack supports keyboard: `Z` toggles selection mode, `+` / `-` adjust zoom, `0` resets.
 
@@ -18,6 +19,7 @@
 - Dialogs (`Dialog` from Radix) trap focus and restore it on close.
 - Toasts announce via `aria-live="polite"`.
 - Auto-advancing to the next topic moves focus to the next card header without scrolling unexpectedly.
+- Mobile UnderlineNav select preserves focus after route changes by delegating navigation through `next/navigation`.
 
 ## Screen reader copy
 

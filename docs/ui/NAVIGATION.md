@@ -8,7 +8,9 @@
 | 2 | Dashboard | `LayoutDashboard` | `/dashboard` | High-level analytics: streaks, review load, completion progress. |
 | 3 | Timeline | `LineChart` | `/timeline` | Retention curves with zoom, subject filters, and exports. |
 | 4 | Subjects | `BookOpen` | `/subjects` | Manage subject metadata, exam dates, and topic history. |
-| 5 | Settings | `Settings` | `/settings` | Profile, theme, automation, and data management controls. |
+| 5 | Settings | `Settings` | `/settings` | Personalisation controls, notification rules, and integrations. |
+
+All five tabs are centred within the header’s UnderlineNav component while secondary actions (theme toggle, notifications, profile) remain on the right.
 
 ## Header layout
 
@@ -21,20 +23,21 @@ graph LR
   Tabs -.-> MobileNav
 ```
 
-- Desktop navigation sits inside a frosted glass container with rounded corners and accent outlines on the active item.
-- Mobile shows a floating bottom nav with the same order; icons remain labelled until the viewport drops below 480px, then labels hide.
+- Desktop navigation uses a flat UnderlineNav container with subtle backdrop blur and a centred tab list. Each link renders a pseudo-element underline driven by Tailwind classes.
+- Mobile switches to a Radix `Select` dropdown beneath the header so the same routes remain reachable with accessible labelling.
 
 ## Interaction states
 
-- Hover: background tint (`accent/10` light, `accent/20` dark), icon scales to 110%.
-- Active: accent background + border highlight with accessible text colour.
+- Hover: 150 ms delayed underline expansion from the centre, accent-tinted text, and icon scale to 105% with a soft background tint (`accent/10`).
+- Active: 2px accent underline plus accent foreground text; highlight persists on focus via shared ring utilities.
 - Focus: uses the shared `focus-visible` outline at 2px accent.
 - Notification pill: the **Study Today** button shows the number of due cards for quick access.
+- Today tab counter: displays the current due count beside the label in a GitHub-style pill for parity with notification badges.
 
 ## Responsive logic
 
 - The header is sticky with backdrop blur to keep tabs visible during long scrolls.
-- On mobile, the nav compresses into the floating bar while the header collapses to logo + actions.
+- On mobile, the UnderlineNav collapses into the dropdown while the header keeps logo, theme toggle, notifications, and profile buttons inline.
 - All nav links route via Next.js `<Link>` to preserve client-side transitions.
 
 ## Future tabs

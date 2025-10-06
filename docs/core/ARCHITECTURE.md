@@ -40,7 +40,7 @@ flowchart LR
   Navigation -->|Tab change| Page((Page segment))
 ```
 
-- **Navigation** renders the Today, Dashboard, Timeline, Subjects, and Settings tabs.
+- **Navigation** renders the Today, Dashboard, Timeline, and Subjects tabs, while Settings lives in the profile menu dropdown.
 - **ThemeProvider** reads persisted theme preference and toggles the root class.
 - **StoreHydrator** rehydrates persisted topics, profile, appearance, and timeline preferences before child routes render.
 
