@@ -8,7 +8,8 @@
 | 2 | Dashboard | `LayoutDashboard` | `/dashboard` | High-level analytics: streaks, review load, completion progress. |
 | 3 | Timeline | `LineChart` | `/timeline` | Retention curves with zoom, subject filters, and exports. |
 | 4 | Subjects | `BookOpen` | `/subjects` | Manage subject metadata, exam dates, and topic history. |
-| 5 | Settings | `Settings` | `/settings` | Profile, theme, automation, and data management controls. |
+
+Settings lives in the profile menu dropdown alongside the log out and device options, keeping the primary tabs focused on study flows.
 
 ## Header layout
 
