@@ -16,6 +16,21 @@
 - Standardized exam badge color palette (amber tones).
 - Added hover/focus transitions and accessibility attributes.
 
+### UI: Timeline Overlay Button Redesign
+- Improved visibility of overlay toggle icons.
+- Added consistent hover/active color logic for both themes.
+- Balanced stroke weights for all icons.
+- Enhanced keyboard focus and tooltips.
+
+### Settings & Appearance Controls
+- Added an appearance panel to tune surface overlay opacity with live preview.
+- Surface overlays across dashboard cards now respect a shared opacity variable persisted per user.
+
+### UI: Dropdown Background Opacity Fix
+- Replaced semi-transparent dropdown surfaces with solid backgrounds for improved readability.
+- Added theme-aware borders, hover tints, and shadows to popovers and select menus.
+- Unified Radix dropdown styling via shared tokens for light and dark modes.
+
 ### Dashboard UI & Chart Refinements
 - Default the dashboard status filter to "Due today" and persist the preference across sessions.
 - Unify the filter button group with uppercase primary styling, horizontal scroll, and accessible focus rings.
@@ -26,6 +41,12 @@
 - Repositioned the “Progress today” module directly beneath the daily summary cards so completion status appears before filters.
 - Added soft divider rules above and below the progress module to separate major dashboard sections.
 - Balanced spacing and headings to match surrounding sections in both light and dark themes.
+
+### UI: Dashboard Summary Card Redesign
+- Merged “Today’s Tasks” and “Progress Today” into a unified overview card.
+- Added icons, emojis, and hover effects for engagement.
+- Improved light/dark mode contrast.
+- Progress indicator and motivational text are now contextually linked.
 
 ### Reviews Page Enhancements
 - Fixed the runtime error triggered by the "All" filter by guarding invalid status lookups.

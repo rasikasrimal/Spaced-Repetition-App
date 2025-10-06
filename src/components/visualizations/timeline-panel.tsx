@@ -69,6 +69,15 @@ type SubjectSeriesGroup = {
   series: TimelineSeries[];
 };
 
+const hexToRgba = (hexColor: string, alpha: number): string => {
+  const sanitized = hexColor.replace("#", "");
+  const value = parseInt(sanitized, 16);
+  const r = (value >> 16) & 255;
+  const g = (value >> 8) & 255;
+  const b = value & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
 type SubjectOption = {
   id: string;
   label: string;
@@ -492,6 +501,24 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   const showTopicLabels = useTimelinePreferencesStore((state) => state.showTopicLabels);
   const setShowTopicLabels = useTimelinePreferencesStore((state) => state.setShowTopicLabels);
   const showMilestones = showCheckpoints || showReviewMarkers;
+  const palette = useThemePalette();
+  const overlayToggleStyles = React.useMemo(
+    () =>
+      ({
+        "--overlay-border": palette.border,
+        "--overlay-border-hover": palette.iconInactive,
+        "--overlay-border-active": palette.accent,
+        "--overlay-icon-inactive": palette.iconInactive,
+        "--overlay-icon-hover": palette.textPrimary,
+        "--overlay-icon-active": palette.iconActive,
+        "--overlay-bg-active": hexToRgba(palette.accent, 0.22),
+        "--overlay-bg-active-hover": hexToRgba(palette.accent, 0.28),
+        "--overlay-shadow-active": hexToRgba(palette.accent, 0.4)
+      }) as React.CSSProperties,
+    [palette]
+  );
+  const overlayToggleClasses =
+    "group inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--overlay-border)] bg-transparent text-[var(--overlay-icon-inactive)] shadow-none transition duration-150 ease-out hover:border-[var(--overlay-border-hover)] hover:bg-muted/30 hover:text-[var(--overlay-icon-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[state=on]:border-[var(--overlay-border-active)] data-[state=on]:bg-[var(--overlay-bg-active)] data-[state=on]:text-[var(--overlay-icon-active)] data-[state=on]:shadow-[0_0.45rem_1.15rem_var(--overlay-shadow-active)] data-[state=on]:hover:bg-[var(--overlay-bg-active-hover)]";
   const handleToggleMilestones = (pressed: boolean) => {
     const next = Boolean(pressed);
     setShowCheckpoints(next);
@@ -512,7 +539,6 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
       map.delete(subjectId);
     }
   }, []);
-  const palette = useThemePalette();
 
   const handleSelectSubject = React.useCallback((subjectId: string) => {
     setActiveSubjectId(subjectId);
@@ -1531,6 +1557,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div
         className="flex items-center gap-1 overflow-x-auto whitespace-nowrap rounded-2xl border border-inverse/15 bg-card/70 p-1 shadow-sm scrollbar-none"
+        style={overlayToggleStyles}
         role="group"
         aria-label="Timeline overlays"
       >
@@ -1538,56 +1565,71 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
           type="button"
           pressed={showExamMarkers}
           onPressedChange={(pressed) => setShowExamMarkers(Boolean(pressed))}
-          aria-label="Toggle exam markers"
-          title="Exam markers"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border bg-transparent text-muted-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[state=off]:border-transparent data-[state=off]:bg-transparent data-[state=off]:opacity-75 data-[state=off]:hover:border-inverse/20 data-[state=off]:hover:bg-card/60 data-[state=off]:hover:text-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/20 data-[state=on]:text-primary data-[state=on]:shadow-sm"
+          aria-label="Show exam markers"
+          title="Show exam markers"
+          className={overlayToggleClasses}
         >
-          <GraduationCap className="h-4 w-4" />
-          <span className="sr-only">Exam markers</span>
+          <GraduationCap
+            className="h-[18px] w-[18px] transition-transform transition-colors duration-150 ease-out group-hover:scale-[1.06] group-data-[state=on]:scale-[1.03]"
+            strokeWidth={1.5}
+          />
+          <span className="sr-only">Show exam markers</span>
         </Toggle>
         <Toggle
           type="button"
           pressed={showMilestones}
           onPressedChange={handleToggleMilestones}
           aria-label="Toggle milestones"
-          title="Milestones"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border bg-transparent text-muted-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[state=off]:border-transparent data-[state=off]:bg-transparent data-[state=off]:opacity-75 data-[state=off]:hover:border-inverse/20 data-[state=off]:hover:bg-card/60 data-[state=off]:hover:text-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/20 data-[state=on]:text-primary data-[state=on]:shadow-sm"
+          title="Toggle milestones"
+          className={overlayToggleClasses}
         >
-          <Milestone className="h-4 w-4" />
-          <span className="sr-only">Milestones</span>
+          <Milestone
+            className="h-[18px] w-[18px] transition-transform transition-colors duration-150 ease-out group-hover:scale-[1.06] group-data-[state=on]:scale-[1.03]"
+            strokeWidth={1.5}
+          />
+          <span className="sr-only">Toggle milestones</span>
         </Toggle>
         <Toggle
           type="button"
           pressed={showEventDots}
           onPressedChange={(pressed) => setShowEventDots(Boolean(pressed))}
           aria-label="Toggle event dots"
-          title="Event dots"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border bg-transparent text-muted-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[state=off]:border-transparent data-[state=off]:bg-transparent data-[state=off]:opacity-75 data-[state=off]:hover:border-inverse/20 data-[state=off]:hover:bg-card/60 data-[state=off]:hover:text-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/20 data-[state=on]:text-primary data-[state=on]:shadow-sm"
+          title="Toggle event dots"
+          className={overlayToggleClasses}
         >
-          <Dot className="h-4 w-4" />
-          <span className="sr-only">Event dots</span>
+          <Dot
+            className="h-[18px] w-[18px] transition-transform transition-colors duration-150 ease-out group-hover:scale-[1.06] group-data-[state=on]:scale-[1.03]"
+            strokeWidth={1.5}
+          />
+          <span className="sr-only">Toggle event dots</span>
         </Toggle>
         <Toggle
           type="button"
           pressed={showOpacityGradient}
           onPressedChange={(pressed) => setShowOpacityGradient(Boolean(pressed))}
           aria-label="Toggle opacity fade"
-          title="Opacity fade"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border bg-transparent text-muted-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[state=off]:border-transparent data-[state=off]:bg-transparent data-[state=off]:opacity-75 data-[state=off]:hover:border-inverse/20 data-[state=off]:hover:bg-card/60 data-[state=off]:hover:text-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/20 data-[state=on]:text-primary data-[state=on]:shadow-sm"
+          title="Toggle opacity fade"
+          className={overlayToggleClasses}
         >
-          <Droplet className="h-4 w-4" />
-          <span className="sr-only">Opacity fade</span>
+          <Droplet
+            className="h-[18px] w-[18px] transition-transform transition-colors duration-150 ease-out group-hover:scale-[1.06] group-data-[state=on]:scale-[1.03]"
+            strokeWidth={1.5}
+          />
+          <span className="sr-only">Toggle opacity fade</span>
         </Toggle>
         <Toggle
           type="button"
           pressed={showTopicLabels}
           onPressedChange={(pressed) => setShowTopicLabels(Boolean(pressed))}
           aria-label="Toggle topic labels"
-          title="Topic labels"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border bg-transparent text-muted-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[state=off]:border-transparent data-[state=off]:bg-transparent data-[state=off]:opacity-75 data-[state=off]:hover:border-inverse/20 data-[state=off]:hover:bg-card/60 data-[state=off]:hover:text-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/20 data-[state=on]:text-primary data-[state=on]:shadow-sm"
+          title="Toggle topic labels"
+          className={overlayToggleClasses}
         >
-          <Tag className="h-4 w-4" />
-          <span className="sr-only">Topic labels</span>
+          <Tag
+            className="h-[18px] w-[18px] transition-transform transition-colors duration-150 ease-out group-hover:scale-[1.06] group-data-[state=on]:scale-[1.03]"
+            strokeWidth={1.5}
+          />
+          <span className="sr-only">Toggle topic labels</span>
         </Toggle>
       </div>
       {hasCustomFilters ? (

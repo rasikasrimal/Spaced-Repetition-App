@@ -525,7 +525,7 @@ export function TopicList({
                     <ChevronDown className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-72 rounded-2xl border border-inverse/10 bg-card/95 p-3 text-sm text-fg">
+                <PopoverContent className="w-72 rounded-2xl p-3 text-sm text-fg">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Subjects</span>
                     <div className="flex items-center gap-2">
@@ -617,7 +617,7 @@ export function TopicList({
                     <ChevronDown className="h-3 w-3 text-muted-foreground" aria-hidden="true" /> Sort by: {sortLabels[sortOption]}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-56 rounded-2xl border border-inverse/10 bg-card/95 p-2 text-sm text-fg">
+                <PopoverContent className="w-56 rounded-2xl p-2 text-sm text-fg">
                   <div className="space-y-1">
                     {(Object.keys(sortLabels) as SortOption[]).map((value) => (
                       <button
@@ -1066,7 +1066,7 @@ function TopicListRow({ item, subject, timezone, zonedNow, onEdit, editing }: To
                     <Ellipsis className="h-4 w-4" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-48 rounded-xl border border-border/60 bg-card/95 p-2 text-sm text-fg shadow-lg">
+                <PopoverContent className="w-48 rounded-xl p-2 text-sm text-fg">
                   {item.status === "due-today" ? (
                     <button
                       type="button"

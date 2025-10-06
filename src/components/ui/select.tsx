@@ -37,7 +37,7 @@ const SelectContent = React.forwardRef<
     <SelectPrimitive.Content
       ref={ref}
       className={cn(
-        "z-50 min-w-[8rem] overflow-hidden rounded-xl border border-border bg-card text-fg backdrop-blur supports-[backdrop-filter]:bg-card/90",
+        "dropdown-surface z-50 min-w-[8rem] overflow-hidden rounded-xl text-fg",
         className
       )}
       position={position}
@@ -70,7 +70,7 @@ const SelectItem = React.forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex w-full select-none items-center rounded-md px-2 py-2 text-sm outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground",
+      "dropdown-item relative flex w-full select-none items-center px-3 py-2 text-sm text-fg outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
       className
     )}
     {...props}
@@ -78,8 +78,8 @@ const SelectItem = React.forwardRef<
     <SelectPrimitive.ItemText asChild>
       <span className="flex flex-1 items-center gap-2">{children}</span>
     </SelectPrimitive.ItemText>
-    <SelectPrimitive.ItemIndicator className="absolute right-2 flex h-4 w-4 items-center justify-center">
-      <Check className="h-4 w-4" />
+    <SelectPrimitive.ItemIndicator className="absolute right-3 flex h-4 w-4 items-center justify-center text-accent">
+      <Check className="h-4 w-4" strokeWidth={1.5} />
     </SelectPrimitive.ItemIndicator>
   </SelectPrimitive.Item>
 ));
