@@ -429,9 +429,8 @@ interface TimelinePanelProps {
 }
 
 export function TimelinePanel({ variant = "default", subjectFilter = null }: TimelinePanelProps): JSX.Element {
-  const { topics: storeTopics, categories, subjects: storeSubjects } = useTopicStore((state) => ({
+  const { topics: storeTopics, subjects: storeSubjects } = useTopicStore((state) => ({
     topics: state.topics,
-    categories: state.categories,
     subjects: state.subjects
   }));
   const timezone = useProfileStore((state) => state.profile.timezone);
@@ -468,7 +467,6 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   const [activeSubjectId, setActiveSubjectId] = React.useState<string | null>(null);
   const [activeTopicId, setActiveTopicId] = React.useState<string | null>(null);
   const [viewMode, setViewMode] = React.useState<TimelineViewMode>("combined");
-  const [categoryFilter, setCategoryFilter] = React.useState<Set<string>>(new Set());
   const [search, setSearch] = React.useState("");
   const [domain, setDomain] = React.useState<[number, number] | null>(null);
   const [fullDomain, setFullDomain] = React.useState<[number, number] | null>(null);
@@ -922,20 +920,13 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
 
   const filteredTopics = React.useMemo(() => {
     const lower = search.trim().toLowerCase();
-    const byCategory = categoryFilter.size > 0
-      ? topics.filter((topic) => {
-          const categoryId = topic.categoryId ?? "__uncategorised";
-          return categoryFilter.has(categoryId);
-        })
-      : topics;
-
     const bySearch = lower.length > 0
-      ? byCategory.filter((topic) =>
+      ? topics.filter((topic) =>
           topic.title.toLowerCase().includes(lower) ||
           topic.notes.toLowerCase().includes(lower) ||
           (topic.categoryLabel ?? "").toLowerCase().includes(lower)
         )
-      : byCategory;
+      : topics;
 
     const sorted = [...bySearch];
     sorted.sort((a, b) => {
@@ -946,7 +937,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
       return a.title.localeCompare(b.title);
     });
     return sorted;
-  }, [topics, categoryFilter, search]);
+  }, [topics, search]);
 
   const activeSubjectTopics = React.useMemo(() => {
     if (!activeSubjectId) return [];
@@ -1506,25 +1497,12 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     }
   };
 
-  const handleToggleCategory = (id: string) => {
-    setCategoryFilter((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
-
   const cardClasses = variant === "compact"
     ? "rounded-3xl border border-inverse/5 bg-card/50 p-5"
     : "rounded-3xl border border-inverse/5 bg-card/40 p-6 md:p-8";
 
   const handleClearFilters = React.useCallback(() => {
     setSearch("");
-    setCategoryFilter(new Set());
     setShowExamMarkers(true);
     setShowCheckpoints(false);
     setShowReviewMarkers(false);
@@ -1533,7 +1511,6 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     setShowTopicLabels(true);
   }, [
     setSearch,
-    setCategoryFilter,
     setShowExamMarkers,
     setShowCheckpoints,
     setShowReviewMarkers,
@@ -1544,7 +1521,6 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
 
   const hasCustomFilters =
     search.trim().length > 0 ||
-    categoryFilter.size > 0 ||
     !showExamMarkers ||
     showMilestones ||
     !showEventDots ||
@@ -1681,31 +1657,6 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
             className="h-8 w-52 border-none bg-transparent text-xs text-fg placeholder:text-muted-foreground/80 focus-visible:ring-0"
           />
         </div>
-      </div>
-
-
-      <div className="flex flex-wrap items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-none">
-        {categories.map((category) => {
-          const active = categoryFilter.has(category.id);
-          return (
-            <button
-              key={category.id}
-              type="button"
-              onClick={() => handleToggleCategory(category.id)}
-              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs transition ${
-                active
-                  ? "border-inverse/40 bg-inverse/10 text-fg"
-                  : "border-inverse/10 bg-transparent text-muted-foreground hover:text-fg"
-              }`}
-            >
-              <span className="inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: category.color }} />
-              {category.label}
-            </button>
-          );
-        })}
-        {categories.length === 0 ? (
-          <p className="text-xs text-muted-foreground/80">Categories you create appear here for quick filtering.</p>
-        ) : null}
       </div>
 
       <p className="sr-only" aria-live="polite">
