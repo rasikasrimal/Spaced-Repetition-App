@@ -13,11 +13,22 @@ import {
 } from "@/components/dashboard/topic-list";
 import { useZonedNow } from "@/hooks/use-zoned-now";
 import { usePersistedSubjectFilter } from "@/hooks/use-persisted-subject-filter";
-import { formatDateWithWeekday, formatRelativeToNow, getDayKey, isToday, startOfToday } from "@/lib/date";
+import {
+  addMonthsInTimeZone,
+  formatDateWithWeekday,
+  formatInTimeZone,
+  formatRelativeToNow,
+  getDayKey,
+  getDayKeyInTimeZone,
+  isToday,
+  startOfToday
+} from "@/lib/date";
 import { computeRiskScore, getAverageQuality } from "@/lib/forgetting-curve";
 import { Subject, Topic } from "@/types/topic";
 import { cn } from "@/lib/utils";
 import { FALLBACK_SUBJECT_COLOR } from "@/lib/colors";
+import { buildCalendarMonthData } from "@/lib/calendar";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface DashboardProps {
   onCreateTopic: () => void;
@@ -239,6 +250,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
         completionPercent={completionPercent}
       />
 
+      <DashboardCalendarPreview
+        topics={topics}
+        subjects={subjects}
+        timeZone={resolvedTimezone}
+        now={zonedNow}
+      />
+
       <TopicList
         id="dashboard-topic-list"
         items={enrichedTopics}
@@ -252,6 +270,195 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
         subjectFilter={resolvedSubjectFilter}
         onSubjectFilterChange={handleSubjectFilterChange}
       />
+    </section>
+  );
+};
+
+const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+const DashboardCalendarPreview = ({
+  topics,
+  subjects,
+  timeZone,
+  now
+}: {
+  topics: Topic[];
+  subjects: Subject[];
+  timeZone: string;
+  now: Date;
+}) => {
+  const todayKey = React.useMemo(() => getDayKeyInTimeZone(now.toISOString(), timeZone), [now, timeZone]);
+  const [monthOffset, setMonthOffset] = React.useState(0);
+
+  const referenceDate = React.useMemo(
+    () => addMonthsInTimeZone(now, monthOffset, timeZone),
+    [now, monthOffset, timeZone]
+  );
+
+  const calendarData = React.useMemo(
+    () =>
+      buildCalendarMonthData({
+        topics,
+        subjects,
+        timeZone,
+        monthDate: referenceDate,
+        selectedSubjectIds: null,
+        todayKey
+      }),
+    [topics, subjects, timeZone, referenceDate, todayKey]
+  );
+
+  const monthLabel = React.useMemo(
+    () => formatInTimeZone(referenceDate, timeZone, { month: "long", year: "numeric" }),
+    [referenceDate, timeZone]
+  );
+
+  React.useEffect(() => {
+    setMonthOffset(0);
+  }, [timeZone]);
+
+  const upcomingHighlights = React.useMemo(() => {
+    const nowMs = now.getTime();
+    return calendarData.days
+      .filter((day) => day.date.getTime() >= nowMs && (day.totalTopics > 0 || day.hasExam))
+      .slice(0, 4);
+  }, [calendarData, now]);
+
+  const hasContent = calendarData.hasVisibleContent || upcomingHighlights.length > 0;
+
+  return (
+    <section className="rounded-3xl border border-inverse/10 bg-card/50 p-6 shadow-sm">
+      <header className="flex flex-col gap-3 border-b border-inverse/10 pb-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1">
+          <h2 className="text-lg font-semibold text-fg">Calendar snapshot</h2>
+          <p className="text-sm text-muted-foreground">
+            Track upcoming reviews and exams at a glance. Use the controls to peek at adjacent months.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 self-start rounded-full border border-inverse/10 bg-inverse/5 px-3 py-1 text-sm text-fg">
+          <button
+            type="button"
+            onClick={() => setMonthOffset((value) => value - 1)}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-transparent text-muted-foreground transition hover:border-inverse/20 hover:text-fg"
+            aria-label="View previous month"
+          >
+            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+          </button>
+          <span className="min-w-[8rem] text-center font-semibold text-fg">{monthLabel}</span>
+          <button
+            type="button"
+            onClick={() => setMonthOffset((value) => value + 1)}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-transparent text-muted-foreground transition hover:border-inverse/20 hover:text-fg"
+            aria-label="View next month"
+          >
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+      </header>
+
+      {hasContent ? (
+        <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+          <div className="space-y-3">
+            <div className="grid grid-cols-7 gap-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">
+              {WEEKDAY_LABELS.map((label) => (
+                <span key={label} className="text-center">
+                  {label}
+                </span>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-1 text-xs">
+              {calendarData.weeks.flat().map((day) => {
+                const indicatorSubjects = day.subjects.slice(0, 3);
+                const extraCount = day.subjects.length + day.overflowSubjects.length - indicatorSubjects.length;
+                return (
+                  <div
+                    key={day.dayKey}
+                    className={cn(
+                      "flex h-20 flex-col rounded-xl border px-2 py-1 transition",
+                      day.isCurrentMonth ? "border-inverse/10 bg-card/40" : "border-transparent bg-card/20 text-muted-foreground/60",
+                      day.totalTopics > 0 ? "bg-accent/10" : "",
+                      day.hasExam ? "ring-1 ring-warn/40" : "",
+                      day.isToday ? "border-accent bg-accent/20 text-accent" : ""
+                    )}
+                  >
+                    <span className="text-xs font-semibold">{day.dayNumberLabel}</span>
+                    <div className="mt-auto flex items-center gap-1">
+                      {indicatorSubjects.map((entry) => (
+                        <span
+                          key={`${day.dayKey}-${entry.subject.id}`}
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: entry.subject.color }}
+                          aria-hidden="true"
+                        />
+                      ))}
+                      {extraCount > 0 ? (
+                        <span className="text-[10px] text-muted-foreground/90">+{extraCount}</span>
+                      ) : null}
+                    </div>
+                    {day.hasExam ? (
+                      <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-warn/10 px-2 py-0.5 text-[10px] font-semibold text-warn">
+                        Exam
+                      </span>
+                    ) : day.totalTopics > 0 ? (
+                      <span className="mt-1 text-[10px] text-muted-foreground/90">{day.totalTopics} review{day.totalTopics === 1 ? "" : "s"}</span>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <aside className="flex flex-col gap-4 rounded-2xl border border-inverse/10 bg-card/40 p-4">
+            <div className="space-y-1">
+              <h3 className="text-sm font-semibold text-fg">Upcoming schedule</h3>
+              <p className="text-xs text-muted-foreground">
+                The next few days at a glance. Exams appear at the top of the list.
+              </p>
+            </div>
+            <ul className="space-y-3">
+              {upcomingHighlights.map((day) => {
+                const dayLabel = formatDateWithWeekday(day.date.toISOString());
+                const subjectChips = day.subjects.slice(0, 3);
+                return (
+                  <li
+                    key={`upcoming-${day.dayKey}`}
+                    className="flex items-start justify-between gap-3 rounded-xl border border-inverse/10 bg-card/60 px-3 py-2"
+                  >
+                    <div className="space-y-1 text-sm">
+                      <p className="font-semibold text-fg">{dayLabel}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {day.hasExam ? "Exam" : `${day.totalTopics} review${day.totalTopics === 1 ? "" : "s"}`} scheduled
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {subjectChips.map((entry) => (
+                        <span
+                          key={`${day.dayKey}-chip-${entry.subject.id}`}
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: entry.subject.color }}
+                          aria-hidden="true"
+                        />
+                      ))}
+                      {day.hasExam ? (
+                        <span className="rounded-full bg-warn/15 px-2 py-0.5 text-[10px] font-semibold text-warn">Exam</span>
+                      ) : null}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+            {upcomingHighlights.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-inverse/10 bg-card/40 px-3 py-2 text-xs text-muted-foreground">
+                Nothing scheduled yet. Add review sessions or exams to populate this preview.
+              </p>
+            ) : null}
+          </aside>
+        </div>
+      ) : (
+        <div className="mt-4 rounded-2xl border border-dashed border-inverse/10 bg-card/40 px-4 py-6 text-sm text-muted-foreground">
+          Plan upcoming reviews or set exam dates to see your calendar snapshot here.
+        </div>
+      )}
     </section>
   );
 };

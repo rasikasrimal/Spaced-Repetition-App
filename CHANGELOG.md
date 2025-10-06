@@ -10,6 +10,11 @@
 - Timeline, Subjects, and Reviews pages now surface the active retention trigger to explain upcoming adaptive sessions.
 - Topic creation aligns new cards with the global retention threshold automatically.
 
+### Navigation Update
+- Reordered navigation bar to include the new "Today" tab.
+- Merged Calendar and Reviews into Dashboard.
+- Added modern hover and active styles with Lucide icons.
+
 ### UI: Exam Date Badge Improvements
 - Fixed poor color contrast for exam-date badge on Reviews page.
 - Improved visibility under light/dark themes.
