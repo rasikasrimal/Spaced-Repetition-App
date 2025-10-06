@@ -3,6 +3,10 @@
 import * as React from "react";
 import { useProfileStore } from "@/stores/profile";
 import { useReviewPreferencesStore } from "@/stores/review-preferences";
+import {
+  DEFAULT_SURFACE_OVERLAY_OPACITY,
+  useAppearanceStore
+} from "@/stores/appearance";
 import { useTopicStore } from "@/stores/topics";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,6 +33,9 @@ export default function SettingsPage() {
   const setMode = useReviewPreferencesStore((state) => state.setMode);
   const setReviewTrigger = useReviewPreferencesStore((state) => state.setReviewTrigger);
   const triggerPercent = Math.round(reviewTrigger * 100);
+  const surfaceOverlayOpacity = useAppearanceStore((state) => state.surfaceOverlayOpacity);
+  const setSurfaceOverlayOpacity = useAppearanceStore((state) => state.setSurfaceOverlayOpacity);
+  const overlayPercent = Math.round(surfaceOverlayOpacity * 100);
 
   const [form, setForm] = React.useState(profile);
 
@@ -61,6 +68,10 @@ export default function SettingsPage() {
     "flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition",
     profile.notifications.push ? "border-accent/40 bg-accent/10 text-accent" : "border-inverse/10 text-muted-foreground hover:text-fg/80"
   );
+
+  const handleOverlayChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSurfaceOverlayOpacity(Number(event.target.value));
+  };
 
   return (
     <section className="space-y-6">
@@ -150,6 +161,48 @@ export default function SettingsPage() {
           <Button type="submit">Save profile</Button>
         </div>
       </form>
+
+      <section className="space-y-4 rounded-3xl border border-inverse/5 bg-card/10 p-6">
+        <header className="space-y-1">
+          <h2 className="text-lg font-semibold text-fg">Appearance</h2>
+          <p className="text-sm text-muted-foreground">
+            Adjust surface overlays to match your preferred contrast level across cards and secondary panels.
+          </p>
+        </header>
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="surface-overlay" className="text-sm font-medium text-fg">
+              Surface overlay opacity
+            </Label>
+            <span className="text-sm font-semibold text-fg">{overlayPercent}%</span>
+          </div>
+          <input
+            id="surface-overlay"
+            type="range"
+            min={0.02}
+            max={0.6}
+            step={0.01}
+            value={surfaceOverlayOpacity}
+            onChange={handleOverlayChange}
+            aria-describedby="surface-overlay-help"
+            className="w-full accent-accent"
+          />
+          <p id="surface-overlay-help" className="text-xs text-muted-foreground">
+            Lower values keep panels transparent, higher values create denser cards. Changes apply instantly across the app.
+          </p>
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setSurfaceOverlayOpacity(DEFAULT_SURFACE_OVERLAY_OPACITY)}
+              disabled={Math.abs(surfaceOverlayOpacity - DEFAULT_SURFACE_OVERLAY_OPACITY) < 0.001}
+            >
+              Reset to default (10%)
+            </Button>
+          </div>
+        </div>
+      </section>
 
       <div className="space-y-6 rounded-3xl border border-inverse/5 bg-card/60 p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">

@@ -228,22 +228,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
 
   return (
     <section className="flex flex-col gap-10">
-      <DailySummarySection
+      <DashboardSummaryCard
         dueCount={filteredDueCount}
         upcomingCount={filteredUpcomingCount}
         streak={streak}
         nextTopic={filteredNextTopic}
+        completed={completedCount}
+        total={totalToday}
+        completionPercent={completionPercent}
       />
-
-      <div className="space-y-6">
-        <SectionDivider />
-        <ProgressTodayModule
-          completed={completedCount}
-          total={totalToday}
-          completionPercent={completionPercent}
-        />
-        <SectionDivider />
-      </div>
 
       <TopicList
         id="dashboard-topic-list"
@@ -262,90 +255,142 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
   );
 };
 
-const ProgressTodayModule = ({
-  completed,
-  total,
-  completionPercent
-}: {
-  completed: number;
-  total: number;
-  completionPercent: number;
-}) => {
-  const plannedTotal = total;
-  const displayPercent = Number.isFinite(completionPercent)
-    ? Math.max(0, Math.min(100, completionPercent))
-    : 0;
-  const isComplete = displayPercent >= 100;
-  const hasScheduledReviews = plannedTotal > 0;
-  const ratioHeading = hasScheduledReviews
-    ? `${completed}/${plannedTotal} reviews completed`
-    : `${completed} reviews completed`;
-  const summaryText = hasScheduledReviews
-    ? `You’ve completed ${completed} of ${plannedTotal} scheduled reviews for today.`
-    : "No reviews are scheduled today. Add a topic to keep the rhythm going.";
-  const encouragement = hasScheduledReviews
-    ? isComplete
-      ? "Great work! You're on track for your streak."
-      : "Keep going to finish today’s queue and boost your streak."
-    : "Plan your next review to keep the momentum strong.";
-
-  return (
-    <section className="progress-summary rounded-3xl border border-inverse/10 bg-card/60 px-6 py-8 md:px-8">
-      <div className="space-y-5">
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Progress today</p>
-          <h2 className="text-2xl font-semibold text-fg">{ratioHeading}</h2>
-          <p className="text-sm text-muted-foreground">{summaryText}</p>
-        </div>
-        <div className="space-y-1">
-          <p className="text-base font-semibold text-success">{displayPercent}% complete</p>
-          <p className="text-sm font-medium text-success">{encouragement}</p>
-        </div>
-      </div>
-    </section>
-  );
-};
-
-const SectionDivider = () => <div role="separator" className="border-t border-border/60" />;
-
-const DailySummarySection = ({
+const DashboardSummaryCard = ({
   dueCount,
   upcomingCount,
   streak,
-  nextTopic
+  nextTopic,
+  completed,
+  total,
+  completionPercent
 }: {
   dueCount: number;
   upcomingCount: number;
   streak: number;
   nextTopic: Topic | null;
+  completed: number;
+  total: number;
+  completionPercent: number;
 }) => {
   const nextRelative = nextTopic ? formatRelativeToNow(nextTopic.nextReviewDate) : null;
   const nextDateLabel = nextTopic ? formatDateWithWeekday(nextTopic.nextReviewDate) : null;
   const dueLine =
     dueCount === 0
-      ? "You\u2019re all caught up. Check back tomorrow or add a topic."
+      ? "You’re all caught up. Check back tomorrow or add a topic."
       : `You have ${dueCount} topic${dueCount === 1 ? "" : "s"} ready for review. Finish them to extend your streak.`;
   const nextLine = nextTopic
-    ? `Next up: ${nextTopic.title} â€¢ ${nextRelative} (${nextDateLabel})`
+    ? `Next up: ${nextTopic.title} • ${nextRelative} (${nextDateLabel})`
     : "Next up: Add a topic to plan your next review.";
 
+  const safeCompletionPercent = Number.isFinite(completionPercent)
+    ? Math.max(0, Math.min(100, completionPercent))
+    : 0;
+  const hasPlannedReviews = total > 0;
+  const progressRatio = hasPlannedReviews ? `${completed} / ${total}` : `${completed}`;
+  const progressSummary = hasPlannedReviews
+    ? `${progressRatio} (${safeCompletionPercent}% complete)`
+    : `${progressRatio} completed`;
+  const progressMessage = hasPlannedReviews
+    ? safeCompletionPercent >= 100
+      ? "All reviews complete — stellar focus!"
+      : "Keep going to finish today’s queue!"
+    : "Plan a review to keep your streak alive.";
+
+  const metricCards: Array<{
+    label: string;
+    value: string;
+    icon: string;
+    valueClass: string;
+    iconClass: string;
+  }> = [
+    {
+      label: "Due Today",
+      value: String(dueCount),
+      icon: "📚",
+      valueClass: "status-text status-text--overdue",
+      iconClass: "status-text status-text--overdue"
+    },
+    {
+      label: "Upcoming",
+      value: String(upcomingCount),
+      icon: "⏳",
+      valueClass: "status-text status-text--upcoming",
+      iconClass: "status-text status-text--upcoming"
+    },
+    {
+      label: "Streak",
+      value: `${streak} day${streak === 1 ? "" : "s"}`,
+      icon: "🔥",
+      valueClass: "text-accent",
+      iconClass: "text-accent"
+    },
+    {
+      label: "Progress",
+      value: progressSummary,
+      icon: "📈",
+      valueClass: "text-success",
+      iconClass: "text-success"
+    }
+  ];
+
   return (
-    <section className="rounded-3xl border border-inverse/10 bg-bg/60 px-6 py-6 md:px-8">
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+    <section className="dashboard-summary-card rounded-3xl border border-inverse/10 bg-card/10 bg-gradient-to-br from-bg/80 via-card/70 to-bg/80 p-6 shadow-sm transition-colors md:p-8">
+      <div className="flex flex-col gap-8 lg:flex-row lg:justify-between">
         <div className="space-y-4 lg:max-w-xl">
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Today\u2019s Tasks</p>
-            <p className="text-sm font-medium text-accent">Personalized review plan</p>
-            <h2 className="text-2xl font-semibold text-fg">Your next five minutes matter.</h2>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">🗓️ Today’s Tasks</p>
+            <h2 className="text-2xl font-semibold text-fg">Personalized Review Plan</h2>
+            <p className="text-sm text-muted-foreground">
+              <span aria-hidden="true" className="mr-1">💡</span>Your next five minutes matter.
+            </p>
             <p className="text-sm text-muted-foreground">{dueLine}</p>
-            <p className="text-xs text-muted-foreground">{nextLine}</p>
+            <p className="text-xs text-muted-foreground" title={nextTopic ? nextTopic.nextReviewDate : undefined}>
+              {nextLine}
+            </p>
           </div>
         </div>
 
-        <div className="grid w-full gap-3 sm:grid-cols-3 lg:max-w-md">
-          <MetricCard label="Due today" value={dueCount} tone="status-text status-text--overdue" />
-          <MetricCard label="Upcoming" value={upcomingCount} tone="status-text status-text--upcoming" />
-          <MetricCard label="Streak" value={`${streak} day${streak === 1 ? "" : "s"}`} tone="text-fg" />
+        <div className="flex flex-col gap-4 text-right">
+          <div className="flex items-center justify-end gap-2">
+            <span className="text-3xl font-semibold text-accent">{safeCompletionPercent}%</span>
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Progress</span>
+          </div>
+          <div className="flex items-center justify-end gap-2 text-sm text-muted-foreground">
+            <span aria-hidden="true">🔥</span>
+            <span className="font-medium text-fg">{streak} day{streak === 1 ? "" : "s"} streak</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {metricCards.map((metric) => (
+          <MetricCard
+            key={metric.label}
+            {...metric}
+            title={
+              metric.label === "Progress"
+                ? `Progress today: ${completed} of ${total} completed`
+                : undefined
+            }
+          />
+        ))}
+      </div>
+
+      <div
+        className="mt-8 space-y-3 rounded-2xl border border-inverse/10 bg-card/60 p-4 transition-colors hover:border-accent/40"
+        title={`Progress today: ${completed} of ${total} completed`}
+      >
+        <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+          <span aria-hidden="true">📈</span>
+          <span>
+            {safeCompletionPercent}% complete — {progressMessage}
+          </span>
+        </p>
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-accent transition-[width] duration-500"
+            style={{ width: `${safeCompletionPercent}%` }}
+          />
         </div>
       </div>
     </section>
@@ -355,16 +400,34 @@ const DailySummarySection = ({
 const MetricCard = ({
   label,
   value,
-  tone
+  icon,
+  valueClass,
+  iconClass,
+  title
 }: {
   label: string;
-  value: number | string;
-  tone: string;
+  value: string;
+  icon: string;
+  valueClass: string;
+  iconClass: string;
+  title?: string;
 }) => (
-  <div className="rounded-2xl border border-inverse/15 bg-card/80 px-4 py-3">
-    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
-    <p className={cn("text-xl font-semibold", tone)}>{value}</p>
+  <div
+    className="group rounded-2xl border border-inverse/15 bg-card/60 p-4 transition-all duration-300 hover:-translate-y-0.5 hover:bg-card/80 hover:shadow-sm hover:shadow-primary/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+    tabIndex={0}
+    role="group"
+    aria-label={`${label}: ${value}`}
+    title={title}
+  >
+    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+      <span
+        aria-hidden="true"
+        className={cn("text-lg transition-transform duration-300 group-hover:scale-105", iconClass)}
+      >
+        {icon}
+      </span>
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+    </div>
+    <p className={cn("mt-2 text-lg font-semibold", valueClass)}>{value}</p>
   </div>
 );
-
-
