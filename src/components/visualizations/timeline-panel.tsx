@@ -10,7 +10,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Toggle } from "@/components/ui/toggle";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { downloadSvg, downloadSvgAsPng } from "@/lib/export-svg";
 import { buildCurveSegments, sampleSegment } from "@/selectors/curves";
 import { useTopicStore } from "@/stores/topics";
@@ -62,7 +61,6 @@ const MIN_Y_SPAN = 0.05;
 const KEYBOARD_STEP_MS = DAY_MS;
 const DEFAULT_SUBJECT_ID = "subject-general";
 type TopicVisibility = Record<string, boolean>;
-type SortView = "next" | "title";
 type TimelineViewMode = "combined" | "per-subject";
 type ViewportEntry = { x: [number, number]; y: [number, number] };
 type SubjectSeriesGroup = {
@@ -474,7 +472,6 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   const [viewMode, setViewMode] = React.useState<TimelineViewMode>("combined");
   const [categoryFilter, setCategoryFilter] = React.useState<Set<string>>(new Set());
   const [search, setSearch] = React.useState("");
-  const [sortView, setSortView] = React.useState<SortView>("next");
   const [domain, setDomain] = React.useState<[number, number] | null>(null);
   const [fullDomain, setFullDomain] = React.useState<[number, number] | null>(null);
   const [defaultDomain, setDefaultDomain] = React.useState<[number, number] | null>(null);
@@ -943,13 +940,15 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
       : byCategory;
 
     const sorted = [...bySearch];
-    if (sortView === "title") {
-      sorted.sort((a, b) => a.title.localeCompare(b.title));
-    } else {
-      sorted.sort((a, b) => new Date(a.nextReviewDate).getTime() - new Date(b.nextReviewDate).getTime());
-    }
+    sorted.sort((a, b) => {
+      const dateDelta = new Date(a.nextReviewDate).getTime() - new Date(b.nextReviewDate).getTime();
+      if (dateDelta !== 0) {
+        return dateDelta;
+      }
+      return a.title.localeCompare(b.title);
+    });
     return sorted;
-  }, [topics, categoryFilter, search, sortView]);
+  }, [topics, categoryFilter, search]);
 
   const activeSubjectTopics = React.useMemo(() => {
     if (!activeSubjectId) return [];
@@ -1576,7 +1575,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
           </div>
         </header>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex w-full flex-wrap items-center gap-3 md:justify-between">
         <div
           className="flex items-center gap-1 rounded-2xl border border-inverse/10 bg-card/60 p-1"
           role="group"
@@ -1614,16 +1613,6 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
             className="h-8 w-52 border-none bg-transparent text-xs text-fg placeholder:text-muted-foreground/80 focus-visible:ring-0"
           />
         </div>
-
-        <Select value={sortView} onValueChange={(value: SortView) => setSortView(value)}>
-          <SelectTrigger className="h-9 rounded-2xl border-inverse/10 bg-muted/30 text-xs text-fg shadow-sm">
-            <SelectValue placeholder="Sort" />
-          </SelectTrigger>
-          <SelectContent className="rounded-2xl backdrop-blur">
-            <SelectItem value="next">Next review</SelectItem>
-            <SelectItem value="title">Topic name</SelectItem>
-          </SelectContent>
-        </Select>
 
         <div className="flex min-w-[220px] flex-1 items-center gap-3 rounded-2xl border border-inverse/10 bg-muted/30 px-3 py-2 shadow-sm">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -1797,7 +1786,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
               Choose one subject to explore its retention curve.
             </p>
             {subjectOptions.length > 0 ? (
-              <div className="flex flex-wrap gap-2 overflow-x-auto whitespace-nowrap scrollbar-none">
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {subjectOptions.map((option) => {
                   const isActive = option.id === activeSubjectId;
                   return (
@@ -1806,19 +1795,25 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                       type="button"
                       onClick={() => handleSelectSubject(option.id)}
                       aria-pressed={isActive}
-                      className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs transition ${
+                      className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg ${
                         isActive
-                          ? "border-primary/60 bg-primary/15 text-primary shadow-sm"
-                          : "border-inverse/10 bg-card/40 text-muted-foreground hover:text-fg"
+                          ? "border-accent/60 bg-accent/15 text-accent shadow-sm"
+                          : "border-inverse/10 bg-card/40 text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      <span
-                        className="inline-flex h-2 w-2 rounded-full"
-                        style={{ backgroundColor: option.color }}
-                        aria-hidden="true"
-                      />
-                      <span className="max-w-[9rem] truncate">{option.label}</span>
-                      <span className="text-[10px] text-muted-foreground/70">{option.topicCount}</span>
+                      <span className="flex items-center gap-2 text-left">
+                        <span
+                          className="inline-flex h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: option.color }}
+                          aria-hidden="true"
+                        />
+                        <span className="max-w-[12rem] truncate text-xs font-medium uppercase tracking-wide">
+                          {option.label}
+                        </span>
+                      </span>
+                      <span className="text-[11px] text-muted-foreground/80">
+                        {option.topicCount} topic{option.topicCount === 1 ? "" : "s"}
+                      </span>
                     </button>
                   );
                 })}
@@ -1887,38 +1882,6 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                 Select at least one topic to display curves.
               </p>
             ) : null}
-          </section>
-
-          <div className="border-t border-inverse/10" />
-
-          <section aria-label="Subject summary" className="space-y-3">
-            <header className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <Info className="h-3.5 w-3.5" /> Subject summary
-            </header>
-            {subjectOptions.length > 0 ? (
-              <ul className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
-                {subjectOptions.map((option) => (
-                  <li
-                    key={option.id}
-                    className="flex items-center justify-between rounded-2xl border border-inverse/10 bg-card/50 px-3 py-2"
-                  >
-                    <span className="flex items-center gap-2">
-                      <span
-                        className="inline-flex h-2 w-2 rounded-full"
-                        style={{ backgroundColor: option.color }}
-                        aria-hidden="true"
-                      />
-                      <span className="font-medium text-fg">{option.label}</span>
-                    </span>
-                    <span className="text-xs text-muted-foreground/80">
-                      {option.topicCount} topic{option.topicCount === 1 ? "" : "s"}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-xs text-muted-foreground">Subjects appear here once you add topics.</p>
-            )}
           </section>
 
           <div className="border-t border-inverse/10" />
@@ -2074,21 +2037,19 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
             )}
           </section>
 
-          <div className="border-t border-inverse/10" />
+          {activeTopic ? (
+            <>
+              <div className="border-t border-inverse/10" />
 
-          <section aria-label="Topic focus" className="space-y-3">
-            <header className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                <Tag className="h-3.5 w-3.5" /> Topic focus
-              </div>
-              {activeTopic ? (
-                <Button type="button" size="sm" variant="outline" onClick={() => setActiveTopicId(null)}>
-                  Back to Subject View
-                </Button>
-              ) : null}
-            </header>
-            {activeTopic ? (
-              <>
+              <section aria-label="Topic focus" className="space-y-3">
+                <header className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <Tag className="h-3.5 w-3.5" /> Topic focus
+                  </div>
+                  <Button type="button" size="sm" variant="outline" onClick={() => setActiveTopicId(null)}>
+                    Back to Subject View
+                  </Button>
+                </header>
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-fg">{activeTopic.title}</p>
                   <p className="text-xs text-muted-foreground">
@@ -2166,13 +2127,9 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                     </div>
                   </div>
                 ) : null}
-              </>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Select a topic from the visibility list or upcoming checkpoints to focus on its forgetting curve.
-              </p>
-            )}
-          </section>
+              </section>
+            </>
+          ) : null}
 
           <div className="border-t border-inverse/10" />
 

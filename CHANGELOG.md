@@ -44,7 +44,7 @@
 - Relocated fullscreen and export actions into the chart overlay for a lighter control surface.
 - Added single-select subject chips and multi-select topic toggles so visibility is explicit.
 - Clarified toolbar states with icon-only toggles and inline clear filters.
-- Reorganised timeline sections to surface subject summary, topic focus, and upcoming checkpoints in a clearer order.
+- Reorganised timeline sections to flow from subject selection into topic visibility, focused view, and upcoming checkpoints while dropping the redundant summary chips.
 
 ### Timeline UI Refinement
 - Simplified the timeline toolbar into compact icon toggles, merging checkpoints and review markers into a shared milestones control and removing redundant theme/label switches.
