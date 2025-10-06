@@ -1,25 +1,7 @@
 ﻿"use client";
 
-import * as React from "react";
-import { Dashboard } from "@/components/dashboard/dashboard";
-import { useReminderScheduler } from "@/hooks/use-reminder-scheduler";
-import { useRouter } from "next/navigation";
+import TodayPage from "../today/page";
 
 export default function HomePage() {
-  const router = useRouter();
-  useReminderScheduler();
-
-  const handleCreateTopic = React.useCallback(() => {
-    router.push("/topics/new");
-  }, [router]);
-
-  const handleEditTopic = React.useCallback(
-    (id: string) => {
-      router.push(`/topics/${id}/edit`);
-    },
-    [router]
-  );
-
-  return <Dashboard onCreateTopic={handleCreateTopic} onEditTopic={handleEditTopic} />;
+  return <TodayPage />;
 }
-

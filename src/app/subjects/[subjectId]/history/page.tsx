@@ -17,6 +17,8 @@ import {
   getDayKeyInTimeZone
 } from "@/lib/date";
 import { ReviewQuality } from "@/types/topic";
+import { FALLBACK_SUBJECT_COLOR } from "@/lib/colors";
+import { resetCardPointerPosition, updateCardPointerPosition } from "@/lib/card-motion";
 
 const QUALITY_LABEL: Record<ReviewQuality, string> = {
   1: "Easy",
@@ -123,6 +125,14 @@ const SubjectHistoryPage: React.FC<SubjectHistoryPageProps> = ({ params }) => {
       .sort((a, b) => new Date(b.reviewDate).getTime() - new Date(a.reviewDate).getTime());
   }, [subject, topics]);
 
+  const handleCardPointerMove = React.useCallback((event: React.MouseEvent<HTMLElement>) => {
+    updateCardPointerPosition(event.currentTarget, event);
+  }, []);
+
+  const handleCardPointerLeave = React.useCallback((event: React.MouseEvent<HTMLElement>) => {
+    resetCardPointerPosition(event.currentTarget);
+  }, []);
+
   if (!subject) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center bg-bg/30 px-4 text-center">
@@ -139,6 +149,7 @@ const SubjectHistoryPage: React.FC<SubjectHistoryPageProps> = ({ params }) => {
     );
   }
 
+  const accentColor = (subject.color?.trim() || FALLBACK_SUBJECT_COLOR) as string;
   const urgency = resolveUrgency(subject.examDate ?? null);
   const topicCount = topics.length;
   const hasReviews = reviews.length > 0;
@@ -229,7 +240,12 @@ const SubjectHistoryPage: React.FC<SubjectHistoryPageProps> = ({ params }) => {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-inverse/10 bg-bg/70 p-6">
+        <section
+          className="card-interactive relative overflow-hidden rounded-3xl border border-inverse/10 bg-bg/70 p-6"
+          onMouseMove={handleCardPointerMove}
+          onMouseLeave={handleCardPointerLeave}
+          style={{ "--card-accent": accentColor } as React.CSSProperties}
+        >
           <div className="mb-4 flex items-center justify-between gap-4">
             <h2 className="text-lg font-semibold text-fg">Review timeline</h2>
             <div className="inline-flex items-center gap-2 rounded-full border border-inverse/10 bg-inverse/5 px-3 py-1 text-xs text-muted-foreground">

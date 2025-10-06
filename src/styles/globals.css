@@ -8,3 +8,151 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
+
+.card-interactive {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.5rem;
+  --card-surface: rgba(248, 249, 250, 0.72);
+  --card-border: rgba(222, 226, 233, 0.6);
+  --card-shadow: rgba(15, 17, 21, 0.12);
+  --card-accent: #21ce99;
+  background: linear-gradient(
+    145deg,
+    var(--card-surface),
+    color-mix(in srgb, var(--card-surface), var(--card-accent) 5%)
+  );
+  border: 1px solid color-mix(in srgb, var(--card-border), var(--card-accent) 12%);
+  transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease, border-color 0.3s ease;
+  transform: translateY(0);
+  box-shadow: 0 1px 3px var(--card-shadow);
+  background-size: 200% 200%;
+  animation: none;
+}
+
+.dark .card-interactive {
+  --card-surface: rgba(24, 27, 32, 0.72);
+  --card-border: rgba(53, 60, 72, 0.6);
+  --card-shadow: rgba(0, 0, 0, 0.4);
+  --card-accent: #3dea95;
+}
+
+.card-interactive:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 25px rgba(15, 17, 21, 0.15);
+  border-color: color-mix(in srgb, var(--card-accent), var(--card-border) 40%);
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--card-accent), white 10%),
+    var(--card-surface)
+  );
+  animation: moveGradient 3s ease infinite;
+}
+
+.dark .card-interactive:hover {
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+  background: linear-gradient(
+    145deg,
+    #1e1e1e,
+    color-mix(in srgb, var(--card-accent), #111111 20%)
+  );
+}
+
+.card-interactive:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--card-accent), white 25%);
+  outline-offset: 3px;
+}
+
+.card-interactive::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at var(--card-mouse-x, 50%) var(--card-mouse-y, 50%),
+    color-mix(in srgb, var(--card-accent), transparent 85%) 0%,
+    transparent 80%
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.card-interactive:hover::before {
+  opacity: 0.7;
+}
+
+.card-interactive::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(90deg, var(--card-accent), transparent, var(--card-accent));
+  background-size: 300% 100%;
+  animation: borderFlow 4s linear infinite;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.card-interactive:hover::after {
+  opacity: 0.55;
+}
+
+.card-interactive svg,
+.card-interactive .icon-preview {
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.card-interactive:hover svg,
+.card-interactive:hover .icon-preview {
+  transform: scale(1.15);
+  color: var(--card-accent);
+}
+
+.card-interactive h3,
+.card-interactive h2,
+.card-interactive .card-heading {
+  transition: color 0.2s ease;
+}
+
+.card-interactive:hover h3,
+.card-interactive:hover h2,
+.card-interactive:hover .card-heading {
+  color: color-mix(in srgb, var(--card-accent), currentColor 30%);
+}
+
+@keyframes moveGradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes borderFlow {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 300% 0%;
+  }
+}
+
+@keyframes todayRowIn {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

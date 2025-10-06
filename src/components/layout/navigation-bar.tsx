@@ -7,6 +7,7 @@ import type { Route } from "next";
 import {
   Menu,
   Bell,
+  CalendarCheck,
   CalendarCheck2,
   CalendarDays,
   LayoutDashboard,
@@ -21,7 +22,15 @@ import { Topic } from "@/types/topic";
 import { ProfileMenu } from "@/components/layout/profile-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-type AppRoute = Route<"/"> | Route<"/calendar"> | Route<"/reviews"> | Route<"/timeline"> | Route<"/subjects"> | Route<"/settings">;
+type AppRoute =
+  | Route<"/">
+  | Route<"/dashboard">
+  | Route<"/calendar">
+  | Route<"/reviews">
+  | Route<"/timeline">
+  | Route<"/subjects">
+  | Route<"/settings">
+  | Route<"/today">;
 
 type NavItem = {
   href: AppRoute;
@@ -30,7 +39,8 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { href: "/" as AppRoute, label: "Dashboard", icon: LayoutDashboard },
+  { href: "/" as AppRoute, label: "Today", icon: CalendarCheck },
+  { href: "/dashboard" as AppRoute, label: "Dashboard", icon: LayoutDashboard },
   { href: "/calendar" as AppRoute, label: "Calendar", icon: CalendarDays },
   { href: "/reviews" as AppRoute, label: "Reviews", icon: CalendarCheck2 },
   { href: "/timeline" as AppRoute, label: "Timeline", icon: LineChart },
@@ -74,7 +84,10 @@ export const NavigationBar: React.FC = () => {
 
         <nav className="hidden items-center gap-2 text-sm font-medium md:flex">
           {navItems.map((item) => {
-            const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+            const isActive =
+              item.href === "/"
+                ? pathname === "/" || pathname === "/today"
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
             const Icon = item.icon;
             return (
               <Link
@@ -98,10 +111,10 @@ export const NavigationBar: React.FC = () => {
             variant="outline"
             size="sm"
             className="hidden items-center gap-2 rounded-full text-xs text-fg hover:bg-muted/60 md:inline-flex"
-            onClick={() => router.push("/reviews" as AppRoute)}
+            onClick={() => router.push("/" as AppRoute)}
           >
             <Bell className="h-3.5 w-3.5" />
-            Today&apos;s Tasks
+            Study Today
             <span className="ml-1 inline-flex h-5 min-w-[1.5rem] items-center justify-center rounded-full bg-accent text-[11px] font-semibold text-accent-foreground">
               {due}
             </span>
