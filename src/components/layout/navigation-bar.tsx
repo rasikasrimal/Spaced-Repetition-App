@@ -116,7 +116,7 @@ export const NavigationBar: React.FC = () => {
           />
           <span className="max-[480px]:hidden">{item.label}</span>
           {item.href === ("/today" as AppRoute) && (
-            <span className="ml-2 inline-flex min-h-[1.25rem] min-w-[1.5rem] items-center justify-center rounded-full border border-border/60 bg-accent/15 px-1.5 text-[11px] font-semibold tracking-wide text-accent-foreground">
+            <span className="ml-2 inline-flex min-h-[1.25rem] min-w-[1.5rem] items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-semibold tracking-wide text-accent-foreground shadow-[0_1px_0_rgba(15,23,42,0.08)] dark:shadow-[0_1px_0_rgba(2,6,23,0.5)]">
               {due}
             </span>
           )}
@@ -205,7 +205,7 @@ export const NavigationBar: React.FC = () => {
                     <Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                     <span className="flex-1 text-left">{item.label}</span>
                     {item.href === ("/today" as AppRoute) && (
-                      <span className="ml-auto inline-flex min-h-[1.25rem] min-w-[1.5rem] items-center justify-center rounded-full bg-accent/20 px-1.5 text-[11px] font-semibold text-accent-foreground">
+                      <span className="ml-auto inline-flex min-h-[1.25rem] min-w-[1.5rem] items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-semibold text-accent-foreground shadow-[0_1px_0_rgba(15,23,42,0.08)] dark:shadow-[0_1px_0_rgba(2,6,23,0.5)]">
                         {due}
                       </span>
                     )}
