@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useTopicStore } from "@/stores/topics";
 import { useReviewPreferencesStore } from "@/stores/review-preferences";
-import { FALLBACK_SUBJECT_COLOR } from "@/lib/colors";
+import { FALLBACK_SUBJECT_COLOR, getAccessibleTextColor, getTintedSurfaceColor } from "@/lib/colors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,7 @@ import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { ColorPicker } from "@/components/forms/color-picker";
 import { IconPicker } from "@/components/forms/icon-picker";
 import { IconPreview } from "@/components/icon-preview";
+import { ICON_LIBRARY } from "@/lib/constants";
 import { Subject, SubjectSummary, Topic } from "@/types/topic";
 import {
   daysBetween,
@@ -74,6 +75,62 @@ const STATUS_META: Record<TopicStatus, { label: string; badgeClass: string; text
     badgeClass: "status-chip status-chip--upcoming",
     textClass: "status-text status-text--upcoming"
   }
+};
+
+type SubjectPreviewProps = {
+  name: string;
+  color: string;
+  icon: string;
+  examDate?: string;
+};
+
+const SubjectIdentityPreview: React.FC<SubjectPreviewProps> = ({ name, color, icon, examDate }) => {
+  const displayName = name.trim() ? name.trim() : "Untitled subject";
+  const examLabel = examDate ? `Exam: ${formatFullDate(examDate)}` : "Exam: Not set";
+  const surfaceColor = React.useMemo(() => getTintedSurfaceColor(color), [color]);
+  const surfaceText = React.useMemo(() => getAccessibleTextColor(surfaceColor), [surfaceColor]);
+  const accentText = React.useMemo(() => getAccessibleTextColor(color), [color]);
+  const iconMeta = React.useMemo(() => ICON_LIBRARY.find((candidate) => candidate.name === icon), [icon]);
+
+  return (
+    <div className="rounded-2xl border border-inverse/10 bg-bg/80 p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Live preview</p>
+      <div
+        className="mt-3 space-y-4 rounded-2xl border border-white/10 p-4 shadow-sm transition-colors"
+        style={{ backgroundColor: surfaceColor, color: surfaceText }}
+      >
+        <div className="flex items-center gap-3">
+          <span
+            aria-hidden="true"
+            className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/20"
+            style={{ backgroundColor: color, color: accentText }}
+          >
+            <IconPreview name={icon} className="h-6 w-6" />
+          </span>
+          <div className="space-y-1 text-sm">
+            <p className="text-base font-semibold leading-tight">{displayName}</p>
+            <p className="text-sm opacity-85">{examLabel}</p>
+          </div>
+        </div>
+        <div className="space-y-2 text-sm">
+          <div className="flex items-center gap-2">
+            <span aria-hidden="true" className="text-lg">
+              🎨
+            </span>
+            <span>Color: {color}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span aria-hidden="true" className="text-lg">
+              ✨
+            </span>
+            <span className="inline-flex items-center gap-2">
+              Icon: <IconPreview name={icon} className="h-4 w-4" /> {iconMeta?.label ?? icon}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const DEFAULT_SUBJECT_ID = "subject-general";
@@ -416,7 +473,6 @@ const SubjectAdminPage: React.FC = () => {
             );
 
             if (isEditing) {
-              const previewExamLabel = editDraft.examDate ? formatFullDate(editDraft.examDate) : "No exam date";
               return (
                 <div
                   key={subject.id}
@@ -477,25 +533,15 @@ const SubjectAdminPage: React.FC = () => {
                         <ColorPicker value={editDraft.color} onChange={(value) => setEditDraft((prev) => ({ ...prev, color: value }))} />
                       </div>
                     </div>
-                    <div className="rounded-2xl border border-inverse/10 bg-bg/80 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Live preview</p>
-                      <div className="mt-3 flex items-center gap-3">
-                        <span
-                          className="flex h-12 w-12 items-center justify-center rounded-2xl border border-inverse/5"
-                          style={{ backgroundColor: `${editDraft.color}22`, color: editDraft.color }}
-                          aria-hidden="true"
-                        >
-                          <IconPreview name={editDraft.icon} className="h-5 w-5" />
-                        </span>
-                        <div className="space-y-1 text-xs text-muted-foreground">
-                          <p className="text-sm font-semibold text-fg">{editDraft.name || "Untitled subject"}</p>
-                          <p>{previewExamLabel}</p>
-                          <p className="text-[11px] text-muted-foreground/80">
-                            Saving applies the new identity to every topic in this subject.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+                    <SubjectIdentityPreview
+                      name={editDraft.name}
+                      color={editDraft.color}
+                      icon={editDraft.icon}
+                      examDate={editDraft.examDate || undefined}
+                    />
+                    <p className="text-xs text-muted-foreground/80">
+                      Saving applies the updated icon and color to every topic in this subject.
+                    </p>
                     <div className="flex items-center justify-end gap-2">
                       <Button type="button" variant="ghost" onClick={handleCancelEdit}>
                         Cancel
@@ -790,23 +836,10 @@ const SubjectAdminPage: React.FC = () => {
                   <ColorPicker value={color} onChange={setColor} />
                 </div>
               </div>
-              <div className="rounded-2xl border border-inverse/10 bg-bg/80 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Live preview</p>
-                <div className="mt-3 flex items-start gap-3">
-                  <span
-                    className="flex h-12 w-12 items-center justify-center rounded-2xl border border-inverse/5"
-                    style={{ backgroundColor: `${color}22`, color }}
-                    aria-hidden="true"
-                  >
-                    <IconPreview name={icon} className="h-5 w-5" />
-                  </span>
-                  <div className="space-y-1 text-xs text-muted-foreground">
-                    <p className="text-sm font-semibold text-fg">{name || "Untitled subject"}</p>
-                    <p>{examDate ? formatFullDate(examDate) : "No exam date"}</p>
-                    <p className="text-[11px] text-muted-foreground/80">Topics created in this subject will use this identity.</p>
-                  </div>
-                </div>
-              </div>
+              <SubjectIdentityPreview name={name} color={color} icon={icon} examDate={examDate || undefined} />
+              <p className="text-xs text-muted-foreground/80">
+                Topics created in this subject will inherit the selected icon and color.
+              </p>
               <Button type="submit" size="lg" className="w-full gap-2">
                 <Plus className="h-4 w-4" aria-hidden="true" /> Create subject
               </Button>
