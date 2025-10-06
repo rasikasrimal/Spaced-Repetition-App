@@ -246,10 +246,10 @@ export const NavigationBar: React.FC = () => {
             >
               <span
                 aria-hidden="true"
-                className="pointer-events-none absolute bottom-0 h-[2px] rounded-full bg-[var(--accent-color)] transition-[width,transform,opacity] duration-300 ease-out"
+                className="pointer-events-none absolute bottom-0 h-[2px] rounded-full bg-[var(--accent-color)] transition-[width,left,opacity] duration-300 ease-out"
                 style={{
                   width: indicatorStyle.width,
-                  transform: `translateX(${indicatorStyle.left}px)`,
+                  left: indicatorStyle.left,
                   opacity: indicatorStyle.opacity,
                 }}
               />
