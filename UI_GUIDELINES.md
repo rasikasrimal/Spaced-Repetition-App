@@ -46,7 +46,8 @@
 
 - **Icon toggles** – Render timeline overlays (exam markers, milestones, event dots, opacity fade, topic labels) as icon-only `Toggle` controls sized `h-9 w-9`, centred, and wrapped in a scrollable chip rail.
 - **Milestones combo** – Merge checkpoints and review markers into a single “Milestones” control that flips both `showCheckpoints` and `showReviewMarkers` together.
-- **Subject focus** – Show only one subject’s data at a time. Below the chart, expose subject chips that behave as mutually exclusive toggles and default to the first available subject.
+- **Subject selected summary** – Keep the combined view empty until a subject chip is pressed, highlight the active chip with the subject badge and topic count, and clear any topic focus when the subject changes.
+- **Topic focus** – The panel label reads “Topic focus,” shows the focused topic title plus next-review metadata, and renders only that topic’s curve with a Back to Subject View button.
 - **Curve isolation** – Clicking a curve should dim other series, apply a drop-shadow highlight, and re-show everything when the background is clicked or Escape is pressed. Hover states use thicker strokes and pointer cursors.
 - **Clear filters text** – The clear-categories action is plain text (`text-xs text-muted-foreground hover:underline`) aligned to the right of the toolbar.
 - **Export guardrails** – PNG exports must sanitise cloned SVGs, set `image.crossOrigin = "anonymous"`, and toast an error (“Export failed…”) when the browser blocks `toDataURL`.

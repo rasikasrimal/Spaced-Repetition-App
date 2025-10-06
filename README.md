@@ -57,6 +57,7 @@ The Spaced Repetition App is a local-first study companion built with Next.js, T
 ## Per-subject timeline
 
 - Use the **View: Combined • Per subject** switch on the Timeline to render small multiples grouped by subject.
+- The combined view now shows a dedicated subject selector and topic focus rail—pick a subject to populate the chart, then tap any topic chip to isolate its forgetting curve with a Back to Subject control.
 - Zoom, pan, and reset controls remain synchronised across every mini-chart, and exports capture the exact grid layout.
 - Exam markers and the Today line respect per-subject filtering so the view matches the combined summary.
 - Toggle fullscreen from any view mode (Combined or Per subject) to study the chart in an expanded canvas without losing zoom or filter state.

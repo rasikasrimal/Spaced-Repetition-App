@@ -473,6 +473,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
 
   const [visibility, setVisibility] = React.useState<TopicVisibility>({});
   const [activeSubjectId, setActiveSubjectId] = React.useState<string | null>(null);
+  const [activeTopicId, setActiveTopicId] = React.useState<string | null>(null);
   const [viewMode, setViewMode] = React.useState<TimelineViewMode>("combined");
   const [categoryFilter, setCategoryFilter] = React.useState<Set<string>>(new Set());
   const [search, setSearch] = React.useState("");
@@ -523,6 +524,14 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   }, []);
   const palette = useThemePalette();
 
+  const handleSelectSubject = React.useCallback((subjectId: string) => {
+    setActiveSubjectId((prev) => (prev === subjectId ? null : subjectId));
+  }, []);
+
+  const handleSelectTopic = React.useCallback((topicId: string) => {
+    setActiveTopicId((prev) => (prev === topicId ? null : topicId));
+  }, []);
+
   const subjectOptions = React.useMemo<SubjectOption[]>(() => {
     const map = new Map<string, SubjectOption>();
     const ensure = (id: string, label: string, color: string) => {
@@ -572,7 +581,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
       }
       return;
     }
-    if (!activeSubjectId || !subjectOptions.some((option) => option.id === activeSubjectId)) {
+    if (activeSubjectId && !subjectOptions.some((option) => option.id === activeSubjectId)) {
       setActiveSubjectId(subjectOptions[0].id);
     }
   }, [subjectOptions, activeSubjectId]);
@@ -581,6 +590,21 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     () => subjectOptions.find((option) => option.id === activeSubjectId) ?? null,
     [subjectOptions, activeSubjectId]
   );
+
+  React.useEffect(() => {
+    setActiveTopicId(null);
+  }, [activeSubjectId]);
+
+  React.useEffect(() => {
+    if (!subjectFilter || subjectFilter.size !== 1) {
+      return;
+    }
+    const [single] = Array.from(subjectFilter);
+    const resolvedId = single === NO_SUBJECT_KEY ? DEFAULT_SUBJECT_ID : single;
+    if (!activeSubjectId && subjectOptions.some((option) => option.id === resolvedId)) {
+      setActiveSubjectId(resolvedId);
+    }
+  }, [subjectFilter, subjectOptions, activeSubjectId]);
 
   const domainMeta = React.useMemo(
     () => computeTimelineDomain(topics, subjects, resolvedTimezone),
@@ -921,31 +945,53 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     } else {
       sorted.sort((a, b) => new Date(a.nextReviewDate).getTime() - new Date(b.nextReviewDate).getTime());
     }
+    return sorted;
+  }, [topics, categoryFilter, search, sortView]);
 
-    const bySubject = activeSubjectId
-      ? sorted.filter((topic) => (topic.subjectId ?? DEFAULT_SUBJECT_ID) === activeSubjectId)
-      : sorted;
+  const activeSubjectTopics = React.useMemo(() => {
+    if (!activeSubjectId) return [];
+    return filteredTopics.filter((topic) => (topic.subjectId ?? DEFAULT_SUBJECT_ID) === activeSubjectId);
+  }, [filteredTopics, activeSubjectId]);
 
-    return bySubject;
-  }, [topics, categoryFilter, search, sortView, activeSubjectId]);
+  const activeTopic = React.useMemo(() => {
+    if (!activeTopicId) return null;
+    return activeSubjectTopics.find((topic) => topic.id === activeTopicId) ?? null;
+  }, [activeTopicId, activeSubjectTopics]);
+
+  const topicsForChart = React.useMemo(() => {
+    if (activeTopic) {
+      return [activeTopic];
+    }
+    return activeSubjectTopics;
+  }, [activeTopic, activeSubjectTopics]);
+
+  const subjectTopicCount = activeSubjectTopics.length;
+
+  React.useEffect(() => {
+    if (!activeTopicId) return;
+    if (activeSubjectTopics.some((topic) => topic.id === activeTopicId)) {
+      return;
+    }
+    setActiveTopicId(null);
+  }, [activeTopicId, activeSubjectTopics]);
 
   const singleSubjectColorOverrides = React.useMemo(() => {
-    if (filteredTopics.length === 0) return null;
+    if (activeSubjectTopics.length === 0) return null;
     const uniqueSubjectKeys = new Set(
-      filteredTopics.map((topic) => topic.subjectId ?? DEFAULT_SUBJECT_ID)
+      activeSubjectTopics.map((topic) => topic.subjectId ?? DEFAULT_SUBJECT_ID)
     );
     if (uniqueSubjectKeys.size !== 1) return null;
     const [singleKey] = Array.from(uniqueSubjectKeys);
     const subjectId = singleKey === DEFAULT_SUBJECT_ID ? null : singleKey;
     const baseColor = resolveSubjectColor(subjectId);
-    return generateTopicColorMap(baseColor, filteredTopics);
-  }, [filteredTopics, resolveSubjectColor]);
+    return generateTopicColorMap(baseColor, activeSubjectTopics);
+  }, [activeSubjectTopics, resolveSubjectColor]);
 
   const singleSubjectLegend = React.useMemo(() => {
     if (!singleSubjectColorOverrides || singleSubjectColorOverrides.size <= 1) {
       return null;
     }
-    const sorted = filteredTopics
+    const sorted = activeSubjectTopics
       .filter((topic) => singleSubjectColorOverrides.has(topic.id))
       .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
     if (sorted.length <= 1) return null;
@@ -953,7 +999,17 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     const visible = sorted.slice(0, limit);
     const remaining = sorted.length - visible.length;
     return { visible, remaining };
-  }, [filteredTopics, singleSubjectColorOverrides]);
+  }, [activeSubjectTopics, singleSubjectColorOverrides]);
+
+  const legendItems = React.useMemo(() => {
+    if (activeSubjectTopics.length === 0) return [];
+    if (singleSubjectLegend) {
+      return singleSubjectLegend.visible;
+    }
+    return activeSubjectTopics;
+  }, [activeSubjectTopics, singleSubjectLegend]);
+
+  const legendRemaining = singleSubjectLegend?.remaining ?? 0;
 
   const resolveTopicColor = React.useCallback(
     (topic: Topic) =>
@@ -969,8 +1025,8 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   }, []);
 
   const series = React.useMemo(
-    () => deriveSeries(filteredTopics, visibility, resolveTopicColor, nowMs, showCheckpoints),
-    [filteredTopics, visibility, resolveTopicColor, nowMs, showCheckpoints]
+    () => deriveSeries(topicsForChart, visibility, resolveTopicColor, nowMs, showCheckpoints),
+    [topicsForChart, visibility, resolveTopicColor, nowMs, showCheckpoints]
   );
 
   const perSubjectSeries = React.useMemo<SubjectSeriesGroup[]>(() => {
@@ -1198,11 +1254,12 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   }, [examMarkers]);
 
   const upcomingSchedule = React.useMemo(() => {
-    return filteredTopics
+    if (!activeSubjectId) return [];
+    return activeSubjectTopics
       .slice()
       .sort((a, b) => new Date(a.nextReviewDate).getTime() - new Date(b.nextReviewDate).getTime())
       .slice(0, variant === "compact" ? 5 : 8);
-  }, [filteredTopics, variant]);
+  }, [activeSubjectId, activeSubjectTopics, variant]);
 
   const fullscreenConfig = React.useMemo(() => {
     if (!fullscreenTarget) return null;
@@ -1807,155 +1864,104 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
         </div>
       ) : null}
 
-      {viewMode === "combined"
-        ? hasStudyActivity && domain && yDomain
-          ? (
-              <div className="space-y-3">
-                {activeSubjectOption ? (
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="inline-flex items-center gap-2 rounded-full border border-inverse/10 bg-inverse/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      {viewMode === "combined" ? (
+        <div className="space-y-6">
+          <section aria-label="Subject selector" className="space-y-3">
+            <header className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <Filter className="h-3.5 w-3.5" /> Subjects
+              </div>
+              <span className="text-[10px] text-muted-foreground/70">
+                {subjectOptions.length} available
+              </span>
+            </header>
+            <p className="text-xs text-muted-foreground">
+              Pick a subject to explore its retention curve and isolate its topics on the chart.
+            </p>
+            {subjectOptions.length > 0 ? (
+              <div className="flex flex-wrap gap-2 overflow-x-auto whitespace-nowrap scrollbar-none">
+                {subjectOptions.map((option) => {
+                  const isActive = option.id === activeSubjectId;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => handleSelectSubject(option.id)}
+                      aria-pressed={isActive}
+                      className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs transition ${
+                        isActive
+                          ? "border-primary/50 bg-primary/15 text-primary shadow-sm"
+                          : "border-inverse/10 bg-card/40 text-muted-foreground hover:text-fg"
+                      }`}
+                    >
                       <span
                         className="inline-flex h-2 w-2 rounded-full"
-                        style={{ backgroundColor: activeSubjectOption.color }}
+                        style={{ backgroundColor: option.color }}
                         aria-hidden="true"
                       />
-                      Subject selected
-                      <span className="text-fg">{activeSubjectOption.label}</span>
-                    </span>
-                    {series.length > 0 ? (
-                      <span className="text-[10px] text-muted-foreground/70">
-                        {series.length} topic{series.length === 1 ? "" : "s"}
-                      </span>
-                    ) : null}
-                  </div>
-                ) : null}
-                <div className="group rounded-3xl border border-inverse/10 bg-muted/30 p-3 shadow-sm transition-colors hover:bg-muted/40">
-                  <TimelineChart
-                    ref={svgRef}
-                    series={series}
-                    xDomain={domain}
-                    yDomain={yDomain}
-                    onViewportChange={(next, options) => handleViewportChange(next, { push: options?.push })}
-                    height={variant === "compact" ? 320 : 460}
-                    showGrid
-                    fullDomain={fullDomain ?? undefined}
-                    fullYDomain={fullYDomain ?? undefined}
-                    examMarkers={showExamMarkers ? examMarkers : []}
-                    timeZone={resolvedTimezone}
-                    onResetDomain={handleResetDomain}
-                    ariaDescribedBy={`timeline-zoom-shortcuts ${pointerInstructionId}`}
-                    interactionMode={interactionMode}
-                    temporaryPan={spacePanning}
-                    onRequestStepBack={handleStepBack}
-                    onTooSmallSelection={handleTooSmallSelection}
-                    keyboardSelection={keyboardSelection}
-                    showOpacityGradient={showOpacityGradient}
-                    showReviewMarkers={showReviewMarkers}
-                    showEventDots={showEventDots}
-                    showTopicLabels={showTopicLabels}
+                      <span className="max-w-[9rem] truncate">{option.label}</span>
+                      <span className="text-[10px] text-muted-foreground/70">{option.topicCount}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="rounded-2xl border border-dashed border-inverse/10 bg-card/50 px-3 py-3 text-xs text-muted-foreground">
+                Add topics to start focusing the timeline by subject.
+              </p>
+            )}
+          </section>
+
+          <div className="border-t border-inverse/10" />
+
+          <section aria-label="Subject selected" className="space-y-3">
+            <header className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <Sparkles className="h-3.5 w-3.5" /> Subject selected
+              </div>
+              {activeSubjectOption ? (
+                <span className="inline-flex items-center gap-2 rounded-full border border-inverse/10 bg-inverse/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <span
+                    className="inline-flex h-2 w-2 rounded-full"
+                    style={{ backgroundColor: activeSubjectOption.color }}
+                    aria-hidden="true"
                   />
-                </div>
-                {singleSubjectLegend ? (
-                  <div
-                    className="flex flex-wrap items-center gap-2 rounded-2xl border border-inverse/10 bg-card/60 px-3 py-2 text-xs text-muted-foreground"
-                    aria-label="Topic color legend"
-                  >
-                    <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Topic colors
-                    </span>
-                    {singleSubjectLegend.visible.map((topic) => {
-                      const color =
-                        singleSubjectColorOverrides?.get(topic.id) ?? resolveTopicColor(topic);
-                      return (
-                        <span
-                          key={topic.id}
-                          className="inline-flex items-center gap-2 rounded-full border border-inverse/10 bg-inverse/5 px-2 py-1"
-                        >
-                          <span
-                            className="inline-flex h-2 w-2 rounded-full"
-                            style={{ backgroundColor: color }}
-                          />
-                          <span className="max-w-[10rem] truncate text-[11px] text-fg/80">
-                            {topic.title}
-                          </span>
-                        </span>
-                      );
-                    })}
-                    {singleSubjectLegend.remaining > 0 ? (
-                      <span className="text-[11px] text-muted-foreground">
-                        +{singleSubjectLegend.remaining} more
-                      </span>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-            )
-          : (
-              <div className="flex h-60 items-center justify-center rounded-3xl border border-dashed border-inverse/10 bg-card/40 text-sm text-muted-foreground">
-                No study activity yet. Add a topic to see your timeline.
-              </div>
-            )
-        : perSubjectSeries.length > 0 && domain && yDomain
-          ? (
-              <div
-                ref={perSubjectContainerRef}
-                className="grid gap-6 md:grid-cols-1 lg:grid-cols-2"
-              >
-                {perSubjectSeries.map((group) => {
-                  const markers = showExamMarkers
-                    ? examMarkersBySubject.get(group.subjectId) ?? []
-                    : [];
-                  const examLabel = group.subject?.examDate
-                    ? formatDateWithWeekday(group.subject.examDate)
-                    : null;
-                  return (
-                    <div
-                      key={group.subjectId}
-                      className="space-y-2 rounded-3xl border border-inverse/10 bg-card/50 p-4"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="inline-flex h-2 w-2 rounded-full"
-                            style={{ backgroundColor: group.color }}
-                            aria-hidden="true"
-                          />
-                          <h3 className="text-sm font-semibold text-fg">{group.label}</h3>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {examLabel ? (
-                            <span className="text-xs text-muted-foreground">Exam {examLabel}</span>
-                          ) : null}
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="ghost"
-                            onClick={(event) => {
-                              if (group.series.length === 0) {
-                                return;
-                              }
-                              fullscreenReturnFocusRef.current = event.currentTarget;
-                              setFullscreenTarget({ type: "subject", subjectId: group.subjectId });
-                            }}
-                            disabled={group.series.length === 0}
-                            aria-label={`Expand ${group.label} timeline`}
-                            title="Expand timeline"
-                          >
-                            <Maximize2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
+                  {activeSubjectOption.label}
+                  <span className="font-normal text-muted-foreground/70">
+                    · {subjectTopicCount} topic{subjectTopicCount === 1 ? "" : "s"}
+                  </span>
+                </span>
+              ) : null}
+            </header>
+            {activeSubjectOption ? (
+              <>
+                {activeTopic ? (
+                  <p className="text-xs text-muted-foreground">
+                    Topic focus is active. Use Back to Subject View to restore all curves for {activeSubjectOption.label}.
+                  </p>
+                ) : subjectTopicCount === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    No topics match the current filters for this subject.
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Viewing {subjectTopicCount} topic{subjectTopicCount === 1 ? "" : "s"} from {activeSubjectOption.label}.
+                  </p>
+                )}
+                {!activeTopic ? (
+                  domain && yDomain && series.length > 0 ? (
+                    <div className="group rounded-3xl border border-inverse/10 bg-muted/30 p-3 shadow-sm transition-colors hover:bg-muted/40">
                       <TimelineChart
-                        ref={(element) => setSubjectChartRef(group.subjectId, element)}
-                        series={group.series}
+                        ref={svgRef}
+                        series={series}
                         xDomain={domain}
                         yDomain={yDomain}
                         onViewportChange={(next, options) => handleViewportChange(next, { push: options?.push })}
-                        height={variant === "compact" ? 300 : 360}
+                        height={variant === "compact" ? 320 : 460}
                         showGrid
                         fullDomain={fullDomain ?? undefined}
                         fullYDomain={fullYDomain ?? undefined}
-                        examMarkers={markers}
+                        examMarkers={showExamMarkers ? examMarkers : []}
                         timeZone={resolvedTimezone}
                         onResetDomain={handleResetDomain}
                         ariaDescribedBy={`timeline-zoom-shortcuts ${pointerInstructionId}`}
@@ -1970,132 +1976,255 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                         showTopicLabels={showTopicLabels}
                       />
                     </div>
-                  );
-                })}
-              </div>
-            )
-          : (
-              <div className="flex h-60 items-center justify-center rounded-3xl border border-dashed border-inverse/10 bg-card/40 text-sm text-muted-foreground">
-                No study activity yet. Add a topic to see your timeline.
-              </div>
-            )}
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <Filter className="h-3.5 w-3.5" /> Subject focus
-            </div>
-            {activeSubjectOption ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-inverse/10 bg-inverse/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                <span
-                  className="inline-flex h-2 w-2 rounded-full"
-                  style={{ backgroundColor: activeSubjectOption.color }}
-                  aria-hidden="true"
-                />
-                {activeSubjectOption.label}
-              </span>
-            ) : null}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Choose a subject to isolate its retention curve. Other subjects stay hidden until you reselect them.
-          </p>
-          {subjectOptions.length > 0 ? (
-            <div className="flex flex-wrap gap-2 overflow-x-auto whitespace-nowrap scrollbar-none">
-              {subjectOptions.map((option) => {
-                const isActive = option.id === activeSubjectId;
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => setActiveSubjectId(option.id)}
-                    aria-pressed={isActive}
-                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs transition ${
-                      isActive
-                        ? "border-primary/50 bg-primary/15 text-primary shadow-sm"
-                        : "border-inverse/10 bg-card/40 text-muted-foreground hover:text-fg"
-                    }`}
+                  ) : (
+                    <div className="flex h-60 items-center justify-center rounded-3xl border border-dashed border-inverse/10 bg-card/40 text-sm text-muted-foreground">
+                      {hasStudyActivity
+                        ? "No retention data for this selection yet."
+                        : "No study activity yet. Add a topic to see your timeline."}
+                    </div>
+                  )
+                ) : null}
+                {subjectTopicCount > 0 ? (
+                  <div
+                    className="flex flex-wrap items-center gap-2 rounded-2xl border border-inverse/10 bg-card/60 px-3 py-2 text-xs text-muted-foreground"
+                    aria-label="Topic color legend"
                   >
+                    <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Topic colors
+                    </span>
+                    {legendItems.map((topic) => {
+                      const color = singleSubjectColorOverrides?.get(topic.id) ?? resolveTopicColor(topic);
+                      const isFocused = activeTopic?.id === topic.id;
+                      return (
+                        <button
+                          key={topic.id}
+                          type="button"
+                          onClick={() => handleSelectTopic(topic.id)}
+                          className={`inline-flex items-center gap-2 rounded-full border px-2 py-1 text-[11px] transition ${
+                            isFocused
+                              ? "border-primary/60 bg-primary/20 text-primary"
+                              : "border-inverse/10 bg-inverse/5 text-muted-foreground hover:text-fg"
+                          }`}
+                          aria-pressed={isFocused}
+                        >
+                          <span
+                            className="inline-flex h-2 w-2 rounded-full"
+                            style={{ backgroundColor: color }}
+                          />
+                          <span className="max-w-[10rem] truncate text-left">{topic.title}</span>
+                        </button>
+                      );
+                    })}
+                    {legendRemaining > 0 ? (
+                      <span className="text-[11px] text-muted-foreground">+{legendRemaining} more</span>
+                    ) : null}
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <p className="rounded-2xl border border-dashed border-inverse/10 bg-card/50 px-3 py-3 text-xs text-muted-foreground">
+                Select a subject to view its retention curves.
+              </p>
+            )}
+          </section>
+
+          <div className="border-t border-inverse/10" />
+
+          <section aria-label="Topic focus" className="space-y-3">
+            <header className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <Tag className="h-3.5 w-3.5" /> Topic focus
+              </div>
+              {activeTopic ? (
+                <Button type="button" size="sm" variant="outline" onClick={() => setActiveTopicId(null)}>
+                  Back to Subject View
+                </Button>
+              ) : null}
+            </header>
+            {activeTopic ? (
+              <>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-fg">{activeTopic.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Next review {formatDateWithWeekday(activeTopic.nextReviewDate)} · {formatRelativeToNow(activeTopic.nextReviewDate)}
+                  </p>
+                </div>
+                {domain && yDomain && series.length > 0 ? (
+                  <div className="group rounded-3xl border border-inverse/10 bg-muted/30 p-3 shadow-sm transition-colors hover:bg-muted/40">
+                    <TimelineChart
+                      ref={svgRef}
+                      series={series}
+                      xDomain={domain}
+                      yDomain={yDomain}
+                      onViewportChange={(next, options) => handleViewportChange(next, { push: options?.push })}
+                      height={variant === "compact" ? 320 : 460}
+                      showGrid
+                      fullDomain={fullDomain ?? undefined}
+                      fullYDomain={fullYDomain ?? undefined}
+                      examMarkers={showExamMarkers ? examMarkers : []}
+                      timeZone={resolvedTimezone}
+                      onResetDomain={handleResetDomain}
+                      ariaDescribedBy={`timeline-zoom-shortcuts ${pointerInstructionId}`}
+                      interactionMode={interactionMode}
+                      temporaryPan={spacePanning}
+                      onRequestStepBack={handleStepBack}
+                      onTooSmallSelection={handleTooSmallSelection}
+                      keyboardSelection={keyboardSelection}
+                      showOpacityGradient={showOpacityGradient}
+                      showReviewMarkers={showReviewMarkers}
+                      showEventDots={showEventDots}
+                      showTopicLabels={showTopicLabels}
+                    />
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Select a topic from the legend or upcoming list to focus on its forgetting curve.
+              </p>
+            )}
+          </section>
+
+          <div className="border-t border-inverse/10" />
+
+          <section aria-label="Upcoming checkpoints" className="space-y-3 rounded-2xl border border-inverse/5 bg-inverse/5 p-4">
+            <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <span>Upcoming checkpoints</span>
+              <span>
+                {upcomingSchedule.length} topic{upcomingSchedule.length === 1 ? "" : "s"}
+              </span>
+            </div>
+            {activeSubjectId ? (
+              upcomingSchedule.length === 0 ? (
+                <p className="rounded-2xl border border-inverse/10 bg-card/50 px-3 py-3 text-xs text-muted-foreground">
+                  All caught up! Adjust your filters or add new reviews to see them here.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {upcomingSchedule.map((topic) => {
+                    const due = isDueToday(topic.nextReviewDate);
+                    const isFocused = activeTopic?.id === topic.id;
+                    return (
+                      <button
+                        key={topic.id}
+                        type="button"
+                        onClick={() => handleSelectTopic(topic.id)}
+                        className={`flex w-full items-start gap-3 rounded-2xl border px-3 py-2 text-left transition ${
+                          isFocused
+                            ? "border-primary/60 bg-primary/10"
+                            : "border-inverse/10 bg-card/60 hover:bg-card/70"
+                        }`}
+                        aria-pressed={isFocused}
+                      >
+                        <span
+                          className="mt-1 inline-flex h-2 w-2 rounded-full"
+                          style={{ backgroundColor: due ? palette.warn : resolveTopicColor(topic) }}
+                        />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-fg">{topic.title}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatDateWithWeekday(topic.nextReviewDate)} · {formatRelativeToNow(topic.nextReviewDate)}
+                          </p>
+                        </div>
+                        <span
+                          className={`checkpoint-status inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] uppercase tracking-wide ${
+                            due ? "checkpoint-status--due" : "checkpoint-status--scheduled"
+                          }`}
+                        >
+                          <Check className="h-3 w-3" /> {due ? "Due" : "Scheduled"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )
+            ) : (
+              <p className="rounded-2xl border border-dashed border-inverse/10 bg-card/50 px-3 py-3 text-xs text-muted-foreground">
+                Select a subject to preview its upcoming checkpoints.
+              </p>
+            )}
+          </section>
+        </div>
+      ) : perSubjectSeries.length > 0 && domain && yDomain ? (
+        <div ref={perSubjectContainerRef} className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+          {perSubjectSeries.map((group) => {
+            const markers = showExamMarkers
+              ? examMarkersBySubject.get(group.subjectId) ?? []
+              : [];
+            const examLabel = group.subject?.examDate
+              ? formatDateWithWeekday(group.subject.examDate)
+              : null;
+            return (
+              <div
+                key={group.subjectId}
+                className="space-y-2 rounded-3xl border border-inverse/10 bg-card/50 p-4"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
                     <span
                       className="inline-flex h-2 w-2 rounded-full"
-                      style={{ backgroundColor: option.color }}
+                      style={{ backgroundColor: group.color }}
                       aria-hidden="true"
                     />
-                    <span className="max-w-[9rem] truncate">{option.label}</span>
-                    <span className="text-[10px] text-muted-foreground/80">{option.topicCount}</span>
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="rounded-2xl border border-dashed border-inverse/10 bg-card/50 px-3 py-3 text-xs text-muted-foreground">
-              Add topics to start focusing the timeline by subject.
-            </p>
-          )}
-        </div>
-
-        <div className="space-y-3 rounded-2xl border border-inverse/5 bg-inverse/5 p-4">
-          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <span>Upcoming checkpoints</span>
-            <span>{upcomingSchedule.length} topics</span>
-          </div>
-          {upcomingSchedule.length === 0 ? (
-            <p className="rounded-2xl border border-inverse/10 bg-card/50 px-3 py-3 text-xs text-muted-foreground">
-              As you add topics their next review dates will show up here.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {upcomingSchedule.map((topic) => {
-                const due = isDueToday(topic.nextReviewDate);
-                return (
-                  <div key={topic.id} className="flex items-start gap-3 rounded-2xl border border-inverse/10 bg-card/60 px-3 py-2">
-                    <span
-                      className="mt-1 inline-flex h-2 w-2 rounded-full"
-                      style={{ backgroundColor: due ? palette.warn : resolveTopicColor(topic) }}
-                    />
-                    <div className="flex-1">
-                      <p className="checkpoint-title text-sm font-medium">{topic.title}</p>
-                      <p className="checkpoint-date text-xs">
-                        {formatDateWithWeekday(topic.nextReviewDate)}  {formatRelativeToNow(topic.nextReviewDate)}
-                      </p>
-                    </div>
-                    <span
-                      className={`checkpoint-status inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] uppercase tracking-wide ${
-                        due ? "checkpoint-status--due" : "checkpoint-status--scheduled"
-                      }`}
-                    >
-                      <Check className="h-3 w-3" /> {due ? "Due" : "Scheduled"}
-                    </span>
+                    <h3 className="text-sm font-semibold text-fg">{group.label}</h3>
                   </div>
-                );
-              })}
-            </div>
-          )}
+                  <div className="flex items-center gap-2">
+                    {examLabel ? (
+                      <span className="text-xs text-muted-foreground">Exam {examLabel}</span>
+                    ) : null}
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      onClick={(event) => {
+                        if (group.series.length === 0) {
+                          return;
+                        }
+                        fullscreenReturnFocusRef.current = event.currentTarget;
+                        setFullscreenTarget({ type: "subject", subjectId: group.subjectId });
+                      }}
+                      disabled={group.series.length === 0}
+                      aria-label={`Expand ${group.label} timeline`}
+                      title="Expand timeline"
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <TimelineChart
+                  ref={(element) => setSubjectChartRef(group.subjectId, element)}
+                  series={group.series}
+                  xDomain={domain}
+                  yDomain={yDomain}
+                  onViewportChange={(next, options) => handleViewportChange(next, { push: options?.push })}
+                  height={variant === "compact" ? 300 : 360}
+                  showGrid
+                  fullDomain={fullDomain ?? undefined}
+                  fullYDomain={fullYDomain ?? undefined}
+                  examMarkers={markers}
+                  timeZone={resolvedTimezone}
+                  onResetDomain={handleResetDomain}
+                  ariaDescribedBy={`timeline-zoom-shortcuts ${pointerInstructionId}`}
+                  interactionMode={interactionMode}
+                  temporaryPan={spacePanning}
+                  onRequestStepBack={handleStepBack}
+                  onTooSmallSelection={handleTooSmallSelection}
+                  keyboardSelection={keyboardSelection}
+                  showOpacityGradient={showOpacityGradient}
+                  showReviewMarkers={showReviewMarkers}
+                  showEventDots={showEventDots}
+                  showTopicLabels={showTopicLabels}
+                />
+              </div>
+            );
+          })}
         </div>
-      </div>
-      </section>
-
-      {subjectTableData.length > 0 ? (
-        <section className={`${cardClasses} space-y-4`} aria-label="Subject topic tables">
-          <header className="space-y-2">
-            <h3 className="text-lg font-semibold text-fg">Subject overview</h3>
-            <p className="text-sm text-muted-foreground">
-              Review current retention and revision history without leaving the timeline view.
-            </p>
-          </header>
-          <div className="space-y-3">
-            {subjectTableData.map((entry) => (
-              <SubjectRevisionTable
-                key={entry.subjectId}
-                subjectId={entry.subjectId}
-                subjectName={entry.subjectName}
-                subjectColor={entry.subjectColor}
-                rows={entry.rows}
-              />
-            ))}
+        ) : (
+          <div className="flex h-60 items-center justify-center rounded-3xl border border-dashed border-inverse/10 bg-card/40 text-sm text-muted-foreground">
+            No study activity yet. Add a topic to see your timeline.
           </div>
-        </section>
-      ) : null}
+        )}
+      </section>
 
       <TimelineFullscreenDialog
         open={isFullscreenOpen}

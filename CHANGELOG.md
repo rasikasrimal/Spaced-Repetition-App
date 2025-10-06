@@ -44,3 +44,8 @@
 - Limited the view to a single active subject with focus chips, subject badges, and scrollable filters so other subjects stay hidden until reselected.
 - Added hover-aware chart styling with crosshair cursors, curve isolation on click, and lighter grid treatments for clearer comparisons.
 - Hardened SVG/PNG exports with sanitized clones, cross-origin safeguards, and user-facing fallbacks when filters taint the canvas.
+
+### Timeline Page Refactor
+- Synced the “Subject selected” summary with the active subject chips so the chart stays clear until a subject is chosen.
+- Rebranded the focus panel to “Topic focus,” added a back-to-subject control, and isolated topic curves immediately when a topic chip is pressed.
+- Reordered the combined view with dividers separating the selector, summary, topic focus, and upcoming checkpoints for a cleaner hierarchy.
