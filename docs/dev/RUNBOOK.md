@@ -1,4 +1,4 @@
-# Runbook
+# RUNBOOK
 
 This runbook helps troubleshoot common production issues. Because the app is local-first, "production" usually means a static deployment (e.g., Vercel) that serves the compiled Next.js bundle.
 
@@ -68,3 +68,5 @@ Revert to the previous deployment by re-running `npm run build` from the last kn
 
 - **Primary**: Front-end developer responsible for the latest release.
 - **Secondary**: Project maintainer listed in `package.json` (update as needed).
+
+[Back to Docs Index](../DOCS_INDEX.md)

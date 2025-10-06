@@ -1,4 +1,4 @@
-# Adaptive Spaced-Repetition Learning Platform with Timeline Intelligence
+# THESIS
 
 ## Abstract
 The proliferation of digital learning systems demands tools capable of aligning review schedules with human memory dynamics while respecting user autonomy and privacy. This thesis presents the design, implementation, and evaluation of a local-first Next.js 14 application that operationalises adaptive spaced repetition through timeline intelligence, Bayesian interval adjustment, and user-centric interaction models. The research synthesises theories of memory decay, adaptive optimisation, and human-computer interaction (HCI) to deliver a production-grade learning platform that orchestrates timeline analytics, contextualised review prompts, and privacy-preserving persistence. Quantitative simulations and formative usability studies demonstrate statistically significant improvements in predicted retention and task efficiency relative to baseline fixed-interval systems. The work contributes a comprehensive architectural blueprint, mathematical derivations of retention probability updates, and an evaluation framework for future local-first educational technologies.
@@ -334,3 +334,5 @@ P01,adaptive,474,88,43,0.83
 - Validate offline persistence after browser refresh.
 - Inspect ARIA announcements in screen reader mode.
 
+
+[Back to Docs Index](../DOCS_INDEX.md)
