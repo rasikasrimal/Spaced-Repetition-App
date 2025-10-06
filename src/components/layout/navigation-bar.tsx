@@ -10,7 +10,6 @@ import {
   LayoutDashboard,
   LineChart,
   BookOpen,
-  Settings
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,8 +24,7 @@ type AppRoute =
   | Route<"/dashboard">
   | Route<"/today">
   | Route<"/timeline">
-  | Route<"/subjects">
-  | Route<"/settings">;
+  | Route<"/subjects">;
 
 type NavItem = {
   href: AppRoute;
@@ -38,8 +36,7 @@ const navItems: NavItem[] = [
   { href: "/today" as AppRoute, label: "Today", icon: CalendarCheck },
   { href: "/dashboard" as AppRoute, label: "Dashboard", icon: LayoutDashboard },
   { href: "/timeline" as AppRoute, label: "Timeline", icon: LineChart },
-  { href: "/subjects" as AppRoute, label: "Subjects", icon: BookOpen },
-  { href: "/settings" as AppRoute, label: "Settings", icon: Settings }
+  { href: "/subjects" as AppRoute, label: "Subjects", icon: BookOpen }
 ];
 
 const computeDueCounts = (topics: Topic[]) => {
@@ -155,4 +152,3 @@ export const NavigationBar: React.FC = () => {
     </header>
   );
 };
-
