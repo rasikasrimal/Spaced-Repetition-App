@@ -24,6 +24,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 
 type AppRoute =
   | Route<"/">
+  | Route<"/dashboard">
   | Route<"/calendar">
   | Route<"/reviews">
   | Route<"/timeline">
@@ -38,13 +39,13 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { href: "/" as AppRoute, label: "Dashboard", icon: LayoutDashboard },
+  { href: "/" as AppRoute, label: "Today", icon: CalendarCheck },
+  { href: "/dashboard" as AppRoute, label: "Dashboard", icon: LayoutDashboard },
   { href: "/calendar" as AppRoute, label: "Calendar", icon: CalendarDays },
   { href: "/reviews" as AppRoute, label: "Reviews", icon: CalendarCheck2 },
   { href: "/timeline" as AppRoute, label: "Timeline", icon: LineChart },
   { href: "/subjects" as AppRoute, label: "Subjects", icon: NotebookPen },
-  { href: "/settings" as AppRoute, label: "Settings", icon: Settings },
-  { href: "/today" as AppRoute, label: "Today", icon: CalendarCheck }
+  { href: "/settings" as AppRoute, label: "Settings", icon: Settings }
 ];
 
 const computeDueCounts = (topics: Topic[]) => {
@@ -83,7 +84,10 @@ export const NavigationBar: React.FC = () => {
 
         <nav className="hidden items-center gap-2 text-sm font-medium md:flex">
           {navItems.map((item) => {
-            const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+            const isActive =
+              item.href === "/"
+                ? pathname === "/" || pathname === "/today"
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
             const Icon = item.icon;
             return (
               <Link
@@ -107,7 +111,7 @@ export const NavigationBar: React.FC = () => {
             variant="outline"
             size="sm"
             className="hidden items-center gap-2 rounded-full text-xs text-fg hover:bg-muted/60 md:inline-flex"
-            onClick={() => router.push("/today" as AppRoute)}
+            onClick={() => router.push("/" as AppRoute)}
           >
             <Bell className="h-3.5 w-3.5" />
             Study Today

@@ -18,7 +18,6 @@ import { computeRiskScore, getAverageQuality } from "@/lib/forgetting-curve";
 import { Subject, Topic } from "@/types/topic";
 import { cn } from "@/lib/utils";
 import { FALLBACK_SUBJECT_COLOR } from "@/lib/colors";
-import { resetCardPointerPosition, updateCardPointerPosition } from "@/lib/card-motion";
 
 interface DashboardProps {
   onCreateTopic: () => void;
@@ -59,14 +58,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
 
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("due-today");
   const { subjectFilter, setSubjectFilter } = usePersistedSubjectFilter();
-
-  const handleCardPointerMove = React.useCallback((event: React.MouseEvent<HTMLElement>) => {
-    updateCardPointerPosition(event.currentTarget, event);
-  }, []);
-
-  const handleCardPointerLeave = React.useCallback((event: React.MouseEvent<HTMLElement>) => {
-    resetCardPointerPosition(event.currentTarget);
-  }, []);
 
   useIsomorphicLayoutEffect(() => {
     if (typeof window === "undefined") return;
@@ -345,9 +336,7 @@ const DashboardSummaryCard = ({
 
   return (
     <section
-      className="card-interactive dashboard-summary-card relative overflow-hidden rounded-3xl border border-inverse/10 bg-card/70 bg-gradient-to-br from-bg/80 via-card/70 to-bg/80 p-6 shadow-sm transition-colors md:p-8"
-      onMouseMove={handleCardPointerMove}
-      onMouseLeave={handleCardPointerLeave}
+      className="dashboard-summary-card relative overflow-hidden rounded-3xl border border-inverse/10 bg-card/70 bg-gradient-to-br from-bg/80 via-card/70 to-bg/80 p-6 shadow-sm transition-colors md:p-8"
       style={{ "--card-accent": FALLBACK_SUBJECT_COLOR } as React.CSSProperties}
     >
       <div className="flex flex-col gap-8 lg:flex-row lg:justify-between">
