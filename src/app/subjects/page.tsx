@@ -47,6 +47,7 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { resetCardPointerPosition, updateCardPointerPosition } from "@/lib/card-motion";
 
 const toDateInputValue = (value: string | null | undefined) => {
   if (!value) return "";
@@ -153,6 +154,14 @@ const SubjectAdminPage: React.FC = () => {
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
   const [sortOption, setSortOption] = React.useState<SortOption>("urgency");
   const [subjectPendingDelete, setSubjectPendingDelete] = React.useState<Subject | null>(null);
+
+  const handleCardPointerMove = React.useCallback((event: React.MouseEvent<HTMLElement>) => {
+    updateCardPointerPosition(event.currentTarget, event);
+  }, []);
+
+  const handleCardPointerLeave = React.useCallback((event: React.MouseEvent<HTMLElement>) => {
+    resetCardPointerPosition(event.currentTarget);
+  }, []);
 
   React.useEffect(() => {
     if (!isCreateOpen) return;
@@ -411,7 +420,13 @@ const SubjectAdminPage: React.FC = () => {
               return (
                 <div
                   key={subject.id}
-                  className={`relative overflow-hidden rounded-3xl border border-inverse/10 bg-bg/70 p-6 ${urgencyMeta.accentClass}`}
+                  className={cn(
+                    "card-interactive relative overflow-hidden rounded-3xl border border-inverse/10 bg-bg/70 p-6",
+                    urgencyMeta.accentClass
+                  )}
+                  onMouseMove={handleCardPointerMove}
+                  onMouseLeave={handleCardPointerLeave}
+                  style={{ "--card-accent": accentColor } as React.CSSProperties}
                 >
                   <div
                     aria-hidden="true"
@@ -497,7 +512,13 @@ const SubjectAdminPage: React.FC = () => {
             return (
               <article
                 key={subject.id}
-                className={`relative overflow-hidden rounded-3xl border border-inverse/10 bg-bg/70 p-6 ${urgencyMeta.accentClass}`}
+                className={cn(
+                  "card-interactive relative overflow-hidden rounded-3xl border border-inverse/10 bg-bg/70 p-6",
+                  urgencyMeta.accentClass
+                )}
+                onMouseMove={handleCardPointerMove}
+                onMouseLeave={handleCardPointerLeave}
+                style={{ "--card-accent": accentColor } as React.CSSProperties}
               >
                   <div
                     aria-hidden="true"
