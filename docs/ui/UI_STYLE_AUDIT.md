@@ -1,4 +1,4 @@
-﻿# Home Page UI Token Audit
+﻿# UI_STYLE_AUDIT
 
 ## Layout Shell Overview
 
@@ -98,3 +98,5 @@ Zoom controls, drag panning, and shift-scroll translate into domain updates that
 - Header icons: rely on accent text colour (`#3dea95` dark / `#21ce99` light) on top of flat surfaces—no background tint.
 - Subject badges: subject accent fills the chip with a 12% opacity overlay in light mode and 18% in dark mode for contrast without shadows.
 - Action icons: `h-4 w-4` within ghost buttons, shifting from `#666c72` or `#9aa0a6` to the accent colour on hover.
+
+[Back to Docs Index](../DOCS_INDEX.md)

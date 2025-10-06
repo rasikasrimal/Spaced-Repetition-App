@@ -1,25 +1,23 @@
-# Spaced Repetition App
+# README
 
 The Spaced Repetition App is a local-first study companion built with Next.js, Tailwind CSS, and Zustand. It helps learners capture topics, organise them by subject, and keep a personalised review cadence that respects exam cut-offs and daily revise limits.
 
 ## Quick links
 
-- [Project description](DESCRIPTION.md)
-- [Architecture](docs/architecture.md)
-- [Runbook](docs/runbook.md)
-- [Test plan](docs/test-plan.md)
-- [Security notes](docs/security.md)
-- [OpenAPI stewardship](docs/openapi.yaml)
-- [UI style audit](docs/ui-style-audit.md)
-- [Adaptive algorithm overview](docs/ALGORITHM_OVERVIEW.md)
-- [Settings guide](SETTINGS_GUIDE.md)
-- [UI guidelines](UI_GUIDELINES.md)
-- [Testing notes](TESTING_NOTES.md)
+- [Docs index](docs/DOCS_INDEX.md)
+- [Architecture](docs/core/ARCHITECTURE.md)
+- [Data model](docs/core/DATA_MODEL.md)
+- [State management](docs/core/STATE_MANAGEMENT.md)
+- [Adaptive scheduling](docs/core/ALGORITHMS_FORGETTING_CURVE.md)
+- [Timeline guide](docs/core/TIMELINE.md)
+- [Navigation patterns](docs/ui/NAVIGATION.md)
+- [UI guidelines](docs/ui/UI_GUIDELINES.md)
+- [Testing strategy](docs/dev/TESTING.md)
+- [Performance guardrails](docs/dev/PERFORMANCE.md)
+- [Contribution guide](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
 - [Code of Conduct](CODE_OF_CONDUCT.md)
-- [Contributing guide](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
-- [Future roadmap](future-plan.md)
 
 ## What changed recently
 
@@ -133,3 +131,5 @@ src/
 ## Data persistence
 
 All topics and categories are stored in the browser via `localStorage`. This keeps the app completely local and private. Clearing browser storage will remove saved topics.
+
+[Back to Docs Index](docs/DOCS_INDEX.md)
