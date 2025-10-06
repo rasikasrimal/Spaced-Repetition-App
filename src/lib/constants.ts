@@ -1,51 +1,38 @@
 export const DEFAULT_INTERVALS = [1, 4, 14, 30, 60];
 
 export type IconOption = {
+  /**
+   * Lucide icon component name.
+   */
   name: string;
+  /**
+   * Human readable subject that the icon represents.
+   */
   label: string;
-  category:
-    | "Science"
-    | "Math"
-    | "Language"
-    | "History"
-    | "Technology"
-    | "General";
+  /**
+   * Keywords that make the icon discoverable via search.
+   */
   keywords: string[];
 };
 
 export const ICON_LIBRARY: IconOption[] = [
-  { name: "FlaskConical", label: "Flask", category: "Science", keywords: ["science", "chemistry", "lab"] },
-  { name: "Beaker", label: "Beaker", category: "Science", keywords: ["science", "experiment", "liquid"] },
-  { name: "Atom", label: "Atom", category: "Science", keywords: ["science", "physics", "molecule"] },
-  { name: "Microscope", label: "Microscope", category: "Science", keywords: ["science", "biology", "research"] },
-  { name: "Dna", label: "DNA", category: "Science", keywords: ["science", "genetics", "biology"] },
-  { name: "Calculator", label: "Calculator", category: "Math", keywords: ["math", "arithmetic", "numbers"] },
-  { name: "Sigma", label: "Sigma", category: "Math", keywords: ["math", "summation", "algebra"] },
-  { name: "SquareFunction", label: "Function", category: "Math", keywords: ["math", "function", "graph"] },
-  { name: "Ruler", label: "Ruler", category: "Math", keywords: ["math", "measure", "geometry"] },
-  { name: "Grid3x3", label: "Grid", category: "Math", keywords: ["math", "matrix", "geometry"] },
-  { name: "BookOpen", label: "Book", category: "Language", keywords: ["language", "reading", "literature"] },
-  { name: "PenLine", label: "Pen", category: "Language", keywords: ["language", "writing", "pen"] },
-  { name: "Feather", label: "Feather", category: "Language", keywords: ["language", "writing", "quill"] },
-  { name: "Languages", label: "Languages", category: "Language", keywords: ["language", "translate", "globe"] },
-  { name: "Globe", label: "Globe", category: "Language", keywords: ["language", "world", "culture"] },
-  { name: "Landmark", label: "Landmark", category: "History", keywords: ["history", "monument", "heritage"] },
-  { name: "ScrollText", label: "Scroll", category: "History", keywords: ["history", "document", "chronicle"] },
-  { name: "Library", label: "Library", category: "History", keywords: ["history", "archives", "study"] },
-  { name: "Hourglass", label: "Hourglass", category: "History", keywords: ["history", "time", "antiquity"] },
-  { name: "CalendarClock", label: "Clock", category: "History", keywords: ["history", "timeline", "schedule"] },
-  { name: "Cpu", label: "CPU", category: "Technology", keywords: ["technology", "hardware", "processor"] },
-  { name: "Monitor", label: "Monitor", category: "Technology", keywords: ["technology", "display", "screen"] },
-  { name: "Code", label: "Code", category: "Technology", keywords: ["technology", "software", "programming"] },
-  { name: "ServerCog", label: "Server", category: "Technology", keywords: ["technology", "infrastructure", "ops"] },
-  { name: "CircuitBoard", label: "Circuit", category: "Technology", keywords: ["technology", "electronics", "hardware"] },
-  { name: "Lightbulb", label: "Lightbulb", category: "General", keywords: ["general", "idea", "insight"] },
-  { name: "Sparkles", label: "Sparkles", category: "General", keywords: ["general", "celebration", "highlight"] },
-  { name: "Star", label: "Star", category: "General", keywords: ["general", "favorite", "important"] },
-  { name: "Brain", label: "Brain", category: "General", keywords: ["general", "thinking", "study"] },
-  { name: "Compass", label: "Compass", category: "General", keywords: ["general", "navigation", "direction"] }
+  { name: "Beaker", label: "Chemistry", keywords: ["chemistry", "science", "lab", "experiment"] },
+  { name: "Atom", label: "Physics", keywords: ["physics", "science", "atom", "molecule"] },
+  { name: "SquareFunction", label: "Mathematics", keywords: ["math", "function", "algebra", "formula"] },
+  { name: "Dna", label: "Biology", keywords: ["biology", "science", "genetics", "cells"] },
+  { name: "Cpu", label: "Computer Science", keywords: ["computer", "technology", "coding", "hardware"] },
+  { name: "BookOpen", label: "Literature", keywords: ["literature", "reading", "books", "stories"] },
+  { name: "Type", label: "Language", keywords: ["language", "linguistics", "typing", "letters"] },
+  { name: "Palette", label: "Art", keywords: ["art", "design", "painting", "creative"] },
+  { name: "Music3", label: "Music", keywords: ["music", "sound", "melody", "rhythm"] },
+  { name: "Globe2", label: "Geography", keywords: ["geography", "maps", "earth", "world"] },
+  { name: "Landmark", label: "History", keywords: ["history", "monument", "heritage", "culture"] },
+  { name: "PenTool", label: "Writing", keywords: ["writing", "creative", "pen", "drafting"] },
+  { name: "Microscope", label: "Science", keywords: ["science", "research", "analysis", "lab"] },
+  { name: "Lightbulb", label: "Ideas", keywords: ["ideas", "innovation", "insight", "brainstorm"] },
+  { name: "Sparkles", label: "General", keywords: ["general", "sparkles", "highlight", "default"] },
+  { name: "Star", label: "Favorites", keywords: ["favorite", "star", "important", "priority"] }
 ];
-
 
 export type ColorPreset = {
   name: string;
