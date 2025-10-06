@@ -128,6 +128,7 @@ type TopicStore = TopicStoreState & {
     options?: UpdateTopicHistoryOptions
   ) => UpdateTopicHistoryResult;
   skipTopic: (id: string) => void;
+  adjustNextReviewByMultiplier: (id: string, multiplier: number, options?: { referenceDate?: Date }) => void;
   setAutoAdjustPreference: (id: string, preference: AutoAdjustPreference) => void;
   trackReviseNowBlocked: () => void;
   autoSkipOverdueTopics: (timeZone: string) => AutoSkipResult[];
@@ -1634,6 +1635,62 @@ export const useTopicStore = create<TopicStore>()(
         }));
 
         return true;
+      },
+      adjustNextReviewByMultiplier: (id, multiplier, options) => {
+        if (!Number.isFinite(multiplier) || multiplier <= 0) {
+          return;
+        }
+
+        set((state) => {
+          const topic = state.topics.find((item) => item.id === id);
+          if (!topic) {
+            return {};
+          }
+
+          const reference = options?.referenceDate
+            ? new Date(options.referenceDate)
+            : topic.lastReviewedAt
+            ? new Date(topic.lastReviewedAt)
+            : topic.startedAt
+            ? new Date(topic.startedAt)
+            : new Date(topic.createdAt);
+
+          if (!Number.isFinite(reference.getTime())) {
+            return {};
+          }
+
+          const currentNext = new Date(topic.nextReviewDate);
+          if (!Number.isFinite(currentNext.getTime())) {
+            return {};
+          }
+
+          const baseIntervalMs = Math.max(
+            currentNext.getTime() - reference.getTime(),
+            (STABILITY_MIN_DAYS / 24) * DAY_MS
+          );
+          const intervalDays = Math.max((baseIntervalMs / DAY_MS) * multiplier, STABILITY_MIN_DAYS / 24);
+          const subject = findSubjectById(state.subjects, topic.subjectId ?? null);
+          const nextReviewDate = scheduleNextReviewDate({
+            topicId: topic.id,
+            referenceDate: reference,
+            intervalDays,
+            topics: state.topics,
+            timeZone: DEFAULT_TIME_ZONE,
+            examDate: subject?.examDate ?? null,
+            minimumDate: reference
+          });
+
+          return {
+            topics: state.topics.map((item) =>
+              item.id === id
+                ? {
+                    ...item,
+                    nextReviewDate
+                  }
+                : item
+            )
+          };
+        });
       },
       skipTopic: (id) => {
         const state = get();
