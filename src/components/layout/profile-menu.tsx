@@ -43,7 +43,7 @@ export const ProfileMenu: React.FC = () => {
           {avatarFallback(profile.name)}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-64 space-y-4 rounded-2xl border-inverse/10 bg-card/90 p-4 text-sm text-fg/80" sideOffset={12}>
+      <PopoverContent className="w-64 space-y-4 rounded-2xl p-4 text-sm text-fg/80" sideOffset={12}>
         <div className="flex items-center gap-3">
           <span
             className="flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold text-fg"

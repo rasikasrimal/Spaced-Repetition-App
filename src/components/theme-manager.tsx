@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useThemeStore } from "@/stores/theme";
+import { useAppearanceStore } from "@/stores/appearance";
 
 const THEME_STORAGE_KEY = "sr-theme";
 
@@ -13,6 +14,7 @@ export function ThemeManager() {
   const initialized = useThemeStore((state) => state.initialized);
   const setTheme = useThemeStore((state) => state.setTheme);
   const setInitialized = useThemeStore((state) => state.setInitialized);
+  const surfaceOverlayOpacity = useAppearanceStore((state) => state.surfaceOverlayOpacity);
 
   React.useEffect(() => {
     if (initialized) {
@@ -35,6 +37,16 @@ export function ThemeManager() {
     document.body.classList.add(theme);
     window.localStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [initialized, theme]);
+
+  React.useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+    document.documentElement.style.setProperty(
+      "--surface-overlay-alpha",
+      surfaceOverlayOpacity.toString()
+    );
+  }, [surfaceOverlayOpacity]);
 
   return null;
 }

@@ -22,6 +22,15 @@
 - Balanced stroke weights for all icons.
 - Enhanced keyboard focus and tooltips.
 
+### Settings & Appearance Controls
+- Added an appearance panel to tune surface overlay opacity with live preview.
+- Surface overlays across dashboard cards now respect a shared opacity variable persisted per user.
+
+### UI: Dropdown Background Opacity Fix
+- Replaced semi-transparent dropdown surfaces with solid backgrounds for improved readability.
+- Added theme-aware borders, hover tints, and shadows to popovers and select menus.
+- Unified Radix dropdown styling via shared tokens for light and dark modes.
+
 ### Dashboard UI & Chart Refinements
 - Default the dashboard status filter to "Due today" and persist the preference across sessions.
 - Unify the filter button group with uppercase primary styling, horizontal scroll, and accessible focus rings.
