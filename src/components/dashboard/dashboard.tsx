@@ -11,6 +11,7 @@ import {
   SubjectFilterValue,
   NO_SUBJECT_KEY
 } from "@/components/dashboard/topic-list";
+import { IconPreview } from "@/components/icon-preview";
 import { useZonedNow } from "@/hooks/use-zoned-now";
 import { usePersistedSubjectFilter } from "@/hooks/use-persisted-subject-filter";
 import {
@@ -23,10 +24,10 @@ import {
   isToday,
   startOfToday
 } from "@/lib/date";
-import { computeRiskScore, getAverageQuality } from "@/lib/forgetting-curve";
+import { computeRiskScore, getAverageQuality, computeRetrievability } from "@/lib/forgetting-curve";
 import { Subject, Topic } from "@/types/topic";
 import { cn } from "@/lib/utils";
-import { FALLBACK_SUBJECT_COLOR } from "@/lib/colors";
+import { FALLBACK_SUBJECT_COLOR, getAccessibleTextColor, getTintedSurfaceColor } from "@/lib/colors";
 import { buildCalendarMonthData } from "@/lib/calendar";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -39,6 +40,13 @@ const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const STATUS_FILTER_STORAGE_KEY = "dashboard-status-filter";
 const useIsomorphicLayoutEffect =
   typeof window !== "undefined" ? React.useLayoutEffect : React.useEffect;
+
+interface SubjectRetentionStat {
+  subject: Subject;
+  retentionPercent: number;
+  topicCount: number;
+}
+
 
 const computeStreak = (topics: Topic[]) => {
   const reviewDays = new Set<string>();
@@ -130,6 +138,48 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
       } satisfies TopicListItem;
     });
   }, [topics, subjects, zonedNow]);
+
+  const subjectRetentionStats = React.useMemo<SubjectRetentionStat[]>(() => {
+    if (subjects.length === 0) return [];
+    const nowMs = zonedNow.getTime();
+    const subjectIndex = new Map<string, Subject>();
+    const aggregates = new Map<string, { sum: number; count: number }>();
+
+    for (const subject of subjects) {
+      subjectIndex.set(subject.id, subject);
+      aggregates.set(subject.id, { sum: 0, count: 0 });
+    }
+
+    for (const topic of topics) {
+      if (!topic.subjectId) continue;
+      const subject = subjectIndex.get(topic.subjectId);
+      if (!subject) continue;
+
+      const anchorIso = topic.lastReviewedAt || topic.startedAt || topic.createdAt;
+      const anchorDate = anchorIso ? new Date(anchorIso) : new Date(topic.createdAt);
+      const anchorTime = anchorDate.getTime();
+      const elapsedMs = Number.isFinite(anchorTime) ? Math.max(0, nowMs - anchorTime) : 0;
+      const retention = computeRetrievability(topic.stability, elapsedMs);
+      const bucket = aggregates.get(subject.id);
+      if (!bucket) continue;
+      bucket.sum += Math.min(Math.max(retention * 100, 0), 100);
+      bucket.count += 1;
+    }
+
+    const stats: SubjectRetentionStat[] = [];
+    for (const subject of subjects) {
+      const entry = aggregates.get(subject.id);
+      if (!entry || entry.count === 0) continue;
+      stats.push({
+        subject,
+        retentionPercent: Math.round(entry.sum / entry.count),
+        topicCount: entry.count
+      });
+    }
+
+    stats.sort((a, b) => a.retentionPercent - b.retentionPercent);
+    return stats;
+  }, [subjects, topics, zonedNow]);
 
   const {
     dueCount,
@@ -249,6 +299,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onCreateTopic, onEditTopic
         total={totalToday}
         completionPercent={completionPercent}
       />
+
+      {subjectRetentionStats.length > 0 && (
+        <SubjectRetentionPanel stats={subjectRetentionStats} />
+      )}
 
       <DashboardCalendarPreview
         topics={topics}
@@ -642,3 +696,73 @@ const MetricCard = ({
     <p className={cn("mt-2 text-lg font-semibold", valueClass)}>{value}</p>
   </div>
 );
+
+
+const SubjectRetentionPanel = ({ stats }: { stats: SubjectRetentionStat[] }) => {
+  if (stats.length === 0) {
+    return null;
+  }
+
+  const total = stats.reduce((sum, item) => sum + item.retentionPercent, 0);
+  const overallAverage = Math.round(total / stats.length);
+  const lowest = stats[0];
+  return (
+    <section className="rounded-3xl border border-inverse/10 bg-card/50 p-6 shadow-sm">
+      <header className="space-y-2">
+        <h2 className="text-lg font-semibold text-fg">Subject retention overview</h2>
+        <p className="text-sm text-muted-foreground">
+          Average predicted retention across your subjects. Overall average {overallAverage}%.
+          {lowest ? (
+            <>
+              {' '}Focus on <span className="font-medium text-fg">{lowest.subject.name}</span> ({lowest.retentionPercent}%) to prevent slippage.
+            </>
+          ) : null}
+        </p>
+      </header>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {stats.map((item) => {
+          const accent = item.subject.color || FALLBACK_SUBJECT_COLOR;
+          const iconSurface = getTintedSurfaceColor(accent);
+          const iconForeground = getAccessibleTextColor(iconSurface);
+          const barStyle = { width: `${Math.min(Math.max(item.retentionPercent, 0), 100)}%`, backgroundColor: accent } as React.CSSProperties;
+          return (
+            <article
+              key={item.subject.id}
+              className="group flex h-full flex-col justify-between gap-3 rounded-2xl border border-inverse/15 bg-card/60 p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/40 hover:bg-card/80"
+              aria-label={`${item.subject.name}: ${item.retentionPercent}% retention across ${item.topicCount} topics`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 shadow-sm"
+                    style={{ backgroundColor: iconSurface, color: iconForeground }}
+                  >
+                    <IconPreview name={item.subject.icon || "Sparkles"} className="h-5 w-5" />
+                  </span>
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-fg">{item.subject.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {item.topicCount} topic{item.topicCount === 1 ? "" : "s"}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-semibold text-fg">{item.retentionPercent}%</p>
+                  <p className="text-xs text-muted-foreground">Avg retention</p>
+                </div>
+              </div>
+              <div className="mt-2 space-y-2">
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                  <div className="h-full rounded-full transition-[width] duration-500" style={barStyle} />
+                </div>
+                <p className="text-xs text-muted-foreground">Retention score clips at 100% and updates after each review.</p>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+};
