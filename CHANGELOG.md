@@ -44,6 +44,11 @@
 - Elevated icon and heading transitions so each subject tile responds smoothly to movement and theme changes.
 - Ensured the new motion works in both light and dark modes without introducing layout shifts or repaint thrash.
 
+### New Feature: "Today" Smart Review Tab
+- Added a dedicated Today navigation tab that surfaces the five most urgent topics with live retention scores.
+- Introduced revise/skip workflows with difficulty tagging to stretch or tighten future intervals instantly.
+- Persisted session progress so completed topics drop out and replacements roll in without losing momentum across refreshes.
+
 ### Reviews Page Enhancements
 - Fixed the runtime error triggered by the "All" filter by guarding invalid status lookups.
 - Limited the “Skip today” shortcut to topics due today while keeping other actions available.

@@ -7,6 +7,7 @@ import type { Route } from "next";
 import {
   Menu,
   Bell,
+  CalendarCheck,
   CalendarCheck2,
   CalendarDays,
   LayoutDashboard,
@@ -21,7 +22,14 @@ import { Topic } from "@/types/topic";
 import { ProfileMenu } from "@/components/layout/profile-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-type AppRoute = Route<"/"> | Route<"/calendar"> | Route<"/reviews"> | Route<"/timeline"> | Route<"/subjects"> | Route<"/settings">;
+type AppRoute =
+  | Route<"/">
+  | Route<"/calendar">
+  | Route<"/reviews">
+  | Route<"/timeline">
+  | Route<"/subjects">
+  | Route<"/settings">
+  | Route<"/today">;
 
 type NavItem = {
   href: AppRoute;
@@ -35,7 +43,8 @@ const navItems: NavItem[] = [
   { href: "/reviews" as AppRoute, label: "Reviews", icon: CalendarCheck2 },
   { href: "/timeline" as AppRoute, label: "Timeline", icon: LineChart },
   { href: "/subjects" as AppRoute, label: "Subjects", icon: NotebookPen },
-  { href: "/settings" as AppRoute, label: "Settings", icon: Settings }
+  { href: "/settings" as AppRoute, label: "Settings", icon: Settings },
+  { href: "/today" as AppRoute, label: "Today", icon: CalendarCheck }
 ];
 
 const computeDueCounts = (topics: Topic[]) => {
@@ -98,10 +107,10 @@ export const NavigationBar: React.FC = () => {
             variant="outline"
             size="sm"
             className="hidden items-center gap-2 rounded-full text-xs text-fg hover:bg-muted/60 md:inline-flex"
-            onClick={() => router.push("/reviews" as AppRoute)}
+            onClick={() => router.push("/today" as AppRoute)}
           >
             <Bell className="h-3.5 w-3.5" />
-            Today&apos;s Tasks
+            Study Today
             <span className="ml-1 inline-flex h-5 min-w-[1.5rem] items-center justify-center rounded-full bg-accent text-[11px] font-semibold text-accent-foreground">
               {due}
             </span>
