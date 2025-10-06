@@ -44,6 +44,10 @@ This index tracks every Markdown document across the repository and groups them 
 | [docs/ui/UI_STYLE_AUDIT.md](ui/UI_STYLE_AUDIT.md) | Complete | 904 |
 | [docs/ui/UI_STYLE_GUIDE.md](ui/UI_STYLE_GUIDE.md) | Complete | 307 |
 | [docs/forgetting-curve.md](forgetting-curve.md) | Complete | 962 |
+| [docs/NAVBAR.md](NAVBAR.md) | New | 256 |
+| [docs/Explore.md](Explore.md) | New | 475 |
+| [docs/UI_Style_Guide.md](UI_Style_Guide.md) | New | 195 |
+| [docs/Routing.md](Routing.md) | New | 203 |
 
 Partial legacy docs in the repository root are retained for historical context and will be expanded in future passes.
 

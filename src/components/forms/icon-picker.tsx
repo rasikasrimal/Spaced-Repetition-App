@@ -137,7 +137,7 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange }) => {
               </div>
             ) : (
               <p className="rounded-2xl border border-dashed border-inverse/10 bg-inverse/5 p-6 text-center text-sm text-muted-foreground">
-                No icons match "{query}". Try another keyword.
+                No icons match &ldquo;{query}&rdquo;. Try another keyword.
               </p>
             )}
           </div>

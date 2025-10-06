@@ -10,17 +10,13 @@ import {
   LayoutDashboard,
   LineChart,
   BookOpen,
-  Settings,
+  Compass,
+  Menu,
+  X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useTopicStore } from "@/stores/topics";
 import { Topic } from "@/types/topic";
 import { ProfileMenu } from "@/components/layout/profile-menu";
@@ -33,7 +29,7 @@ type AppRoute =
   | Route<"/today">
   | Route<"/timeline">
   | Route<"/subjects">
-  | Route<"/settings">;
+  | Route<"/explore">;
 
 type NavItem = {
   href: AppRoute;
@@ -46,7 +42,7 @@ const navItems: NavItem[] = [
   { href: "/dashboard" as AppRoute, label: "Dashboard", icon: LayoutDashboard },
   { href: "/timeline" as AppRoute, label: "Timeline", icon: LineChart },
   { href: "/subjects" as AppRoute, label: "Subjects", icon: BookOpen },
-  { href: "/settings" as AppRoute, label: "Settings", icon: Settings },
+  { href: "/explore" as AppRoute, label: "Explore", icon: Compass },
 ];
 
 const computeDueCounts = (topics: Topic[]) => {
@@ -69,6 +65,11 @@ export const NavigationBar: React.FC = () => {
   const router = useRouter();
   const topics = useTopicStore((state) => state.topics);
   const { due } = React.useMemo(() => computeDueCounts(topics), [topics]);
+  const listRef = React.useRef<HTMLUListElement | null>(null);
+  const itemRefs = React.useRef<Record<string, HTMLAnchorElement | null>>({});
+  const [indicatorStyle, setIndicatorStyle] = React.useState({ width: 0, left: 0, opacity: 0 });
+  const [mobileOpen, setMobileOpen] = React.useState(false);
+
   const isActive = React.useCallback(
     (href: AppRoute) => {
       if (href === "/today") {
@@ -83,8 +84,43 @@ export const NavigationBar: React.FC = () => {
     () => navItems.find((item) => isActive(item.href)),
     [isActive]
   );
-  const ActiveIcon = activeNavItem?.icon ?? CalendarCheck;
-  const activeLabel = activeNavItem?.label ?? "Today";
+
+  const registerItemRef = React.useCallback(
+    (href: AppRoute) => (node: HTMLAnchorElement | null) => {
+      itemRefs.current[href] = node;
+    },
+    []
+  );
+
+  const updateIndicator = React.useCallback(() => {
+    if (typeof window === "undefined") return;
+    const list = listRef.current;
+    const currentHref = activeNavItem?.href;
+    if (!list || !currentHref) {
+      setIndicatorStyle((prev) => (prev.opacity === 0 ? prev : { width: 0, left: 0, opacity: 0 }));
+      return;
+    }
+    const target = itemRefs.current[currentHref];
+    if (!target) return;
+    const listRect = list.getBoundingClientRect();
+    const itemRect = target.getBoundingClientRect();
+    setIndicatorStyle({
+      width: itemRect.width,
+      left: itemRect.left - listRect.left,
+      opacity: 1,
+    });
+  }, [activeNavItem?.href]);
+
+  React.useEffect(() => {
+    updateIndicator();
+  }, [pathname, updateIndicator]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleResize = () => updateIndicator();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [updateIndicator]);
 
   const renderNavItem = (item: NavItem) => {
     const Icon = item.icon;
@@ -92,6 +128,7 @@ export const NavigationBar: React.FC = () => {
     return (
       <li key={item.href} className="flex">
         <Link
+          ref={registerItemRef(item.href)}
           href={item.href}
           aria-label={item.label}
           title={item.label}
@@ -99,22 +136,22 @@ export const NavigationBar: React.FC = () => {
           aria-current={active ? "page" : undefined}
           data-active={active}
           className={cn(
-            "UnderlineNav-item group relative inline-flex items-center gap-2 px-2 py-3 text-sm font-medium text-muted-foreground/80 transition-colors duration-200",
-            "before:pointer-events-none before:absolute before:inset-y-2 before:inset-x-1.5 before:rounded-md before:bg-accent/10 before:opacity-0 before:transition-opacity before:duration-200 before:ease-out before:content-['']",
-            "after:pointer-events-none after:absolute after:bottom-0 after:left-1/2 after:h-[2px] after:w-full after:-translate-x-1/2 after:origin-center after:scale-x-0 after:bg-[var(--accent-color)] after:opacity-0 after:transition-transform after:duration-300 after:delay-150 after:ease-out after:content-[''] after:rounded-full",
-            "hover:text-accent-foreground hover:before:opacity-100 hover:after:scale-x-100 hover:after:opacity-100",
-            "focus-visible:text-accent-foreground focus-visible:before:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
-            "data-[active=true]:text-accent-foreground data-[active=true]:before:opacity-100 data-[active=true]:before:bg-accent/15 data-[active=true]:after:scale-x-100 data-[active=true]:after:opacity-100"
+            "group relative inline-flex items-center gap-2 rounded-lg px-3 py-3 text-sm font-medium text-muted-foreground/80 transition-all duration-200 ease-out",
+            "before:pointer-events-none before:absolute before:inset-x-2 before:inset-y-2 before:rounded-lg before:bg-accent/10 before:opacity-0 before:transition before:duration-200 before:ease-out before:content-['']",
+            "hover:text-accent hover:before:opacity-100",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-card",
+            "data-[active=true]:font-semibold data-[active=true]:text-accent data-[active=true]:before:opacity-100"
           )}
         >
           <Icon
             aria-hidden="true"
             className={cn(
-              "h-4 w-4 text-muted-foreground transition-transform duration-200",
-              "group-hover:scale-105 group-hover:text-accent-foreground group-data-[active=true]:text-accent-foreground"
+              "h-4 w-4 text-muted-foreground transition-transform duration-200 ease-out",
+              "group-hover:-translate-y-0.5 group-hover:scale-110 group-hover:text-accent",
+              "group-data-[active=true]:text-accent"
             )}
           />
-          <span className="max-[480px]:hidden">{item.label}</span>
+          <span className="max-[520px]:hidden">{item.label}</span>
           {item.href === ("/today" as AppRoute) && (
             <span className="ml-2 inline-flex min-h-[1.25rem] min-w-[1.5rem] items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-semibold tracking-wide text-accent-foreground shadow-[0_1px_0_rgba(15,23,42,0.08)] dark:shadow-[0_1px_0_rgba(2,6,23,0.5)]">
               {due}
@@ -125,16 +162,43 @@ export const NavigationBar: React.FC = () => {
     );
   };
 
+  const renderMobileNavItem = (item: NavItem) => {
+    const Icon = item.icon;
+    const active = isActive(item.href);
+    return (
+      <li key={item.href}>
+        <Link
+          href={item.href}
+          data-active={active}
+          onClick={() => setMobileOpen(false)}
+          className={cn(
+            "group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground/80 transition-colors duration-200",
+            "hover:bg-accent/10 hover:text-accent",
+            "data-[active=true]:bg-accent/10 data-[active=true]:text-accent"
+          )}
+        >
+          <Icon className="h-4 w-4 text-muted-foreground transition-transform group-hover:scale-110 group-hover:text-accent group-data-[active=true]:text-accent" aria-hidden="true" />
+          <span className="flex-1 text-left">{item.label}</span>
+          {item.href === ("/today" as AppRoute) && (
+            <span className="ml-auto inline-flex min-h-[1.25rem] min-w-[1.5rem] items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-semibold text-accent-foreground">
+              {due}
+            </span>
+          )}
+        </Link>
+      </li>
+    );
+  };
+
   return (
-    <header className="sticky top-0 z-50 border-b border-border/60 bg-bg/80 shadow-[0_12px_28px_-18px_rgba(15,23,42,0.35)] backdrop-blur transition-colors dark:shadow-[0_12px_32px_-18px_rgba(2,6,23,0.6)]">
-      <div className="relative mx-auto flex w-full max-w-[90rem] flex-col gap-3 px-4 pb-3 pt-4 md:flex-row md:items-center md:justify-between md:gap-4 md:px-6 md:pb-4 md:pt-4 lg:px-8 xl:px-10">
+    <header className="sticky top-0 z-50 border-b border-muted/40 bg-card/80 shadow-[0_10px_30px_-24px_rgba(15,23,42,0.45)] backdrop-blur supports-[backdrop-filter]:bg-card/70">
+      <div className="relative mx-auto flex w-full max-w-[90rem] flex-col gap-3 px-4 pb-3 pt-4 md:flex-row md:items-center md:justify-between md:gap-6 md:px-6 md:pb-4 md:pt-4 lg:px-8 xl:px-10">
         <div className="flex items-center justify-between gap-3 text-fg md:justify-start">
           <Link href="/" className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-accent">
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-accent/20 text-accent">SR</span>
             <span className="hidden text-fg md:block">Spaced Repetition</span>
           </Link>
-          <div className="flex items-center gap-3 md:hidden">
-            <ThemeToggle />
+          <div className="flex items-center gap-2 md:hidden">
+            <ThemeToggle size="sm" className="rounded-full" />
             <Button
               type="button"
               variant="outline"
@@ -148,17 +212,47 @@ export const NavigationBar: React.FC = () => {
                 {due}
               </span>
             </Button>
+            <Popover open={mobileOpen} onOpenChange={setMobileOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label="Open navigation menu"
+                  className="h-10 w-10 rounded-full border-muted/60 text-muted-foreground hover:bg-accent/10 hover:text-accent"
+                >
+                  {mobileOpen ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-64 border border-muted/40 bg-card/95 p-2 shadow-xl">
+                <nav aria-label="Mobile navigation" role="navigation" className="flex flex-col gap-2">
+                  <ul className="flex flex-col gap-1">{navItems.map(renderMobileNavItem)}</ul>
+                </nav>
+              </PopoverContent>
+            </Popover>
             <ProfileMenu />
           </div>
         </div>
 
         <div className="hidden flex-1 items-center justify-center md:flex">
           <nav
-            aria-label="Primary navigation"
+            aria-label="Main"
             role="navigation"
-            className="UnderlineNav relative flex justify-center border-b border-border/50 bg-card/70 backdrop-blur"
+            className="relative flex w-full justify-center border-b border-muted/40"
           >
-            <ul className="UnderlineNav-body relative flex list-none items-center justify-center gap-4 px-2 text-sm sm:gap-6">
+            <ul
+              ref={listRef}
+              className="relative flex list-none items-center justify-center gap-2 px-2 py-1 text-sm sm:gap-4"
+            >
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute bottom-0 h-[2px] rounded-full bg-[var(--accent-color)] transition-[width,left,opacity] duration-300 ease-out"
+                style={{
+                  width: indicatorStyle.width,
+                  left: indicatorStyle.left,
+                  opacity: indicatorStyle.opacity,
+                }}
+              />
               {navItems.map(renderNavItem)}
             </ul>
           </nav>
@@ -179,41 +273,7 @@ export const NavigationBar: React.FC = () => {
               {due}
             </span>
           </Button>
-
           <ProfileMenu />
-        </div>
-
-        <div className="md:hidden">
-          <Select
-            value={activeNavItem?.href ?? navItems[0].href}
-            onValueChange={(value) => router.push(value as AppRoute)}
-          >
-            <SelectTrigger className="h-11 w-full items-center justify-between gap-2 rounded-xl border border-border/60 bg-card/70 text-sm font-medium text-muted-foreground/90 backdrop-blur">
-              <SelectValue aria-label={activeNavItem?.label ?? "Select a section"}>
-                <span className="flex items-center gap-2">
-                  <ActiveIcon className="h-4 w-4" aria-hidden="true" />
-                  <span>{activeLabel}</span>
-                </span>
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent align="center" className="min-w-[12rem]">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const value = item.href;
-                return (
-                  <SelectItem key={item.href} value={value} data-active={isActive(item.href)}>
-                    <Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-                    <span className="flex-1 text-left">{item.label}</span>
-                    {item.href === ("/today" as AppRoute) && (
-                      <span className="ml-auto inline-flex min-h-[1.25rem] min-w-[1.5rem] items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-semibold text-accent-foreground shadow-[0_1px_0_rgba(15,23,42,0.08)] dark:shadow-[0_1px_0_rgba(2,6,23,0.5)]">
-                        {due}
-                      </span>
-                    )}
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
         </div>
       </div>
     </header>

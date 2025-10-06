@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useProfileStore } from "@/stores/profile";
 import { Bell, LogOut, Settings, User, Smartphone } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const avatarFallback = (name: string) => {
   if (!name) return "?";
@@ -79,28 +80,21 @@ export const ProfileMenu: React.FC = () => {
             className="w-full justify-start gap-2 text-fg/80 hover:text-fg"
             onClick={() => router.push("/settings")}
           >
-            <Settings className="h-4 w-4" /> Profile settings
+            <Settings className="h-4 w-4" /> Settings
           </Button>
           <Button
             type="button"
             variant="ghost"
             className="w-full justify-start gap-2 text-muted-foreground hover:text-fg"
-            onClick={() => router.push("/subjects")}
+            onClick={() => router.push("/dashboard")}
           >
-            <User className="h-4 w-4" /> Manage subjects
+            <User className="h-4 w-4" /> View profile
           </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            className="w-full justify-start gap-2 text-muted-foreground hover:text-fg"
-            onClick={() => router.push("/reviews")}
-          >
-            <Bell className="h-4 w-4" /> Today’s reviews
-          </Button>
+          <ThemeToggle className="w-full justify-between" size="sm" />
         </div>
 
         <Button type="button" variant="outline" className="w-full justify-center gap-2 border-inverse/20 text-xs text-muted-foreground">
-          <LogOut className="h-4 w-4" /> Sign out
+          <LogOut className="h-4 w-4" /> Logout
         </Button>
       </PopoverContent>
     </Popover>
