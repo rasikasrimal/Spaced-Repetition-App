@@ -20,7 +20,6 @@ import { Subject, Topic } from "@/types/topic";
 import { SubjectFilterValue, NO_SUBJECT_KEY } from "@/components/dashboard/topic-list";
 import {
   AlertTriangle,
-  CalendarClock,
   Check,
   Dot,
   Droplet,
@@ -55,7 +54,6 @@ import {
   SubjectRevisionTable
 } from "@/components/visualizations/subject-revision-table";
 
-const DEFAULT_WINDOW_DAYS = 30;
 const MIN_ZOOM_SPAN = DAY_MS;
 const MIN_Y_SPAN = 0.05;
 const KEYBOARD_STEP_MS = DAY_MS;
@@ -1524,15 +1522,6 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     ? "rounded-3xl border border-inverse/5 bg-card/50 p-5"
     : "rounded-3xl border border-inverse/5 bg-card/40 p-6 md:p-8";
 
-  const windowDays = React.useMemo(() => {
-    if (!domain) return DEFAULT_WINDOW_DAYS;
-    const span = Math.max(DAY_MS * 7, domain[1] - domain[0]);
-    return Math.round(span / DAY_MS);
-  }, [domain]);
-
-  const sliderMaxDays = 365;
-  const sliderValue = Math.min(windowDays, sliderMaxDays);
-
   const hasCustomFilters =
     search.trim().length > 0 ||
     categoryFilter.size > 0 ||
@@ -1541,6 +1530,82 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     !showEventDots ||
     !showOpacityGradient ||
     !showTopicLabels;
+
+  const overlayControls = (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div
+        className="flex items-center gap-1 overflow-x-auto whitespace-nowrap rounded-2xl border border-inverse/15 bg-card/70 p-1 shadow-sm scrollbar-none"
+        role="group"
+        aria-label="Timeline overlays"
+      >
+        <Toggle
+          type="button"
+          pressed={showExamMarkers}
+          onPressedChange={(pressed) => setShowExamMarkers(Boolean(pressed))}
+          aria-label="Toggle exam markers"
+          title="Exam markers"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border bg-transparent text-muted-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[state=off]:border-transparent data-[state=off]:bg-transparent data-[state=off]:opacity-75 data-[state=off]:hover:border-inverse/20 data-[state=off]:hover:bg-card/60 data-[state=off]:hover:text-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/20 data-[state=on]:text-primary data-[state=on]:shadow-sm"
+        >
+          <GraduationCap className="h-4 w-4" />
+          <span className="sr-only">Exam markers</span>
+        </Toggle>
+        <Toggle
+          type="button"
+          pressed={showMilestones}
+          onPressedChange={handleToggleMilestones}
+          aria-label="Toggle milestones"
+          title="Milestones"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border bg-transparent text-muted-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[state=off]:border-transparent data-[state=off]:bg-transparent data-[state=off]:opacity-75 data-[state=off]:hover:border-inverse/20 data-[state=off]:hover:bg-card/60 data-[state=off]:hover:text-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/20 data-[state=on]:text-primary data-[state=on]:shadow-sm"
+        >
+          <Milestone className="h-4 w-4" />
+          <span className="sr-only">Milestones</span>
+        </Toggle>
+        <Toggle
+          type="button"
+          pressed={showEventDots}
+          onPressedChange={(pressed) => setShowEventDots(Boolean(pressed))}
+          aria-label="Toggle event dots"
+          title="Event dots"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border bg-transparent text-muted-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[state=off]:border-transparent data-[state=off]:bg-transparent data-[state=off]:opacity-75 data-[state=off]:hover:border-inverse/20 data-[state=off]:hover:bg-card/60 data-[state=off]:hover:text-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/20 data-[state=on]:text-primary data-[state=on]:shadow-sm"
+        >
+          <Dot className="h-4 w-4" />
+          <span className="sr-only">Event dots</span>
+        </Toggle>
+        <Toggle
+          type="button"
+          pressed={showOpacityGradient}
+          onPressedChange={(pressed) => setShowOpacityGradient(Boolean(pressed))}
+          aria-label="Toggle opacity fade"
+          title="Opacity fade"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border bg-transparent text-muted-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[state=off]:border-transparent data-[state=off]:bg-transparent data-[state=off]:opacity-75 data-[state=off]:hover:border-inverse/20 data-[state=off]:hover:bg-card/60 data-[state=off]:hover:text-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/20 data-[state=on]:text-primary data-[state=on]:shadow-sm"
+        >
+          <Droplet className="h-4 w-4" />
+          <span className="sr-only">Opacity fade</span>
+        </Toggle>
+        <Toggle
+          type="button"
+          pressed={showTopicLabels}
+          onPressedChange={(pressed) => setShowTopicLabels(Boolean(pressed))}
+          aria-label="Toggle topic labels"
+          title="Topic labels"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border bg-transparent text-muted-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[state=off]:border-transparent data-[state=off]:bg-transparent data-[state=off]:opacity-75 data-[state=off]:hover:border-inverse/20 data-[state=off]:hover:bg-card/60 data-[state=off]:hover:text-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/20 data-[state=on]:text-primary data-[state=on]:shadow-sm"
+        >
+          <Tag className="h-4 w-4" />
+          <span className="sr-only">Topic labels</span>
+        </Toggle>
+      </div>
+      {hasCustomFilters ? (
+        <button
+          type="button"
+          onClick={handleClearFilters}
+          className="inline-flex items-center gap-2 rounded-full border border-transparent bg-transparent px-3 py-1 text-xs font-medium text-muted-foreground transition hover:text-foreground"
+        >
+          <Eraser className="h-3.5 w-3.5" />
+          Clear filters
+        </button>
+      ) : null}
+    </div>
+  );
 
   const handleClearFilters = React.useCallback(() => {
     setSearch("");
@@ -1576,11 +1641,11 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
         </header>
 
         <div className="flex w-full flex-wrap items-center gap-3 md:justify-between">
-        <div
-          className="flex items-center gap-1 rounded-2xl border border-inverse/10 bg-card/60 p-1"
-          role="group"
-          aria-label="Timeline view mode"
-        >
+          <div
+            className="flex items-center gap-1 rounded-2xl border border-inverse/10 bg-card/60 p-1"
+            role="group"
+            aria-label="Timeline view mode"
+          >
           <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">View</span>
           <Button
             type="button"
@@ -1613,110 +1678,8 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
             className="h-8 w-52 border-none bg-transparent text-xs text-fg placeholder:text-muted-foreground/80 focus-visible:ring-0"
           />
         </div>
-
-        <div className="flex min-w-[220px] flex-1 items-center gap-3 rounded-2xl border border-inverse/10 bg-muted/30 px-3 py-2 shadow-sm">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <CalendarClock className="h-3.5 w-3.5" />
-            <span>Window</span>
-            <span className="font-semibold text-fg">{windowDays}d</span>
-          </div>
-          <input
-            type="range"
-            min={7}
-            max={sliderMaxDays}
-            value={sliderValue}
-            onChange={(event) => {
-              if (!domain) return;
-              const days = Math.max(7, Number(event.target.value) || DEFAULT_WINDOW_DAYS);
-              const end = domain[1];
-              const candidate: [number, number] = [end - days * DAY_MS, end];
-              const xRange = fullDomain ? clampInterval(candidate, fullDomain, MIN_ZOOM_SPAN) : candidate;
-              const targetY = yDomain ?? defaultYDomain;
-              if (!targetY) {
-                return;
-              }
-              applyViewport({ x: xRange, y: [targetY[0], targetY[1]] }, { push: true });
-            }}
-            aria-label="Timeline window in days"
-            className="h-1 w-full cursor-pointer accent-accent"
-          />
-        </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div
-          className="flex items-center gap-1 overflow-x-auto whitespace-nowrap rounded-2xl border border-inverse/10 bg-card/60 p-1 shadow-sm scrollbar-none"
-          role="group"
-          aria-label="Timeline overlays"
-        >
-          <Toggle
-            type="button"
-            pressed={showExamMarkers}
-            onPressedChange={(pressed) => setShowExamMarkers(Boolean(pressed))}
-            aria-label="Toggle exam markers"
-            title="Exam markers"
-            className="h-9 w-9 gap-0 justify-center rounded-lg border border-inverse/15 bg-card/70 px-0 py-0 text-muted-foreground transition data-[state=on]:border-primary data-[state=on]:bg-primary/20 data-[state=on]:text-primary hover:bg-accent/30 hover:text-foreground"
-          >
-            <GraduationCap className="h-4 w-4" />
-            <span className="sr-only">Exam markers</span>
-          </Toggle>
-          <Toggle
-            type="button"
-            pressed={showMilestones}
-            onPressedChange={handleToggleMilestones}
-            aria-label="Toggle milestones"
-            title="Milestones"
-            className="h-9 w-9 gap-0 justify-center rounded-lg border border-inverse/15 bg-card/70 px-0 py-0 text-muted-foreground transition data-[state=on]:border-primary data-[state=on]:bg-primary/20 data-[state=on]:text-primary hover:bg-accent/30 hover:text-foreground"
-          >
-            <Milestone className="h-4 w-4" />
-            <span className="sr-only">Milestones</span>
-          </Toggle>
-          <Toggle
-            type="button"
-            pressed={showEventDots}
-            onPressedChange={(pressed) => setShowEventDots(Boolean(pressed))}
-            aria-label="Toggle event dots"
-            title="Event dots"
-            className="h-9 w-9 gap-0 justify-center rounded-lg border border-inverse/15 bg-card/70 px-0 py-0 text-muted-foreground transition data-[state=on]:border-primary data-[state=on]:bg-primary/20 data-[state=on]:text-primary hover:bg-accent/30 hover:text-foreground"
-          >
-            <Dot className="h-4 w-4" />
-            <span className="sr-only">Event dots</span>
-          </Toggle>
-          <Toggle
-            type="button"
-            pressed={showOpacityGradient}
-            onPressedChange={(pressed) => setShowOpacityGradient(Boolean(pressed))}
-            aria-label="Toggle opacity fade"
-            title="Opacity fade"
-            className="h-9 w-9 gap-0 justify-center rounded-lg border border-inverse/15 bg-card/70 px-0 py-0 text-muted-foreground transition data-[state=on]:border-primary data-[state=on]:bg-primary/20 data-[state=on]:text-primary hover:bg-accent/30 hover:text-foreground"
-          >
-            <Droplet className="h-4 w-4" />
-            <span className="sr-only">Opacity fade</span>
-          </Toggle>
-          <Toggle
-            type="button"
-            pressed={showTopicLabels}
-            onPressedChange={(pressed) => setShowTopicLabels(Boolean(pressed))}
-            aria-label="Toggle topic labels"
-            title="Topic labels"
-            className="h-9 w-9 gap-0 justify-center rounded-lg border border-inverse/15 bg-card/70 px-0 py-0 text-muted-foreground transition data-[state=on]:border-primary data-[state=on]:bg-primary/20 data-[state=on]:text-primary hover:bg-accent/30 hover:text-foreground"
-          >
-            <Tag className="h-4 w-4" />
-            <span className="sr-only">Topic labels</span>
-          </Toggle>
-        </div>
-
-        {hasCustomFilters ? (
-          <button
-            type="button"
-            onClick={handleClearFilters}
-            className="inline-flex items-center gap-2 rounded-full border border-transparent bg-transparent px-3 py-1 text-xs font-medium text-muted-foreground transition hover:text-foreground"
-          >
-            <Eraser className="h-3.5 w-3.5" />
-            Clear filters
-          </button>
-        ) : null}
-      </div>
 
       <div className="flex flex-wrap items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-none">
         {categories.map((category) => {
@@ -1912,6 +1875,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                     Topic focus is active. Use Back to Subject View to restore all curves for {activeSubjectOption.label}.
                   </p>
                 ) : null}
+                {!activeTopic ? overlayControls : null}
                 {!activeTopic ? (
                   domain && yDomain && series.length > 0 ? (
                     <div className="group relative rounded-3xl border border-inverse/10 bg-muted/30 p-3 shadow-sm transition-colors hover:bg-muted/40">
@@ -2056,6 +2020,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                     Next review {formatDateWithWeekday(activeTopic.nextReviewDate)} · {formatRelativeToNow(activeTopic.nextReviewDate)}
                   </p>
                 </div>
+                {overlayControls}
                 {domain && yDomain && series.length > 0 ? (
                   <div className="group relative rounded-3xl border border-inverse/10 bg-muted/30 p-3 shadow-sm transition-colors hover:bg-muted/40">
                     <TimelineChart
@@ -2192,8 +2157,10 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
           </section>
         </div>
       ) : perSubjectSeries.length > 0 && domain && yDomain ? (
-        <div ref={perSubjectContainerRef} className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
-          {perSubjectSeries.map((group) => {
+        <>
+          {overlayControls}
+          <div ref={perSubjectContainerRef} className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+            {perSubjectSeries.map((group) => {
             const markers = showExamMarkers
               ? examMarkersBySubject.get(group.subjectId) ?? []
               : [];
@@ -2263,9 +2230,10 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
                 />
               </div>
             );
-          })}
-        </div>
-        ) : (
+            })}
+          </div>
+        </>
+      ) : (
           <div className="flex h-60 items-center justify-center rounded-3xl border border-dashed border-inverse/10 bg-card/40 text-sm text-muted-foreground">
             No study activity yet. Add a topic to see your timeline.
           </div>
