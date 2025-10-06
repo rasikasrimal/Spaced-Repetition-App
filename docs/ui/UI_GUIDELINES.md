@@ -1,4 +1,4 @@
-# UI Guidelines
+# UI_GUIDELINES
 
 ## Adaptive Review Preview UI
 
@@ -63,3 +63,5 @@
 - **Skip logic** – Only show the “Skip today” action for topics whose status is `due-today`. Upcoming topics should expose edit/delete without a skip affordance.
 - **Visual language** – Use flat borders (`border-border/50`), light neutral backgrounds, and compact `px-4 py-3` cell padding to mimic GitHub tables. Status badges reuse the shared `status-chip` palette.
 - **Responsive handling** – Wrap the table in `overflow-x-auto` for small screens and surface condensed metadata (subject, next review, status) beneath the topic title with `md:hidden` helpers.
+
+[Back to Docs Index](../DOCS_INDEX.md)
