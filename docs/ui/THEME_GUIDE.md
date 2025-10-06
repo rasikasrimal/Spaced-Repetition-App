@@ -43,5 +43,6 @@
 - Light/dark theme is toggled by adding `class="light"` or `class="dark"` to `<body>` via `ThemeManager`.
 - Avoid relying on CSS variables for runtime palette swaps; use Tailwind colour utilities bound to theme classes.
 - When adding new surfaces, reuse existing `bg-*`, `border-*`, and `text-*` tokens to maintain parity between themes.
+- UnderlineNav underlines and hover tints reference `--accent-color` so the 2px bar and background wash adapt seamlessly between light and dark palettes.
 
 [Back to Docs Index](../DOCS_INDEX.md)

@@ -46,6 +46,13 @@ src/
 - Export named components to enable tree shaking.
 - Tests target the most critical components in Playwright; use `data-test` attributes to keep selectors stable.
 
+## UnderlineNav implementation notes
+
+- The primary navigation bar adopts a GitHub-style `UnderlineNav` pattern. Each tab is rendered as a `<Link>` with pseudo-element underlines that animate from the centre using Tailwind utilities (`after:scale-x-0` → `after:scale-x-100`).
+- Active routes are derived from the current pathname and surfaced through a shared `isActive` matcher that also powers the mobile select control.
+- Hover, focus, and active states reuse the accent token via CSS variables so the underline and icon colour adapt automatically across themes.
+- On screens below `md`, the tab list collapses into a Radix `Select` for accessibility parity; route changes still flow through `next/navigation` to keep client transitions intact.
+
 ## Build tooling
 
 - `next.config.mjs` – Enables SWC minification, image optimisation, and remote image allowlist.
