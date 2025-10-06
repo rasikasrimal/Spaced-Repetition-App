@@ -16,6 +16,12 @@
 - Standardized exam badge color palette (amber tones).
 - Added hover/focus transitions and accessibility attributes.
 
+### UI: Timeline Overlay Button Redesign
+- Improved visibility of overlay toggle icons.
+- Added consistent hover/active color logic for both themes.
+- Balanced stroke weights for all icons.
+- Enhanced keyboard focus and tooltips.
+
 ### Dashboard UI & Chart Refinements
 - Default the dashboard status filter to "Due today" and persist the preference across sessions.
 - Unify the filter button group with uppercase primary styling, horizontal scroll, and accessible focus rings.
