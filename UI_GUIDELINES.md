@@ -42,6 +42,19 @@
 - **Typography** – Reuse the standard section heading scale (`text-2xl font-semibold`) for the Progress today title, while keeping supporting copy in the muted foreground palette.
 - **Positive accents** – Style completion percentages and motivational copy with `text-success` (or equivalent positive tone) to reinforce achievement across themes.
 
+## Timeline Toolbar Rules
+
+- **Primary control row** – Keep the view-mode segmented buttons, topic search, and window slider on a single responsive row (`flex w-full flex-wrap items-center gap-3 md:justify-between`). Highlight the active view with `bg-primary/10 text-primary`.
+- **Overlay toggles** – Render exam markers, milestones, event dots, opacity fade, and topic labels as icon-only `Toggle` chips (`h-9 w-9`) wrapped in a scrollable rail. Use `data-[state=on]:bg-primary/20 data-[state=on]:text-primary` for pressed states.
+- **Clear filters button** – Pair the toggles with an inline eraser control (`inline-flex items-center gap-2 text-xs text-muted-foreground`) that resets search text, category chips, and overlay states.
+- **Subject chips** – Allow only one subject at a time. Lay the buttons out in a responsive grid with uppercase labels; active chips use `border-accent/60 bg-accent/15 text-accent` and changing the subject clears any topic focus.
+- **Topic visibility chips** – Topics render as rounded chips with checkmarks. Multiple selections are allowed; show a dashed message when all are hidden and keep focused topics ringed.
+- **Section order** – In combined view the stack is: Subjects → Topic visibility → Subject selected → Topic focus (when active) → Upcoming checkpoints. Separate major blocks with `border-t border-inverse/10` dividers.
+- **Chart overlay actions** – Move fullscreen and export buttons inside the chart container (`absolute right-3 top-3 flex gap-1`) so they fade in on hover/focus. Buttons are `size="icon"` with rounded backgrounds.
+- **Topic focus panel** – Label the panel “Topic focus,” show the topic title plus next-review metadata, reuse the chart overlay actions, and provide a Back to Subject View button.
+- **Curve isolation** – Clicking a curve should dim the rest and restore everything on background click or Escape. Hover states keep crosshair cursors and slightly thicker strokes.
+- **Export guardrails** – PNG exports must sanitise cloned SVGs, set `image.crossOrigin = "anonymous"`, and toast a friendly error when the browser blocks `toDataURL`.
+
 ## Reviews Table Design
 
 - **Column order** – Topic, Subject, Next review, Status, Actions. Keep headers uppercase, `text-xs`, and left-aligned except for the Actions column, which should align right.
