@@ -1240,6 +1240,11 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     });
   }, [series]);
 
+  const topicsForExamMarkers = React.useMemo(
+    () => (showAllSubjects ? filteredTopics : activeSubjectTopics),
+    [showAllSubjects, filteredTopics, activeSubjectTopics]
+  );
+
   const examMarkers = React.useMemo<ExamMarker[]>(() => {
     if (!showExamMarkers) return [];
     const zonedToday = nowInTimeZone(resolvedTimezone);
@@ -1248,7 +1253,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
         if (!subject.examDate) return null;
         const examDate = new Date(subject.examDate);
         if (Number.isNaN(examDate.getTime())) return null;
-        const hasVisibleTopic = filteredTopics.some(
+        const hasVisibleTopic = topicsForExamMarkers.some(
           (topic) =>
             topic.subjectId === subject.id && (visibility[topic.id] ?? true)
         );
@@ -1265,7 +1270,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
       })
       .filter((marker): marker is ExamMarker => marker !== null)
       .sort((a, b) => a.time - b.time);
-  }, [subjects, filteredTopics, visibility, resolvedTimezone, showExamMarkers, palette.accent]);
+  }, [subjects, topicsForExamMarkers, visibility, resolvedTimezone, showExamMarkers, palette.accent]);
 
   const examMarkersBySubject = React.useMemo(() => {
     const map = new Map<string, ExamMarker[]>();
