@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { createPortal } from "react-dom";
@@ -59,7 +59,6 @@ const MIN_Y_SPAN = 0.05;
 const KEYBOARD_STEP_MS = DAY_MS;
 const DEFAULT_SUBJECT_ID = "subject-general";
 type TopicVisibility = Record<string, boolean>;
-type TimelineViewMode = "combined" | "per-subject";
 type ViewportEntry = { x: [number, number]; y: [number, number] };
 type SubjectSeriesGroup = {
   subjectId: string;
@@ -475,7 +474,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   const [visibility, setVisibility] = React.useState<TopicVisibility>({});
   const [activeSubjectId, setActiveSubjectId] = React.useState<string | null>(null);
   const [activeTopicId, setActiveTopicId] = React.useState<string | null>(null);
-  const [viewMode, setViewMode] = React.useState<TimelineViewMode>("combined");
+  const [showAllSubjects, setShowAllSubjects] = React.useState(false);
   const [search, setSearch] = React.useState("");
   const [domain, setDomain] = React.useState<[number, number] | null>(null);
   const [fullDomain, setFullDomain] = React.useState<[number, number] | null>(null);
@@ -1089,6 +1088,12 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     return items;
   }, [filteredTopics, subjectLookup, visibility, resolveSubjectColor, nowMs, showCheckpoints]);
 
+  React.useEffect(() => {
+    if (showAllSubjects && perSubjectSeries.length === 0) {
+      setShowAllSubjects(false);
+    }
+  }, [showAllSubjects, perSubjectSeries]);
+
   const subjectTableData = React.useMemo(
     () => {
       if (filteredTopics.length === 0) return [];
@@ -1493,7 +1498,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
   }, []);
 
   const exportSvg = () => {
-    if (viewMode === "per-subject") {
+    if (showAllSubjects) {
       const combined = buildPerSubjectExportSvg();
       if (!combined) return;
       downloadSvg(combined, "review-timeline.svg");
@@ -1507,7 +1512,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
     const notifyFailure = () =>
       toast.error("Export failed: please reset filters before saving chart.");
 
-    if (viewMode === "per-subject") {
+    if (showAllSubjects) {
       const combined = buildPerSubjectExportSvg();
       if (!combined) return;
       const success = await downloadSvgAsPng(combined, "review-timeline.png");
@@ -1662,33 +1667,18 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
         </header>
 
         <div className="flex w-full flex-wrap items-center gap-3 md:justify-between">
-          <div
-            className="flex items-center gap-1 rounded-2xl border border-inverse/10 bg-card/60 p-1"
-            role="group"
-            aria-label="Timeline view mode"
-          >
-          <span className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">View</span>
-          <Button
-            type="button"
-            size="sm"
-            variant={viewMode === "combined" ? "default" : "ghost"}
-            className={`rounded-xl px-3 ${viewMode === "combined" ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}
-            onClick={() => setViewMode("combined")}
-            aria-pressed={viewMode === "combined"}
-          >
-            Combined
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant={viewMode === "per-subject" ? "default" : "ghost"}
-            className={`rounded-xl px-3 ${viewMode === "per-subject" ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}
-            onClick={() => setViewMode("per-subject")}
-            aria-pressed={viewMode === "per-subject"}
-          >
-            Per subject
-          </Button>
-        </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={showAllSubjects ? "default" : "outline"}
+              className="rounded-xl px-3"
+              onClick={() => setShowAllSubjects((prev) => !prev)}
+              aria-pressed={showAllSubjects}
+            >
+              {showAllSubjects ? "Show selected subject" : "Show all subjects"}
+            </Button>
+          </div>
 
         <div className="flex items-center gap-2 rounded-2xl border border-inverse/10 bg-muted/30 px-3 py-2 shadow-sm">
           <Search className="h-3.5 w-3.5 text-muted-foreground/80" />
@@ -1730,7 +1720,7 @@ export function TimelinePanel({ variant = "default", subjectFilter = null }: Tim
         </div>
       ) : null}
 
-      {viewMode === "combined" ? (
+      {!showAllSubjects ? (
         <div className="space-y-6">
           <section aria-label="Subject selector" className="space-y-3">
             <header className="flex items-center justify-between">
