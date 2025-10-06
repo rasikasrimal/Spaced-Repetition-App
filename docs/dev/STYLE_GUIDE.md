@@ -29,6 +29,12 @@
 - Icons inherit text colour; avoid inline styles unless applying theme-specific overrides.
 - Provide `aria-label` text when the icon is the sole content of a button.
 
+## Navigation underline motion
+
+- Primary nav tabs rely on pseudo-element underlines (`after:` utilities) that scale from the centre on hover with a 150 ms delay to match GitHub’s UnderlineNav rhythm.
+- Keep icon transforms subtle (`scale-105`) and synchronised with text colour transitions so the motion feels cohesive.
+- Apply `focus-visible:ring-accent` alongside the underline to ensure keyboard users see a clear indicator in both themes.
+
 ## Documentation touchpoints
 
 - Update [UI_GUIDELINES](../ui/UI_GUIDELINES.md) when introducing new motion systems.
