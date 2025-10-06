@@ -33,6 +33,12 @@
 - Added soft divider rules above and below the progress module to separate major dashboard sections.
 - Balanced spacing and headings to match surrounding sections in both light and dark themes.
 
+### UI: Dashboard Summary Card Redesign
+- Merged “Today’s Tasks” and “Progress Today” into a unified overview card.
+- Added icons, emojis, and hover effects for engagement.
+- Improved light/dark mode contrast.
+- Progress indicator and motivational text are now contextually linked.
+
 ### Reviews Page Enhancements
 - Fixed the runtime error triggered by the "All" filter by guarding invalid status lookups.
 - Limited the “Skip today” shortcut to topics due today while keeping other actions available.
