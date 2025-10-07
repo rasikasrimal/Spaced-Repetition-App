@@ -2,7 +2,7 @@
 
 ## Overview
 
-This index tracks every Markdown document across the repository and groups them into the new `/docs/core`, `/docs/ui`, and `/docs/dev` hierarchies. Use it as the starting point when exploring architecture, UI, or development processes.
+This index tracks every Markdown document across the repository and groups them into the `/docs/core`, `/docs/ui`, `/docs/dev`, and the new structured overview folders. Use it as the starting point when exploring architecture, UI, or development processes. For a curated navigation experience, see [`docs/README.md`](README.md).
 
 ## Document status
 
@@ -48,6 +48,32 @@ This index tracks every Markdown document across the repository and groups them 
 | [docs/Explore.md](Explore.md) | New | 475 |
 | [docs/UI_Style_Guide.md](UI_Style_Guide.md) | New | 195 |
 | [docs/Routing.md](Routing.md) | New | 203 |
+| [docs/README.md](README.md) | New | — |
+| [docs/00-overview/project-charter.md](00-overview/project-charter.md) | Draft | — |
+| [docs/00-overview/project-plan.md](00-overview/project-plan.md) | Draft | — |
+| [docs/00-overview/communication-plan.md](00-overview/communication-plan.md) | Draft | — |
+| [docs/01-requirements/srs.md](01-requirements/srs.md) | Draft | — |
+| [docs/01-requirements/user-stories.md](01-requirements/user-stories.md) | Draft | — |
+| [docs/01-requirements/risk-management-plan.md](01-requirements/risk-management-plan.md) | Draft | — |
+| [docs/02-design/system-architecture.md](02-design/system-architecture.md) | Draft | — |
+| [docs/02-design/database-design.md](02-design/database-design.md) | Draft | — |
+| [docs/02-design/api-specifications.md](02-design/api-specifications.md) | Draft | — |
+| [docs/02-design/ui-ux-design.md](02-design/ui-ux-design.md) | Draft | — |
+| [docs/03-development/coding-guidelines.md](03-development/coding-guidelines.md) | Draft | — |
+| [docs/03-development/version-control-strategy.md](03-development/version-control-strategy.md) | Draft | — |
+| [docs/03-development/build-deployment-guide.md](03-development/build-deployment-guide.md) | Draft | — |
+| [docs/03-development/configuration-management.md](03-development/configuration-management.md) | Draft | — |
+| [docs/04-testing/test-plan.md](04-testing/test-plan.md) | Draft | — |
+| [docs/04-testing/test-cases.md](04-testing/test-cases.md) | Draft | — |
+| [docs/04-testing/qa-report.md](04-testing/qa-report.md) | Draft | — |
+| [docs/04-testing/bug-reports.md](04-testing/bug-reports.md) | Draft | — |
+| [docs/05-operations/user-manual.md](05-operations/user-manual.md) | Draft | — |
+| [docs/05-operations/admin-guide.md](05-operations/admin-guide.md) | Draft | — |
+| [docs/05-operations/maintenance-plan.md](05-operations/maintenance-plan.md) | Draft | — |
+| [docs/05-operations/release-notes.md](05-operations/release-notes.md) | Draft | — |
+| [docs/06-legal/license-details.md](06-legal/license-details.md) | Draft | — |
+| [docs/06-legal/data-privacy-policy.md](06-legal/data-privacy-policy.md) | Draft | — |
+| [docs/06-legal/compliance-checklist.md](06-legal/compliance-checklist.md) | Draft | — |
 
 Partial legacy docs in the repository root are retained for historical context and will be expanded in future passes.
 
