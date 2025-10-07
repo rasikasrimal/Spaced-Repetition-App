@@ -120,7 +120,7 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange }) => {
                       onClick={() => handleSelect(icon.name)}
                       title={icon.label}
                       aria-label={`Select ${icon.label} icon`}
-                      aria-pressed={isActive}
+                      aria-pressed={isActive ? "true" : "false"}
                       data-selected={isActive}
                       className={cn(
                         "group inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-bg/60 text-muted-foreground transition-all duration-200 ease-out hover:scale-105 hover:border-accent hover:bg-accent/10 hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg",

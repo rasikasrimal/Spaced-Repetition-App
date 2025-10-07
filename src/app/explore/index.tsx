@@ -8,6 +8,7 @@ import { ShortNotes } from "./ShortNotes";
 import { StudyPlans } from "./StudyPlans";
 import { Flashcards } from "./Flashcards";
 import { StudyTips } from "./StudyTips";
+import { useAppearanceStore } from "@/stores/appearance";
 
 type SectionId = "short-notes" | "study-plans" | "flashcards" | "study-tips";
 
@@ -52,6 +53,8 @@ const sections: Section[] = [
 
 export const ExplorePage: React.FC = () => {
   const [activeSection, setActiveSection] = React.useState<SectionId>("short-notes");
+  const surfaceOverlayOpacity = useAppearanceStore((state) => state.surfaceOverlayOpacity);
+  const overlayIsTransparent = surfaceOverlayOpacity <= 0.03;
 
   const active = React.useMemo(() => sections.find((section) => section.id === activeSection) ?? sections[0], [activeSection]);
   const ActiveComponent = React.useMemo(() => active.render, [active]);
@@ -71,7 +74,12 @@ export const ExplorePage: React.FC = () => {
         </div>
       </header>
 
-      <div className="w-full max-w-4xl rounded-3xl border border-muted/30 bg-card/80 p-2 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/70">
+      <div
+        className={cn(
+          "w-full max-w-4xl rounded-3xl border border-muted/30 bg-card/80 p-2 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/70",
+          overlayIsTransparent && "bg-transparent supports-[backdrop-filter]:bg-transparent"
+        )}
+      >
         <div role="tablist" aria-label="Explore sections" className="grid gap-2 sm:grid-cols-2 md:flex md:flex-wrap">
           {sections.map((section) => {
             const Icon = section.icon;
@@ -81,7 +89,7 @@ export const ExplorePage: React.FC = () => {
                 key={section.id}
                 type="button"
                 role="tab"
-                aria-selected={active}
+                aria-selected={active ? "true" : "false"}
                 aria-controls={`explore-${section.id}`}
                 data-active={active}
                 onClick={() => setActiveSection(section.id)}
@@ -105,7 +113,14 @@ export const ExplorePage: React.FC = () => {
         </div>
       </div>
 
-      <section id={`explore-${active.id}`} aria-live="polite" className="rounded-3xl border border-muted/30 bg-card/80 p-6 shadow-lg supports-[backdrop-filter]:bg-card/70 md:p-10">
+      <section
+        id={`explore-${active.id}`}
+        aria-live="polite"
+        className={cn(
+          "rounded-3xl border border-muted/30 bg-card/80 p-6 shadow-lg supports-[backdrop-filter]:bg-card/70 md:p-10",
+          overlayIsTransparent && "bg-transparent supports-[backdrop-filter]:bg-transparent"
+        )}
+      >
         <ActiveComponent />
       </section>
     </div>
