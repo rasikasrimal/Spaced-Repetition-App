@@ -15,7 +15,7 @@ export default function DashboardPage() {
 
   const handleEditTopic = React.useCallback(
     (id: string) => {
-      router.push(/topics//edit);
+      router.push(`/topics/${id}/edit`);
     },
     [router]
   );
