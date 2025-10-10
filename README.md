@@ -1,135 +1,135 @@
-# README
+# Spaced Repetition App
 
-The Spaced Repetition App is a local-first study companion built with Next.js, Tailwind CSS, and Zustand. It helps learners capture topics, organise them by subject, and keep a personalised review cadence that respects exam cut-offs and daily revise limits.
+> Local-first spaced repetition studio built with Next.js, Tailwind CSS, and Zustand to help learners plan, review, and track subjects.
 
-## Quick links
+## Table of Contents
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Installation & Setup](#installation--setup)
+- [Usage / Quickstart](#usage--quickstart)
+- [Screenshots & Visuals](#screenshots--visuals)
+- [Architecture / Design Overview](#architecture--design-overview)
+- [Example Outputs or Results](#example-outputs-or-results)
+- [Contributing](#contributing)
+- [License](#license)
+- [Acknowledgments](#acknowledgments)
 
-- [Docs index](docs/DOCS_INDEX.md)
-- [Architecture](docs/core/ARCHITECTURE.md)
-- [Data model](docs/core/DATA_MODEL.md)
-- [State management](docs/core/STATE_MANAGEMENT.md)
-- [Adaptive scheduling](docs/core/ALGORITHMS_FORGETTING_CURVE.md)
-- [Timeline guide](docs/core/TIMELINE.md)
-- [Navigation patterns](docs/ui/NAVIGATION.md)
-- [UI guidelines](docs/ui/UI_GUIDELINES.md)
-- [Testing strategy](docs/dev/TESTING.md)
-- [Performance guardrails](docs/dev/PERFORMANCE.md)
-- [Contribution guide](CONTRIBUTING.md)
-- [Changelog](CHANGELOG.md)
-- [Code of Conduct](CODE_OF_CONDUCT.md)
-- [Security policy](SECURITY.md)
+## Overview
+Spaced Repetition App ships as an offline-first Next.js 14 experience. The navigation shell keeps Today’s queue, analytics dashboards, per-subject planners, and settings within reach while Zustand stores persist every change to `localStorage`. Demo data from `src/data/demo-seed-data.json` gives newcomers an immediate sandbox to explore review pacing, exam countdowns, and timeline analytics.
 
-## What changed recently
+<!-- IMAGE: HERO_TODAY_QUEUE | hero_today_queue.png | alt="Today page showing retention-aware review queue and progress tracker" | caption="Triage today's reviews with retention forecasts, difficulty tags, and quick-complete controls." | size="1440x900" -->
 
-- Launched adaptive review scheduling driven by the forgetting curve, including a configurable retention trigger and live preview in Settings.
-- Introduced a light/dark theme toggle with hard-coded palettes so every surface, icon, and label reads consistently without relying on CSS variables.
-- Flattened the UI aesthetic—cards, dialogs, and inputs now use crisp borders instead of shadows while charts retain their soft gradients.
-- Polished the timeline with icon-based overlays, single-subject focus chips, and hoverable curves that isolate when clicked.
-- Hardened light mode contrast so nav links, review statuses, and exam countdowns stay readable on bright surfaces.
-- Added flat per-subject revision tables and hoverable review badges beneath the timeline for a spreadsheet-style snapshot of progress.
-- Simplified the dashboard to focus on today’s review plan, filters, and streak metrics while keeping the full analytics experience on the Timeline page.
+## Key Features
+- Adaptive Today queue with retention scoring, difficulty overrides, and safety rails that prevent multiple same-day reviews (`src/app/today/page.tsx`, `src/stores/today.ts`).
+- Dashboard and Reviews tables that blend risk analytics, streak tracking, and subject filters backed by `computeRiskScore` and calendar summaries (`src/components/dashboard/topic-list.tsx`).
+- Interactive timeline visualizations featuring per-subject grids, zoom/pan gestures, and SVG/PNG exports powered by `timeline-panel.tsx` and `downloadSvg`.
+- Calendar surface with subject-aware filters, daily sheets, and “revise now” moderation that respects the once-per-day lock (`src/components/calendar/calendar-view.tsx`).
+- Subjects admin area for managing colors, icons, exam targets, and deep history edits with replayed forgetting curves (`src/app/subjects/page.tsx`, `src/components/topics/history-editor.tsx`).
+- Settings that tune adaptive parameters (review trigger, growth α/β), notification preferences, and appearance overlays (`src/app/settings/page.tsx`, `src/stores/appearance.ts`).
+- Automatic rollover that bumps unfinished cards into the upcoming queue at local midnight via `useAutoSkipOverdue`.
 
-### UI Enhancements
+## Installation & Setup
+1. Ensure Node.js 18+ and npm are installed.
+2. Clone the repository and install dependencies:
+   ```bash
+   npm install
+   ```
+3. Run the development server:
+   ```bash
+   npm run dev
+   ```
+4. Visit `http://localhost:3000` — the home route renders the Today queue (`src/app/(pages)/page.tsx` delegates to Today).
 
-- Exam date badges now adapt dynamically to theme mode and maintain color accessibility standards across pages.
-- The dashboard opens with the "Due today" status chip selected, scrollable primary filters, and a hover-aware review load chart that previews upcoming topics at a glance.
-- The “Progress today” module now sits above the filters with matching dividers, so you can check completion status before browsing topics.
-- The Reviews page now uses a GitHub-inspired table with responsive columns, expandable details, and skip actions limited to due-today topics.
-- Dark mode text contrast has been brightened so secondary labels, notes, and placeholders stay legible on deep slate backgrounds.
+## Usage / Quickstart
+- Seeded demo data offers ready-made subjects and topics. Create or edit entries via the Subjects page; `TopicForm` guides you through a three-step wizard.
+- Start reviews from Today or open the Quick Revision dialog from the calendar; difficulty choices feed `adjustNextReviewByMultiplier` for precise scheduling.
+- Tailor adaptive behaviour in Settings — updating the review trigger immediately recalculates future intervals through `useReviewPreferencesStore`.
+- Export timeline snapshots (`FileDown`, `ImageDown` actions) for planning sessions, or filter subjects to drill into target exams.
+- Quality gates:
+  - `npm run lint` for code quality.
+  - `npm run test:curve` to validate the forgetting-curve maths (`tests/forgetting-curve.test.ts`).
+  - `npm run test:visual` for Playwright UI coverage (headless smoke of dashboard & timeline).
 
-## Key concepts
+## Screenshots & Visuals
+### Today
+Shows subjects with least retention, so user can focus on these first.
+<img width="1406" height="904" alt="image" src="https://github.com/user-attachments/assets/c5d88d47-8cf5-4544-8b33-705c2a445cfb" />
 
-- **Subject** – The canonical home for icon, colour, and optional exam date. Editing a subject updates every topic, calendar dot, and timeline marker instantly.
-- **Topic** – A single study card with notes, reminder preferences, and an adaptive review cadence. Topics inherit identity from their subject, can be reviewed once per local day, and automatically reschedule when predicted retention falls past your chosen trigger.
-- **Review** – A logged study event that advances the interval schedule. Early reviews honour the learner’s auto-adjust preference.
-- **Calendar dots** – One dot per subject per day in the calendar view, tinted by subject colour with overflow summarised as `+N`.
-- **Timeline markers** – Dotted vertical exam indicators in the subject’s colour, visible in exports and toggleable from the toolbar.
-- **Revise daily rule** – Each topic can be revised once per local calendar day based on the profile timezone; locked attempts surface “You’ve already revised this today. Available again after midnight.”
 
-## Backfill past study
+### Dashboard Status Filters
+A condensed analytics hub showing due counts, risk badges, and compact calendar heatmaps for the next month.
+<img width="1389" height="565" alt="image" src="https://github.com/user-attachments/assets/6d9ee664-1b76-45f3-9b32-20478848ea01" />
 
-- Expand a subject on the Subjects page and choose **Edit history** to log previous review dates and qualities.
-- The history editor merges duplicate days, replays the forgetting model chronologically, and recalculates the next due date with load smoothing.
-- Saving emits a toast (“History saved. Schedule and timeline updated.”) and refreshes the dashboard, calendar, and timeline immediately.
 
-## Per-subject timeline
+### Timeline Analytics
+Zoomable forgetting curves with per-topic overlays, fullscreen subject grids, and export controls.
+<img width="1352" height="1079" alt="image" src="https://github.com/user-attachments/assets/3f4a118f-e2ec-433d-ba61-5b515fbc03c5" />
 
-- Use the **View: Combined • Per subject** switch on the Timeline to render small multiples grouped by subject.
-- The combined view now shows a dedicated subject selector and topic focus rail—pick a subject to populate the chart, then tap any topic chip to isolate its forgetting curve with a Back to Subject control.
-- Zoom, pan, and reset controls remain synchronised across every mini-chart, and exports capture the exact grid layout.
-- Exam markers and the Today line respect per-subject filtering so the view matches the combined summary.
-- Toggle fullscreen from any view mode (Combined or Per subject) to study the chart in an expanded canvas without losing zoom or filter state.
-- Review progress under each subject using the flat revision table—hover the numbered badges to see exact review dates.
+<img width="1894" height="853" alt="image" src="https://github.com/user-attachments/assets/6b2edf0d-6fd8-4ed4-8b76-e9f202d02fe7" />
+<img width="1317" height="556" alt="image" src="https://github.com/user-attachments/assets/e1ca3dbb-978d-48c8-84c9-e8c2a9277054" />
 
-## How to zoom
 
-- Drag across the timeline to zoom the time range; hold Shift to include the retention axis.
-- Use the Back control or the `-` shortcut to step out, and Reset or `0` to return to the full schedule.
-- Keyboard: `+`/`-` adjust zoom, `Z` toggles zoom select, Shift+Arrow keys size a selection, `Enter` applies it, and `Esc` cancels.
-- Hold Space to pan with the mouse; right-clicking the chart also steps back one zoom level.
-- Touch: pinch to zoom, use a two-finger drag to pan, and tap Reset to restore the full view.
 
-## Themes
+### Calendar Planner
+Subject-aware monthly planner with daily sheets, quick revise, and exam markers.
+<img width="1337" height="824" alt="image" src="https://github.com/user-attachments/assets/6709732f-5f77-4882-8675-61c117d1fbd9" />
 
-- Toggle between the light and dark palettes from the header controls; both modes use fixed colour values so surfaces stay visually consistent offline.
-- Theme selection persists via local storage, so the app restores your preference on reload and across navigation.
-- The flat design keeps focus outlines and chart gradients readable in both modes without relying on box shadows.
 
-## Getting started
+### Subjects & History
+Manage subject branding, countdowns, and retroactive history edits with merge conflict warnings.
 
-Install dependencies and run the development server:
+<img width="1393" height="889" alt="image" src="https://github.com/user-attachments/assets/d310898e-66d8-40f4-8d55-110375767e40" />
+<img width="719" height="743" alt="image" src="https://github.com/user-attachments/assets/17878f64-e33c-4f45-818d-f39e46357456" />
+
+
+## Architecture / Design Overview
+- **Framework**: Next.js 14 App Router with a persistent layout (`src/app/layout.tsx`) that injects global theme tokens (`src/styles/theme.css`, `src/styles/globals.css`), the navigation bar, and toast provider.
+- **State**: Modular Zustand stores persisted to `localStorage` (`src/stores/topics.ts`, `src/stores/profile.ts`, `src/stores/review-preferences.ts`, `src/stores/timeline-preferences.ts`) keep the app offline-first. Each store includes migrations to keep older snapshots valid.
+- **Scheduling Engine**: `src/lib/forgetting-curve.ts` and `src/lib/adaptive-scheduler.ts` implement the retention model, risk scoring, and adaptive interval projections; topics call these helpers when reviews are marked or history is replayed.
+- **Data Derivation**: Selectors (e.g., `src/selectors/curves.ts`) and helpers (`src/lib/calendar.ts`) provide memoized aggregates such as per-subject summaries, month heatmaps, and export-ready curve samples.
+- **UI System**: Tailwind utility classes are combined with semantic component wrappers (`src/components/ui/*`) plus Radix primitives for popovers, selects, overlays, and dialogs. Lucide icons and Framer Motion animate hover cues and modals.
+- **Docs**: Deep dives live in `docs/` — start with `docs/DOCS_INDEX.md`, architecture notes (`docs/core/ARCHITECTURE.md`), forgetting-curve math (`docs/core/ALGORITHMS_FORGETTING_CURVE.md`), and UI guidelines (`docs/ui/UI_GUIDELINES.md`).
+
+## Example Outputs or Results
+Adaptive checkpoints illustrate how stability growth widens intervals while respecting exam caps:
+
+```ts
+import { projectAdaptiveSchedule } from "@/lib/adaptive-scheduler";
+
+const checkpoints = projectAdaptiveSchedule({
+  anchorDate: new Date("2024-01-01T00:00:00.000Z"),
+  stabilityDays: 1,
+  reviewsCount: 0,
+  reviewTrigger: 0.5,
+  examDate: new Date("2024-01-10T00:00:00.000Z")
+});
+
+console.table(checkpoints.slice(0, 3));
+/*
+index | date                       | intervalDays | stabilityDays | retention
+1     | 2024-01-01T16:37:55.000Z   | 0.693        | 1.000          | 0.500
+2     | 2024-01-02T13:37:33.000Z   | 0.875        | 1.263          | 0.500
+3     | 2024-01-04T01:07:42.000Z   | 1.479        | 2.133          | 0.500
+*/
+```
+
+Run the unit suite to verify forgetting-curve behaviour:
 
 ```bash
-npm install
-npm run dev
+npm run test:curve
+# → Validates stability updates, retention floors, lapse penalties, and exam-bound schedules.
 ```
 
-Then open http://localhost:3000 in your browser.
+## Contributing
+- Review `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md` for guidelines.
+- Follow the Tailwind conventions already in place; extract semantic components when markup grows complex.
+- Preserve TypeScript strictness — fix types instead of downgrading to `any`.
+- Document notable behavioural changes in PR descriptions and ensure lint/tests pass (`npm run lint`, `npm run test:curve`, `npm run test:visual`).
 
-## Testing
+## License
+Distributed under the MIT License. See `LICENSE.md` for details.
 
-Run the lint suite to catch common issues and ensure the Playwright smoke tests still render the UI as expected:
-
-```bash
-npm run lint
-npm run test:visual
-```
-
-`npm run test:visual` launches the bundled Playwright test suite, which validates critical UI flows and ensures the primary dashboard renders without regression.
-
-## Deployment
-
-Build a production bundle and start the optimised server:
-
-```bash
-npm run build
-npm run start
-```
-
-Deployments can be hosted on any platform that supports Next.js 14 (for example, Vercel or a container image). The app persists data in the browser using Zustand's `localStorage` integration, so no external services are required.
-
-## Tech stack
-
-- Next.js 14 (App Router)
-- React 18 with TypeScript
-- Tailwind CSS with a dual hard-coded theme palette
-- Zustand for client-side state + persistence
-- Radix UI primitives, Lucide icons, and Framer Motion for animation
-
-## Project structure
-
-```
-src/
-  app/(pages)/page.tsx      # Root page
-  app/layout.tsx            # Global layout + fonts
-  components/               # UI, forms, dashboard widgets
-  stores/topics.ts          # Zustand state + persistence
-  lib/                      # Utility helpers and constants
-  types/                    # Shared TypeScript types
-```
-
-## Data persistence
-
-All topics and categories are stored in the browser via `localStorage`. This keeps the app completely local and private. Clearing browser storage will remove saved topics.
-
-[Back to Docs Index](docs/DOCS_INDEX.md)
+## Acknowledgments
+- Built on Next.js, React 18, Tailwind CSS, Zustand, Radix UI, Lucide, Framer Motion, and Sonner.
+- The adaptive scheduling model is inspired by SuperMemo-style forgetting curves — see `docs/core/ALGORITHMS_FORGETTING_CURVE.md` for derivations.
+- Thanks to contributors maintaining the documentation set in `docs/` and to the design system guidelines that keep accessibility front and centre.
