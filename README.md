@@ -1,11 +1,6 @@
 # Spaced Repetition App
 
-> Local-first spaced repetition studio built with Next.js, Tailwind CSS, and Zustand to help learners plan, review, and track subjects without a backend.
-
-<!-- BADGES -->
-[![CI Status](<BADGE_CI_URL>)](#)
-[![Release](<BADGE_RELEASE_URL>)](#)
-[![License](<BADGE_LICENSE_URL>)](#)
+> Local-first spaced repetition studio built with Next.js, Tailwind CSS, and Zustand to help learners plan, review, and track subjects.
 
 ## Table of Contents
 - [Overview](#overview)
@@ -56,32 +51,36 @@ Spaced Repetition App ships as an offline-first Next.js 14 experience. The navig
   - `npm run test:visual` for Playwright UI coverage (headless smoke of dashboard & timeline).
 
 ## Screenshots & Visuals
+### Today
+Shows subjects with least retention, so user can focus on these first.
+<img width="1406" height="904" alt="image" src="https://github.com/user-attachments/assets/c5d88d47-8cf5-4544-8b33-705c2a445cfb" />
+
+
 ### Dashboard Status Filters
 A condensed analytics hub showing due counts, risk badges, and compact calendar heatmaps for the next month.
+<img width="1389" height="565" alt="image" src="https://github.com/user-attachments/assets/6d9ee664-1b76-45f3-9b32-20478848ea01" />
 
-<!-- IMAGE: DASHBOARD_STATUS | dashboard_status.png | alt="Dashboard view with status filters, streak counter, and upcoming review list" | caption="Stay ahead of due and overdue topics from the dashboard filters." | size="1440x900" -->
 
 ### Timeline Analytics
 Zoomable forgetting curves with per-topic overlays, fullscreen subject grids, and export controls.
+<img width="1352" height="1079" alt="image" src="https://github.com/user-attachments/assets/3f4a118f-e2ec-433d-ba61-5b515fbc03c5" />
 
-<!-- IMAGE: TIMELINE_CURVES | timeline_curves.png | alt="Timeline panel displaying retention curves and subject focus rail" | caption="Visualise upcoming intervals and compare retention trajectories per subject." | size="1600x900" -->
+<img width="1894" height="853" alt="image" src="https://github.com/user-attachments/assets/6b2edf0d-6fd8-4ed4-8b76-e9f202d02fe7" />
+<img width="1317" height="556" alt="image" src="https://github.com/user-attachments/assets/e1ca3dbb-978d-48c8-84c9-e8c2a9277054" />
+
+
 
 ### Calendar Planner
 Subject-aware monthly planner with daily sheets, quick revise, and exam markers.
+<img width="1337" height="824" alt="image" src="https://github.com/user-attachments/assets/6709732f-5f77-4882-8675-61c117d1fbd9" />
 
-<!-- IMAGE: CALENDAR_PLAN | calendar_plan.png | alt="Calendar page highlighting subject dots and daily revision sheet" | caption="Map due reviews on the calendar and drill into each day’s workload." | size="1440x900" -->
 
 ### Subjects & History
 Manage subject branding, countdowns, and retroactive history edits with merge conflict warnings.
 
-<!-- IMAGE: SUBJECTS_MANAGEMENT | subjects_management.png | alt="Subjects admin page showing exam urgency chips and topic drawers" | caption="Organise subjects, icons, colors, and exam milestones in one place." | size="1440x900" -->
+<img width="1393" height="889" alt="image" src="https://github.com/user-attachments/assets/d310898e-66d8-40f4-8d55-110375767e40" />
+<img width="719" height="743" alt="image" src="https://github.com/user-attachments/assets/17878f64-e33c-4f45-818d-f39e46357456" />
 
-<!-- IMAGE: HISTORY_EDITOR_MODAL | history_editor_modal.png | alt="History editor modal with chronological review entries and quality selectors" | caption="Backfill review history and replay the forgetting model safely." | size="1200x800" -->
-
-### Personalisation
-Tune notifications, adaptive parameters, and surface overlays for better readability.
-
-<!-- IMAGE: SETTINGS_RETENTION | settings_retention.png | alt="Settings page with profile controls and adaptive review trigger slider" | caption="Dial in adaptive review thresholds and appearance preferences." | size="1200x900" -->
 
 ## Architecture / Design Overview
 - **Framework**: Next.js 14 App Router with a persistent layout (`src/app/layout.tsx`) that injects global theme tokens (`src/styles/theme.css`, `src/styles/globals.css`), the navigation bar, and toast provider.
