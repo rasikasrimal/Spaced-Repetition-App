@@ -434,14 +434,15 @@ graph TD
 
 ```mermaid
 flowchart LR
-  Search[/Search input<br/>sessionStorage key `dashboard-topic-search`/] -- debounce 150ms --> Filter[Apply text filter]
+  Search[/Search input<br>sessionStorage key dashboard-topic-search/] -- debounce 150ms --> Filter[Apply text filter]
   Filter --> Persist{Persist UI state}
-  Status[Status chips<br/>sessionStorage key `dashboard-status-filter`] --> Persist
-  Subjects[Subjects menu<br/>localStorage key `dashboard-subject-filter`] --> Persist
-  Sort[Sort popover<br/>sessionStorage key `dashboard-topic-sort`] --> Persist
-  Persist --> TopicList[Topic table rows<br/>Topic • Subject • Next review • Status • Actions]
-  TopicList --> Summary[Results summary<br/>"Showing n of m topics"]
+  Status[Status chips<br>sessionStorage key dashboard-status-filter] --> Persist
+  Subjects[Subjects menu<br>localStorage key dashboard-subject-filter] --> Persist
+  Sort[Sort popover<br>sessionStorage key dashboard-topic-sort] --> Persist
+  Persist --> TopicList[Topic table rows<br>Topic • Subject • Next review • Status • Actions]
+  TopicList --> Summary[Results summary<br>Showing n of m topics]
   Summary --> ClearFilters[Clear filters pill]
+
 ```
 
 ### Calendar legend & day sheet
