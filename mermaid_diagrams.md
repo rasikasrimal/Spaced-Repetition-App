@@ -54,21 +54,53 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-  TopicsStore[Zustand Topics Store]
-  PrefStore[Timeline Preferences]
-  ProfileStore[Profile Store]
-  TopicsStore --> Mapper[buildTimelineSeries()]
-  PrefStore --> Mapper
-  ProfileStore --> Mapper
-  Mapper --> Chart[TimelineChart (Recharts + D3)]
-  Chart --> Tooltip
-  Chart --> Exporter
-  Chart --> MiniTables[Subject Revision Tables]
+  TS["Zustand Topics Store"]
+  PF["Timeline Preferences"]
+  PR["Profile Store"]
+  M["buildTimelineSeries()"]
+  C["TimelineChart (Recharts + D3)"]
+  TT["Tooltip"]
+  EX["Exporter"]
+  MT["Subject Revision Tables"]
+
+  TS --> M
+  PF --> M
+  PR --> M
+
+  M --> C
+  C --> TT
+  C --> EX
+  C --> MT
+```
+
+### Diagram 1
+
+*Description*: Mermaid diagram extracted from SpacedRepetitionApp_Documentation.md, diagram #2.
+
+```mermaid
+flowchart LR
+  TS["Zustand Topics Store"]
+  PF["Timeline Preferences"]
+  PR["Profile Store"]
+  M["buildTimelineSeries()"]
+  C["TimelineChart (Recharts + D3)"]
+  TT["Tooltip"]
+  EX["Exporter"]
+  MT["Subject Revision Tables"]
+
+  TS --> M
+  PF --> M
+  PR --> M
+
+  M --> C
+  C --> TT
+  C --> EX
+  C --> MT
 ```
 
 ### System Architecture
 
-*Description*: Mermaid diagram extracted from SpacedRepetitionApp_Documentation.md, diagram #2.
+*Description*: Mermaid diagram extracted from SpacedRepetitionApp_Documentation.md, diagram #3.
 
 ```mermaid
 flowchart LR
@@ -86,7 +118,7 @@ flowchart LR
 
 ### Review Scheduling Data Flow
 
-*Description*: Mermaid diagram extracted from SpacedRepetitionApp_Documentation.md, diagram #3.
+*Description*: Mermaid diagram extracted from SpacedRepetitionApp_Documentation.md, diagram #4.
 
 ```mermaid
 digraph G {
@@ -97,7 +129,7 @@ digraph G {
 
 ### Navigation Sitemap
 
-*Description*: Mermaid diagram extracted from SpacedRepetitionApp_Documentation.md, diagram #4.
+*Description*: Mermaid diagram extracted from SpacedRepetitionApp_Documentation.md, diagram #5.
 
 ```mermaid
 flowchart TB
@@ -117,7 +149,7 @@ flowchart TB
 
 ### Example UI Wireframe Layout
 
-*Description*: Mermaid diagram extracted from SpacedRepetitionApp_Documentation.md, diagram #5.
+*Description*: Mermaid diagram extracted from SpacedRepetitionApp_Documentation.md, diagram #6.
 
 ```mermaid
 graph TD

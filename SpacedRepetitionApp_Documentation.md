@@ -121,16 +121,23 @@ function scheduleNextReview(topic: Topic, quality: "easy" | "normal" | "hard", t
 
 ```mermaid
 flowchart LR
-  TopicsStore[Zustand Topics Store]
-  PrefStore[Timeline Preferences]
-  ProfileStore[Profile Store]
-  TopicsStore --> Mapper[buildTimelineSeries()]
-  PrefStore --> Mapper
-  ProfileStore --> Mapper
-  Mapper --> Chart[TimelineChart (Recharts + D3)]
-  Chart --> Tooltip
-  Chart --> Exporter
-  Chart --> MiniTables[Subject Revision Tables]
+  TS["Zustand Topics Store"]
+  PF["Timeline Preferences"]
+  PR["Profile Store"]
+  M["buildTimelineSeries()"]
+  C["TimelineChart (Recharts + D3)"]
+  TT["Tooltip"]
+  EX["Exporter"]
+  MT["Subject Revision Tables"]
+
+  TS --> M
+  PF --> M
+  PR --> M
+
+  M --> C
+  C --> TT
+  C --> EX
+  C --> MT
 ```
 
 ## 7. Subjects Module
@@ -217,6 +224,28 @@ flowchart LR
 - Integrations with NotebookLM, Anki, and calendar providers for data import/export.
 
 ## 12. Diagram References
+### Diagram 1
+```mermaid
+flowchart LR
+  TS["Zustand Topics Store"]
+  PF["Timeline Preferences"]
+  PR["Profile Store"]
+  M["buildTimelineSeries()"]
+  C["TimelineChart (Recharts + D3)"]
+  TT["Tooltip"]
+  EX["Exporter"]
+  MT["Subject Revision Tables"]
+
+  TS --> M
+  PF --> M
+  PR --> M
+
+  M --> C
+  C --> TT
+  C --> EX
+  C --> MT
+```
+
 ### System Architecture
 ```mermaid
 flowchart LR
