@@ -5,14 +5,13 @@ This document aggregates all Mermaid diagrams found in the documentation. Each d
 
 ---
 
-
-## Source: README.md
+## Source: `README.md`
 
 ### System Context
 
 *Description*: Mermaid diagram extracted from README.md, diagram #1.
 
-`mermaid
+```mermaid
 flowchart LR
   User((Learner)) -->|HTTP| App[Next.js Runtime]
   App -->|Render| UI[React Components]
@@ -24,13 +23,13 @@ flowchart LR
     Stores
     Storage
   end
-`
+```
 
 ### Review Flow
 
 *Description*: Mermaid diagram extracted from README.md, diagram #2.
 
-`mermaid
+```mermaid
 sequenceDiagram
   participant L as Learner
   participant T as Today Queue
@@ -42,19 +41,18 @@ sequenceDiagram
   S-->>S: Update stability & next review
   S-->>V: Broadcast updated topics
   V-->>L: Refresh dashboard, timeline, calendar
-`
+```
 
 
 ---
 
-
-## Source: SpacedRepetitionApp_Documentation.md
+## Source: `SpacedRepetitionApp_Documentation.md`
 
 ### Diagram 1
 
 *Description*: Mermaid diagram extracted from SpacedRepetitionApp_Documentation.md, diagram #1.
 
-`mermaid
+```mermaid
 flowchart LR
   TopicsStore[Zustand Topics Store]
   PrefStore[Timeline Preferences]
@@ -66,13 +64,13 @@ flowchart LR
   Chart --> Tooltip
   Chart --> Exporter
   Chart --> MiniTables[Subject Revision Tables]
-`
+```
 
 ### System Architecture
 
 *Description*: Mermaid diagram extracted from SpacedRepetitionApp_Documentation.md, diagram #2.
 
-`mermaid
+```mermaid
 flowchart LR
   subgraph Client
     UI[Next.js + React UI]
@@ -84,24 +82,24 @@ flowchart LR
   State --> Persistence
   State --> Charts
   Charts --> UI
-`
+```
 
 ### Review Scheduling Data Flow
 
 *Description*: Mermaid diagram extracted from SpacedRepetitionApp_Documentation.md, diagram #3.
 
-`mermaid
+```mermaid
 digraph G {
   rankdir=LR;
   TopicEvent["Review Event"] -> Scheduler["updateStability & computeInterval"] -> Queue["Update nextReview"] -> Stores["Persist store snapshot"] -> UI["Refresh Today/Dashboard/Timeline"];
 }
-`
+```
 
 ### Navigation Sitemap
 
 *Description*: Mermaid diagram extracted from SpacedRepetitionApp_Documentation.md, diagram #4.
 
-`mermaid
+```mermaid
 flowchart TB
   Today --> TodayQueue[Review Queue]
   Today --> TodayHistory[Recent Actions]
@@ -115,13 +113,13 @@ flowchart TB
   Explore --> ExplorePlans[Study Plans]
   Explore --> ExploreFlashcards[Flashcards]
   Explore --> ExploreTips[Study Tips]
-`
+```
 
 ### Example UI Wireframe Layout
 
 *Description*: Mermaid diagram extracted from SpacedRepetitionApp_Documentation.md, diagram #5.
 
-`mermaid
+```mermaid
 graph TD
   A[Header: Nav Tabs + Theme Toggle]
   A --> B[Today Content]
@@ -133,19 +131,18 @@ graph TD
   A --> H[Timeline Content]
   H --> I[Interactive Chart]
   H --> J[Subject Filter Rail]
-`
+```
 
 
 ---
 
-
-## Source: docs/core/ALGORITHMS_FORGETTING_CURVE.md
+## Source: `docs/core/ALGORITHMS_FORGETTING_CURVE.md`
 
 ### Diagram 1
 
 *Description*: Mermaid diagram extracted from docs/core/ALGORITHMS_FORGETTING_CURVE.md, diagram #1.
 
-`mermaid
+```mermaid
 flowchart TD
   A[Review completed] --> B{Quality?}
   B -- 0 --> C[Apply lapse penalty]
@@ -156,13 +153,13 @@ flowchart TD
   E --> F
   F --> G[Compute interval = -s * ln(T)]
   G --> H[Schedule next review]
-`
+```
 
 ### History replay
 
 *Description*: Mermaid diagram extracted from docs/core/ALGORITHMS_FORGETTING_CURVE.md, diagram #2.
 
-`mermaid
+```mermaid
 sequenceDiagram
   participant H as History Editor
   participant M as Memory Model
@@ -171,19 +168,18 @@ sequenceDiagram
   M-->>M: Update stability & retrievability
   M->>S: Provide next interval
   S-->>H: Persist nextReviewAt
-`
+```
 
 
 ---
 
-
-## Source: docs/forgetting-curve.md
+## Source: `docs/forgetting-curve.md`
 
 ### Diagram 1
 
 *Description*: Mermaid diagram extracted from docs/forgetting-curve.md, diagram #1.
 
-`mermaid
+```mermaid
 flowchart TD
   A[After review -> update stability S] --> B[Compute Δ = -S ln(R*)]
   B --> C{Exam date set?}
@@ -192,13 +188,13 @@ flowchart TD
   D --> F[Load smoothing (shift ±1–2 days if heavy)]
   E --> F[Load smoothing (shift ±1–2 days if heavy)]
   F --> G[Persist next_review_at, redraw timeline]
-`
+```
 
 ### Diagram 2
 
 *Description*: Mermaid diagram extracted from docs/forgetting-curve.md, diagram #2.
 
-`mermaid
+```mermaid
 sequenceDiagram
   participant U as User
   participant T as Topic
@@ -211,24 +207,24 @@ sequenceDiagram
   T->>M: Update S -> S1
   M-->>T: Next interval Δ1 = -S1*ln(R*)
   Note over T: Draw stitch at t1, then R1(t)=exp(-t/S1) for t≥t1
-`
+```
 
 ### Interval growth sanity
 
 *Description*: Mermaid diagram extracted from docs/forgetting-curve.md, diagram #3.
 
-`mermaid
+```mermaid
 graph LR
   I0[Interval t₁] --> I1[Interval t₂]
   I1 --> I2[Interval t₃]
   note right of I2: Correct recalls ⇒ S↑ ⇒ Δ↑ ⇒ t₂ > t₁ > t₀ on average
-`
+```
 
 ### Daily state machine
 
 *Description*: Mermaid diagram extracted from docs/forgetting-curve.md, diagram #4.
 
-`mermaid
+```mermaid
 stateDiagram-v2
   [*] --> AvailableToday
   AvailableToday --> Completed: Revise (once per local day)
@@ -236,19 +232,18 @@ stateDiagram-v2
   AvailableToday --> Skipped: Auto-skip at local midnight
   Completed --> [*]
   Skipped --> [*]
-`
+```
 
 
 ---
 
-
-## Source: docs/core/ARCHITECTURE.md
+## Source: `docs/core/ARCHITECTURE.md`
 
 ### System context
 
 *Description*: Mermaid diagram extracted from docs/core/ARCHITECTURE.md, diagram #1.
 
-`mermaid
+```mermaid
 flowchart LR
   User((Learner)) -->|HTTP| App[Next.js runtime]
   App -->|React tree| UI[Components]
@@ -260,13 +255,13 @@ flowchart LR
     Stores
     LocalStorage
   end
-`
+```
 
 ### Page shell
 
 *Description*: Mermaid diagram extracted from docs/core/ARCHITECTURE.md, diagram #2.
 
-`mermaid
+```mermaid
 flowchart LR
   Layout[app/layout.tsx]
   Layout --> Header
@@ -275,13 +270,13 @@ flowchart LR
   Providers --> ThemeProvider
   Providers --> StoreHydrator
   Navigation -->|Tab change| Page((Page segment))
-`
+```
 
 ### Interaction loop
 
 *Description*: Mermaid diagram extracted from docs/core/ARCHITECTURE.md, diagram #3.
 
-`mermaid
+```mermaid
 sequenceDiagram
   participant U as Learner
   participant T as Today Tab
@@ -296,19 +291,18 @@ sequenceDiagram
   S-->>DB: Emit store update
   TL-->>U: Refresh curve & badges
   DB-->>U: Refresh streak + due counts
-`
+```
 
 
 ---
 
-
-## Source: docs/core/DATA_MODEL.md
+## Source: `docs/core/DATA_MODEL.md`
 
 ### Entities
 
 *Description*: Mermaid diagram extracted from docs/core/DATA_MODEL.md, diagram #1.
 
-`mermaid
+```mermaid
 classDiagram
   class Subject {
     +string id
@@ -362,69 +356,79 @@ classDiagram
   Subject "1" --> "*" Topic : assigns
   Topic "1" --> "*" TopicEvent : records
   Subject "1" --> "*" SubjectSummary : aggregates
-`
+```
 
 
 ---
 
-
-## Source: docs/ui/NAVIGATION.md
+## Source: `docs/ui/NAVIGATION.md`
 
 ### Header layout
 
 *Description*: Mermaid diagram extracted from docs/ui/NAVIGATION.md, diagram #1.
 
-`mermaid
+```mermaid
 graph LR
   Brand[Logo + wordmark] --- Tabs[Desktop nav]
   Tabs --- CTA["Study Today" button]
   CTA --- Theme[Theme toggle]
   Theme --- Profile[Profile menu]
   Tabs -.-> MobileNav
-`
+```
 
 
 ---
 
-
-## Source: docs/ui/UI_STYLE_AUDIT.md
+## Source: `docs/ui/UI_STYLE_AUDIT.md`
 
 ### Layout Shell Overview
 
 *Description*: Mermaid diagram extracted from docs/ui/UI_STYLE_AUDIT.md, diagram #1.
 
-`mermaid
+```mermaid
 graph TD
   A[Top navigation shell<br/>max width 90rem] --> B[Responsive main container<br/>px-4 → px-10]
   B --> C[Personalized review plan header]
   B --> D[Topics toolbar • Add topic • filters • search]
   D --> E[Topics table\nTopic • Subject • Next review • Status • Actions]
   B --> F[Progress today band • full width]
-`
+```
 
 ### Dashboard toolbar interactions
 
 *Description*: Mermaid diagram extracted from docs/ui/UI_STYLE_AUDIT.md, diagram #2.
 
-`mermaid
+```mermaid
 flowchart LR
-  Search[/Search input<br/>sessionStorage key 
-`
+  Search[/Search input<br/>sessionStorage key `dashboard-topic-search`/] -- debounce 150ms --> Filter[Apply text filter]
+  Filter --> Persist{Persist UI state}
+  Status[Status chips<br/>sessionStorage key `dashboard-status-filter`] --> Persist
+  Subjects[Subjects menu<br/>localStorage key `dashboard-subject-filter`] --> Persist
+  Sort[Sort popover<br/>sessionStorage key `dashboard-topic-sort`] --> Persist
+  Persist --> TopicList[Topic table rows<br/>Topic • Subject • Next review • Status • Actions]
+  TopicList --> Summary[Results summary<br/>"Showing n of m topics"]
+  Summary --> ClearFilters[Clear filters pill]
+```
 
 ### Calendar legend & day sheet
 
 *Description*: Mermaid diagram extracted from docs/ui/UI_STYLE_AUDIT.md, diagram #3.
 
-`mermaid
+```mermaid
 flowchart LR
-  StoredFilter[Subjects dropdown<br/>localStorage key 
-`
+  StoredFilter[Subjects dropdown<br/>localStorage key `dashboard-subject-filter`] --> CalendarGrid[Month grid<br/>subject-colored dots]
+  StoredFilter --> DaySheet[Day sheet<br/>grouped by subject]
+  ExamDates[Subject exam dates] --> CalendarGrid
+  CalendarGrid --> Overflow[+N overflow badge<br/>tooltip lists all subjects]
+  CalendarGrid --> Legend[Inline legend chips]
+  DaySheet --> ReviseGate[Revise today only<br/>locks after local midnight]
+```
 
 ### Timeline zoom, pan, and export
 
 *Description*: Mermaid diagram extracted from docs/ui/UI_STYLE_AUDIT.md, diagram #4.
 
-`mermaid
+```mermaid
 flowchart LR
   ZoomControls[Zoom buttons ±<br/>scroll / drag interactions] --> Domain[Active timeline domain]
   ResetButton[Reset button<br/>double-click canvas] --> Domain
@@ -432,19 +436,18 @@ flowchart LR
   Domain --> ExamMarkers[Exam marker toggle<br/>dotted subject lines]
   TimelineChart --> Exports[Export SVG/PNG<br/>cloned current viewport]
   TimelineChart --> Screenreaders[SR hints<br/>pan & zoom instructions]
-`
+```
 
 
 ---
 
-
-## Source: docs/core/STATE_MANAGEMENT.md
+## Source: `docs/core/STATE_MANAGEMENT.md`
 
 ### Event timeline
 
 *Description*: Mermaid diagram extracted from docs/core/STATE_MANAGEMENT.md, diagram #1.
 
-`mermaid
+```mermaid
 sequenceDiagram
   participant C as Component
   participant A as Action
@@ -457,19 +460,18 @@ sequenceDiagram
   P->>L: JSON.stringify(state)
   P-->>S: notify subscribers
   S-->>C: rerender slice
-`
+```
 
 
 ---
 
-
-## Source: docs/core/THESIS.md
+## Source: `docs/core/THESIS.md`
 
 ### 3.1 Overview
 
 *Description*: Mermaid diagram extracted from docs/core/THESIS.md, diagram #1.
 
-`mermaid
+```mermaid
 %% Figure 3.1: UML component diagram
 graph TD
   subgraph ClientApp
@@ -496,13 +498,13 @@ graph TD
   Store --> Persistence
   Exporter --> Store
   Dashboard --> ReviewEngine
-`
+```
 
 ### 3.2 Data Flow
 
 *Description*: Mermaid diagram extracted from docs/core/THESIS.md, diagram #2.
 
-`mermaid
+```mermaid
 %% Figure 3.2: Data flow diagram
 graph LR
   User[User Actions]
@@ -513,13 +515,13 @@ graph LR
   IndexedDB[(IndexedDB/Filesystem)]
   User --> UI --> Actions --> Store --> Serializer --> IndexedDB
   IndexedDB --> Serializer --> Store
-`
+```
 
 ### 3.3 Review Scheduling Workflow
 
 *Description*: Mermaid diagram extracted from docs/core/THESIS.md, diagram #3.
 
-`mermaid
+```mermaid
 %% Figure 3.3: Sequence diagram for scheduling
 sequenceDiagram
   participant U as User
@@ -534,13 +536,13 @@ sequenceDiagram
   RS->>ST: Write updated schedule
   ST->>PR: Persist snapshot
   TP->>U: Render updated timeline
-`
+```
 
 ### 3.4 Timeline Interaction States
 
 *Description*: Mermaid diagram extracted from docs/core/THESIS.md, diagram #4.
 
-`mermaid
+```mermaid
 %% Figure 3.4: Zoom state machine
 stateDiagram-v2
   [*] --> Idle
@@ -552,13 +554,13 @@ stateDiagram-v2
   KeyboardZoom --> Zoomed
   Zoomed --> Inspecting : focus event on marker
   Inspecting --> Zoomed : blur event
-`
+```
 
 ### 3.5 Timeline Intelligence
 
 *Description*: Mermaid diagram extracted from docs/core/THESIS.md, diagram #5.
 
-`mermaid
+```mermaid
 graph LR
     title["Retention Projection with Exam Markers"]
 
@@ -572,19 +574,18 @@ graph LR
     A49["Day 49: Retention 0.33"]
 
     A0 --> A7 --> A14 --> A21 --> A28 --> A35 --> A42 --> A49
-`
+```
 
 
 ---
 
-
-## Source: docs/core/TIMELINE.md
+## Source: `docs/core/TIMELINE.md`
 
 ### Render pipeline
 
 *Description*: Mermaid diagram extracted from docs/core/TIMELINE.md, diagram #1.
 
-`mermaid
+```mermaid
 flowchart LR
   Store[Topic store] --> Mapper[buildTimelineSeries]
   Preferences --> Mapper
@@ -593,4 +594,4 @@ flowchart LR
   Chart --> Tooltip
   Chart --> MiniTables[Subject revision tables]
   Chart --> Exporter
-`
+```
