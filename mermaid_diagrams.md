@@ -175,16 +175,14 @@ graph TD
 *Description*: Mermaid diagram extracted from docs/core/ALGORITHMS_FORGETTING_CURVE.md, diagram #1.
 
 ```mermaid
-flowchart TD
-  A[Review completed] --> B{Quality?}
-  B -- 0 --> C[Apply lapse penalty]
-  B -- 0.5 --> D[Partial success factors]
-  B -- 1 --> E[Full success factors]
-  C --> F[Clamp stability]
-  D --> F
-  E --> F
-  F --> G[Compute interval = -s * ln(T)]
-  G --> H[Schedule next review]
+flowchart LR
+  TopicEvent["Review Event"]
+  Scheduler["updateStability & computeInterval"]
+  Queue["Update nextReview"]
+  Stores["Persist store snapshot"]
+  UI["Refresh Today/Dashboard/Timeline"]
+
+  TopicEvent --> Scheduler --> Queue --> Stores --> UI
 ```
 
 ### History replay

@@ -21,16 +21,14 @@ Learners choose a retention trigger **T** between 30% and 80%. Each time a topic
 `computeIntervalDays` ensures the interval never collapses below 15 minutes (0.01 days) even for unstable topics.
 
 ```mermaid
-flowchart TD
-  A[Review completed] --> B{Quality?}
-  B -- 0 --> C[Apply lapse penalty]
-  B -- 0.5 --> D[Partial success factors]
-  B -- 1 --> E[Full success factors]
-  C --> F[Clamp stability]
-  D --> F
-  E --> F
-  F --> G[Compute interval = -s * ln(T)]
-  G --> H[Schedule next review]
+flowchart LR
+  TopicEvent["Review Event"]
+  Scheduler["updateStability & computeInterval"]
+  Queue["Update nextReview"]
+  Stores["Persist store snapshot"]
+  UI["Refresh Today/Dashboard/Timeline"]
+
+  TopicEvent --> Scheduler --> Queue --> Stores --> UI
 ```
 
 ## Stability updates
