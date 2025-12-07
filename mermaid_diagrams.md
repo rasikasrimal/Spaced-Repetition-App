@@ -121,10 +121,14 @@ flowchart LR
 *Description*: Mermaid diagram extracted from SpacedRepetitionApp_Documentation.md, diagram #4.
 
 ```mermaid
-digraph G {
-  rankdir=LR;
-  TopicEvent["Review Event"] -> Scheduler["updateStability & computeInterval"] -> Queue["Update nextReview"] -> Stores["Persist store snapshot"] -> UI["Refresh Today/Dashboard/Timeline"];
-}
+flowchart LR
+  TopicEvent["Review Event"]
+  Scheduler["updateStability & computeInterval"]
+  Queue["Update nextReview"]
+  Stores["Persist store snapshot"]
+  UI["Refresh Today/Dashboard/Timeline"]
+
+  TopicEvent --> Scheduler --> Queue --> Stores --> UI
 ```
 
 ### Navigation Sitemap
