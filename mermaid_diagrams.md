@@ -121,10 +121,14 @@ flowchart LR
 *Description*: Mermaid diagram extracted from SpacedRepetitionApp_Documentation.md, diagram #4.
 
 ```mermaid
-digraph G {
-  rankdir=LR;
-  TopicEvent["Review Event"] -> Scheduler["updateStability & computeInterval"] -> Queue["Update nextReview"] -> Stores["Persist store snapshot"] -> UI["Refresh Today/Dashboard/Timeline"];
-}
+flowchart LR
+  TopicEvent["Review Event"]
+  Scheduler["updateStability & computeInterval"]
+  Queue["Update nextReview"]
+  Stores["Persist store snapshot"]
+  UI["Refresh Today/Dashboard/Timeline"]
+
+  TopicEvent --> Scheduler --> Queue --> Stores --> UI
 ```
 
 ### Navigation Sitemap
@@ -211,13 +215,12 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-  A[After review -> update stability S] --> B[Compute Δ = -S ln(R*)]
-  B --> C{Exam date set?}
-  C -- Yes --> D[Clamp next review ≤ exam]
-  C -- No --> E[Use computed interval]
-  D --> F[Load smoothing (shift ±1–2 days if heavy)]
-  E --> F[Load smoothing (shift ±1–2 days if heavy)]
-  F --> G[Persist next_review_at, redraw timeline]
+  A["After review -> update stability S"] -->|"Compute Delta = -S ln(R*)"| C{"Exam date set?"}
+  C -->|Yes| D["Clamp next review <= exam"]
+  C -->|No| E["Use computed interval"]
+  D --> F["Load smoothing (shift +/-1-2 days if heavy)"]
+  E --> F
+  F --> G["Persist next_review_at, redraw timeline"]
 ```
 
 ### Diagram 2
@@ -245,9 +248,15 @@ sequenceDiagram
 
 ```mermaid
 graph LR
-  I0[Interval t₁] --> I1[Interval t₂]
-  I1 --> I2[Interval t₃]
-  note right of I2: Correct recalls ⇒ S↑ ⇒ Δ↑ ⇒ t₂ > t₁ > t₀ on average
+  I0["Interval t1"]
+  I1["Interval t2"]
+  I2["Interval t3"]
+
+  I0 --> I1 --> I2
+
+  NoteI2["Correct recalls ⇒ S↑ ⇒ Δ↑ ⇒ t2 > t1 > t0 on average"]
+  I2 --- NoteI2
+
 ```
 
 ### Daily state machine
@@ -430,14 +439,15 @@ graph TD
 
 ```mermaid
 flowchart LR
-  Search[/Search input<br/>sessionStorage key `dashboard-topic-search`/] -- debounce 150ms --> Filter[Apply text filter]
+  Search[/Search input<br>sessionStorage key dashboard-topic-search/] -- debounce 150ms --> Filter[Apply text filter]
   Filter --> Persist{Persist UI state}
-  Status[Status chips<br/>sessionStorage key `dashboard-status-filter`] --> Persist
-  Subjects[Subjects menu<br/>localStorage key `dashboard-subject-filter`] --> Persist
-  Sort[Sort popover<br/>sessionStorage key `dashboard-topic-sort`] --> Persist
-  Persist --> TopicList[Topic table rows<br/>Topic • Subject • Next review • Status • Actions]
-  TopicList --> Summary[Results summary<br/>"Showing n of m topics"]
+  Status[Status chips<br>sessionStorage key dashboard-status-filter] --> Persist
+  Subjects[Subjects menu<br>localStorage key dashboard-subject-filter] --> Persist
+  Sort[Sort popover<br>sessionStorage key dashboard-topic-sort] --> Persist
+  Persist --> TopicList[Topic table rows<br>Topic • Subject • Next review • Status • Actions]
+  TopicList --> Summary[Results summary<br>Showing n of m topics]
   Summary --> ClearFilters[Clear filters pill]
+
 ```
 
 ### Calendar legend & day sheet
