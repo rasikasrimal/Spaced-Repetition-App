@@ -215,13 +215,12 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-  A[After review -> update stability S] --> B[Compute Δ = -S ln(R*)]
-  B --> C{Exam date set?}
-  C -- Yes --> D[Clamp next review ≤ exam]
-  C -- No --> E[Use computed interval]
-  D --> F[Load smoothing (shift ±1–2 days if heavy)]
-  E --> F[Load smoothing (shift ±1–2 days if heavy)]
-  F --> G[Persist next_review_at, redraw timeline]
+  A["After review -> update stability S"] -->|"Compute Delta = -S ln(R*)"| C{"Exam date set?"}
+  C -->|Yes| D["Clamp next review <= exam"]
+  C -->|No| E["Use computed interval"]
+  D --> F["Load smoothing (shift +/-1-2 days if heavy)"]
+  E --> F
+  F --> G["Persist next_review_at, redraw timeline"]
 ```
 
 ### Diagram 2
@@ -249,9 +248,15 @@ sequenceDiagram
 
 ```mermaid
 graph LR
-  I0[Interval t₁] --> I1[Interval t₂]
-  I1 --> I2[Interval t₃]
-  note right of I2: Correct recalls ⇒ S↑ ⇒ Δ↑ ⇒ t₂ > t₁ > t₀ on average
+  I0["Interval t1"]
+  I1["Interval t2"]
+  I2["Interval t3"]
+
+  I0 --> I1 --> I2
+
+  NoteI2["Correct recalls ⇒ S↑ ⇒ Δ↑ ⇒ t2 > t1 > t0 on average"]
+  I2 --- NoteI2
+
 ```
 
 ### Daily state machine
