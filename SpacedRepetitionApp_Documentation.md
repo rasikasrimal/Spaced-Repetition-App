@@ -268,7 +268,7 @@ flowchart LR
   Scheduler["updateStability & computeInterval"]
   Queue["Update nextReview"]
   Stores["Persist store snapshot"]
-  UI["Refresh Today/Dashboard/Timeline"]
+  UI["Refresh Today / Dashboard / Timeline"]
 
   TopicEvent --> Scheduler --> Queue --> Stores --> UI
 ```
