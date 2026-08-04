@@ -172,3 +172,4 @@ Distributed under the MIT License. See `LICENSE.md` for details.
 - Built on Next.js, React 18, Tailwind CSS, Zustand, Radix UI, Lucide, Framer Motion, and Sonner.
 - The adaptive scheduling model is inspired by SuperMemo-style forgetting curves — see `docs/core/ALGORITHMS_FORGETTING_CURVE.md` for derivations.
 - Thanks to contributors maintaining the documentation set in `docs/` and to the design system guidelines that keep accessibility front and centre.
+- 
